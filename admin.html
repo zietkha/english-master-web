@@ -167,43 +167,79 @@
       </div>
     </div>
 
-    <!-- Card 3: Metrics & Users Management -->
-    <div class="learn-grid" style="margin-bottom: 24px;">
-      <div class="card glass-panel">
-        <div class="card-header">
-          <h2 class="card-title"><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Thống kê Hệ thống</h2>
+    <!-- Metrics Overview Cards -->
+    <div class="features-grid" style="margin: 0 0 24px 0; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Tổng Học Viên</span>
+          <i class="fa-solid fa-users" style="color: var(--primary); font-size: 1.2rem;"></i>
         </div>
-        <div class="features-grid" style="margin: 0; grid-template-columns: 1fr 1fr;">
-          <div class="feature-card glass-panel">
-            <h3 id="statTotalUsers" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--primary);">0</h3>
-            <p style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">Tổng học viên</p>
+        <h3 id="statTotalUsers" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--primary); margin: 0;">0</h3>
+        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Đã đăng ký hệ thống</p>
+      </div>
+
+      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Lượt Tạo Bài Học AI</span>
+          <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-ielts); font-size: 1.2rem;"></i>
+        </div>
+        <h3 id="statAiCalls" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-ielts); margin: 0;">0</h3>
+        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Tự động qua Gemini 2.5</p>
+      </div>
+
+      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Học Viên Đang Khóa</span>
+          <i class="fa-solid fa-user-lock" style="color: var(--danger); font-size: 1.2rem;"></i>
+        </div>
+        <h3 id="statSuspendedUsers" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--danger); margin: 0;">0</h3>
+        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Bị tạm dừng quyền truy cập</p>
+      </div>
+    </div>
+
+    <!-- Card 3: User Management & Credential Recovery (Mục 2.5, 3.2 & 8.4) -->
+    <div class="card glass-panel" style="margin-bottom: 24px;">
+      <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 class="card-title" style="color: var(--primary);">
+            <i class="fa-solid fa-users-gear"></i> Quản Lý Thành Viên & Khôi Phục Mật Khẩu (Mục 3.2)
+          </h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+            Xem danh sách học viên, cấp mật khẩu tạm thời, gửi link đặt lại mật khẩu hoặc khóa tài khoản vi phạm.
+          </p>
+        </div>
+        
+        <div class="row" style="gap: 8px; flex-wrap: wrap;">
+          <div style="position: relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 11px; font-size: 0.8rem; color: var(--text-muted);"></i>
+            <input type="text" id="adminUserSearchInput" class="input-field" placeholder="Tìm tên, email..." style="padding-left: 28px; width: 190px; font-size: 0.82rem;" oninput="handleAdminUserSearch(event)">
           </div>
-          <div class="feature-card glass-panel">
-            <h3 id="statAiCalls" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-ielts);">0</h3>
-            <p style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">Lượt tạo bài học AI</p>
-          </div>
+          <select id="adminUserStatusFilter" class="input-field" style="padding: 6px 12px; font-size: 0.82rem;" onchange="handleAdminUserStatusFilter(event)">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="suspended">Bị tạm khóa</option>
+          </select>
+          <button class="btn-secondary" style="font-size: 0.82rem; padding: 6px 12px;" onclick="loadMetricsAndUsers()">
+            <i class="fa-solid fa-rotate"></i> Làm mới
+          </button>
         </div>
       </div>
 
-      <div class="card glass-panel">
-        <div class="card-header">
-          <h2 class="card-title"><i class="fa-solid fa-users" style="color: var(--primary);"></i> Danh sách Học viên</h2>
-        </div>
-        <div style="overflow-x: auto; max-height: 240px;">
-          <table class="leaderboard-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Họ tên</th>
-                <th>Vai trò</th>
-                <th>Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody id="adminUserTable">
-              <!-- Users list -->
-            </tbody>
-          </table>
-        </div>
+      <div style="overflow-x: auto; max-height: 380px;">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Họ tên & Email</th>
+              <th>Vai trò</th>
+              <th>Trạng thái</th>
+              <th>Hoạt động / Điểm</th>
+              <th style="text-align: right;">Thao tác quản trị</th>
+            </tr>
+          </thead>
+          <tbody id="adminUserTable">
+            <!-- Dynamic users list -->
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -351,6 +387,37 @@
     </div>
 
   </main>
+
+  <!-- Modal: Cấp Mật Khẩu Tạm Thời Thành Công -->
+  <div id="tempPasswordModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; background: rgba(15,23,42,0.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 10000; position: fixed; inset: 0; padding: 20px;">
+    <div class="card glass-panel" style="max-width: 440px; width: 100%; padding: 28px; background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-key"></i> Cấp Mật Khẩu Tạm Thời
+        </h3>
+        <button type="button" class="modal-close-btn" onclick="closeTempPasswordModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 18px;">
+        Mật khẩu tạm thời đã được kích hoạt. Hãy sao chép và gửi trực tiếp cho học viên. Khi đăng nhập, học viên sẽ <strong>bắt buộc phải đặt lại mật khẩu mới</strong>.
+      </p>
+      
+      <div style="background: var(--surface-2); border: 1.5px dashed var(--blue); border-radius: 12px; padding: 14px; margin-bottom: 18px; text-align: center;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;">MẬT KHẨU TẠM THỜI:</div>
+        <div id="tempPasswordDisplay" style="font-family: monospace; font-size: 1.35rem; font-weight: 800; color: var(--blue); letter-spacing: 0.05em; user-select: all;">
+          EKM@2026!7x9q
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="button" id="copyTempPassBtn" class="btn-primary" style="flex: 1;" onclick="handleCopyTempPassword()">
+          <i class="fa-solid fa-copy"></i> Sao chép mật khẩu
+        </button>
+        <button type="button" class="btn-secondary" onclick="closeTempPasswordModal()">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast -->
   <div id="toast" class="toast">

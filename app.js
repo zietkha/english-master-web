@@ -154,6 +154,12 @@ function updateAuthUi() {
     if (navAdmin) navAdmin.style.display = isAdmin ? 'inline-flex' : 'none';
     if (dropdownAdminBtn) dropdownAdminBtn.style.display = isAdmin ? 'flex' : 'none';
 
+    // Force Password Change Check (Section 2.5 & 3.2)
+    if (state.currentUser.forcePasswordChange) {
+      const forceModal = document.getElementById('forcePasswordModal');
+      if (forceModal) forceModal.style.display = 'flex';
+    }
+
   } else {
     if (loginBtn) loginBtn.style.display = 'inline-flex';
     if (userProfileWidget) userProfileWidget.style.display = 'none';
@@ -402,12 +408,24 @@ function initFirebaseAndStorage() {
             const doc = await userDocRef.get();
             if (doc.exists) {
               const d = doc.data();
+              if (d.status === 'suspended') {
+                if (state.auth) await state.auth.signOut();
+                state.currentUser = null;
+                localStorage.removeItem('english_master_current_user');
+                alert('Tài khoản của bạn đã bị tạm khóa bởi Quản trị viên. Vui lòng liên hệ Admin để được hỗ trợ.');
+                window.location.href = 'login.html';
+                return;
+              }
               role = d.role || role;
               xp = d.xp !== undefined ? d.xp : xp;
               streak = d.streak !== undefined ? d.streak : streak;
               badges = d.badges || badges;
               bookmarks = d.bookmarks || bookmarks;
               name = d.name || name;
+              if (d.forcePasswordChange) {
+                const forceModal = document.getElementById('forcePasswordModal');
+                if (forceModal) forceModal.style.display = 'flex';
+              }
             } else {
               await userDocRef.set({
                 name,
@@ -1352,7 +1370,10 @@ function renderVocabSection() {
     <div class="vocab-card">
       <div class="vocab-header">
         <span class="vocab-word">${escapeHtml(v.word)}</span>
-        <button class="audio-btn" onclick="speakWord('${escapeJs(v.word)}')"><i class="fa-solid fa-volume-high"></i></button>
+        <div class="row" style="gap: 6px;">
+          <button class="audio-btn" onclick="speakWord('${escapeJs(v.word)}')" title="Nghe phát âm chuẩn (US)"><i class="fa-solid fa-volume-high"></i></button>
+          <button class="voice-practice-btn" onclick="startVoicePractice('${escapeJs(v.word)}', '${escapeJs(v.meaning || '')}')" title="Luyện phát âm từ này bằng giọng nói"><i class="fa-solid fa-microphone"></i></button>
+        </div>
       </div>
       <div class="vocab-meaning">${escapeHtml(v.meaning)}</div>
     </div>
@@ -1940,5 +1961,212 @@ function updateHashRoute(newHash) {
     history.replaceState(null, '', newHash);
   }
 }
+
+/* ==========================================================================
+   Section 12: Force Password Change Handler (Mục 2.5 & 3.2)
+   ========================================================================== */
+
+async function handleForcePasswordSubmit(e) {
+  e.preventDefault();
+  const newPass = document.getElementById('forceNewPass').value;
+  const confirmPass = document.getElementById('forceConfirmPass').value;
+  const errEl = document.getElementById('forcePassErr');
+  const btn = document.getElementById('forcePassSubmitBtn');
+  const btnText = document.getElementById('forcePassBtnText');
+  if (errEl) errEl.textContent = '';
+
+  if (newPass.length < 6) {
+    if (errEl) errEl.textContent = 'Mật khẩu mới phải có ít nhất 6 ký tự.';
+    return;
+  }
+  if (newPass !== confirmPass) {
+    if (errEl) errEl.textContent = 'Mật khẩu xác nhận không khớp.';
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  if (btnText) btnText.textContent = 'Đang lưu mật khẩu mới...';
+
+  try {
+    if (state.auth && state.auth.currentUser) {
+      await state.auth.currentUser.updatePassword(newPass);
+    }
+    if (state.db && state.currentUser) {
+      await state.db.collection('users').doc(state.currentUser.id).update({
+        forcePasswordChange: false
+      });
+    }
+    state.currentUser.forcePasswordChange = false;
+    saveCurrentUserToStorage();
+    const modal = document.getElementById('forcePasswordModal');
+    if (modal) modal.style.display = 'none';
+    showToast('🎉 Đã thiết lập mật khẩu mới thành công! Chúc bạn học tập vui vẻ.');
+  } catch (err) {
+    console.error('Update password error:', err);
+    if (errEl) errEl.textContent = 'Lỗi cập nhật mật khẩu: ' + (err.message || 'Thử lại sau');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.textContent = 'Lưu Mật Khẩu & Bắt Đầu Học 🚀';
+  }
+}
+
+/* ==========================================================================
+   Section 13: Interactive Speaking Practice Engine (Web Speech API)
+   ========================================================================== */
+
+let currentVoiceTargetWord = '';
+let speechRecognitionInstance = null;
+let isSpeechRecording = false;
+
+function startVoicePractice(word, phonetic) {
+  if (!word) return;
+  currentVoiceTargetWord = word.trim();
+
+  const modal = document.getElementById('speakingPracticeModal');
+  const targetWordEl = document.getElementById('speakingTargetWord');
+  const phoneticEl = document.getElementById('speakingPhonetic');
+  const statusEl = document.getElementById('speakingStatusText');
+  const resultBox = document.getElementById('speakingResultBox');
+  const micIcon = document.getElementById('speakingMicIcon');
+  const recordBtn = document.getElementById('speakingRecordBtn');
+
+  if (targetWordEl) targetWordEl.textContent = word;
+  if (phoneticEl) phoneticEl.textContent = phonetic || '';
+  if (statusEl) statusEl.textContent = 'Nhấn micro và đọc to từ trên';
+  if (resultBox) resultBox.style.display = 'none';
+  if (micIcon) micIcon.className = 'fa-solid fa-microphone';
+  if (recordBtn) recordBtn.style.background = '';
+
+  if (modal) {
+    modal.classList.add('active');
+  }
+}
+
+function closeSpeakingPracticeModal() {
+  const modal = document.getElementById('speakingPracticeModal');
+  if (modal) modal.classList.remove('active');
+  if (speechRecognitionInstance && isSpeechRecording) {
+    try { speechRecognitionInstance.stop(); } catch(e) {}
+  }
+  isSpeechRecording = false;
+}
+
+function toggleSpeechRecording() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('⚠️ Trình duyệt của bạn chưa hỗ trợ Web Speech API. Vui lòng dùng Google Chrome hoặc Microsoft Edge!', 'danger');
+    return;
+  }
+
+  const statusEl = document.getElementById('speakingStatusText');
+  const micIcon = document.getElementById('speakingMicIcon');
+  const recordBtn = document.getElementById('speakingRecordBtn');
+  const resultBox = document.getElementById('speakingResultBox');
+  const recognizedTextEl = document.getElementById('speakingRecognizedText');
+  const scoreBadgeEl = document.getElementById('speakingScoreBadge');
+
+  if (isSpeechRecording) {
+    if (speechRecognitionInstance) {
+      try { speechRecognitionInstance.stop(); } catch(e) {}
+    }
+    isSpeechRecording = false;
+    if (micIcon) micIcon.className = 'fa-solid fa-microphone';
+    if (recordBtn) recordBtn.style.background = '';
+    if (statusEl) statusEl.textContent = 'Đã dừng nghe.';
+    return;
+  }
+
+  speechRecognitionInstance = new SpeechRecognition();
+  speechRecognitionInstance.lang = 'en-US';
+  speechRecognitionInstance.interimResults = false;
+  speechRecognitionInstance.maxAlternatives = 3;
+
+  speechRecognitionInstance.onstart = () => {
+    isSpeechRecording = true;
+    if (micIcon) micIcon.className = 'fa-solid fa-microphone fa-beat-fade';
+    if (recordBtn) recordBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+    if (statusEl) statusEl.textContent = `🎙️ Đang lắng nghe... Hãy phát âm: "${currentVoiceTargetWord}"`;
+    if (resultBox) resultBox.style.display = 'none';
+  };
+
+  speechRecognitionInstance.onresult = (event) => {
+    isSpeechRecording = false;
+    if (micIcon) micIcon.className = 'fa-solid fa-microphone';
+    if (recordBtn) recordBtn.style.background = '';
+
+    const spokenTranscript = event.results[0][0].transcript.trim().toLowerCase();
+    const target = currentVoiceTargetWord.toLowerCase();
+
+    // Calculate pronunciation similarity score
+    const similarity = calculateWordSimilarity(spokenTranscript, target);
+    const percentage = Math.round(similarity * 100);
+
+    if (resultBox) resultBox.style.display = 'block';
+    if (recognizedTextEl) recognizedTextEl.textContent = `"${event.results[0][0].transcript}"`;
+
+    if (percentage >= 80) {
+      scoreBadgeEl.style.background = '#dcfce7';
+      scoreBadgeEl.style.color = '#15803d';
+      scoreBadgeEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Xuất sắc: ${percentage}% (+15 XP)`;
+      if (statusEl) statusEl.textContent = '🎉 Bạn phát âm rất chuẩn!';
+      triggerConfetti();
+      addXp(15);
+    } else {
+      scoreBadgeEl.style.background = '#fef3c7';
+      scoreBadgeEl.style.color = '#b45309';
+      scoreBadgeEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Độ khớp: ${percentage}%`;
+      if (statusEl) statusEl.textContent = 'Hãy thử bấm micro và phát âm lại rõ hơn nhé!';
+    }
+  };
+
+  speechRecognitionInstance.onerror = () => {
+    isSpeechRecording = false;
+    if (micIcon) micIcon.className = 'fa-solid fa-microphone';
+    if (recordBtn) recordBtn.style.background = '';
+    if (statusEl) statusEl.textContent = '❌ Không nhận diện được âm thanh. Vui lòng thử lại!';
+  };
+
+  speechRecognitionInstance.onend = () => {
+    isSpeechRecording = false;
+    if (micIcon) micIcon.className = 'fa-solid fa-microphone';
+    if (recordBtn) recordBtn.style.background = '';
+  };
+
+  try {
+    speechRecognitionInstance.start();
+  } catch(e) {
+    console.warn('Speech recognition start error:', e);
+  }
+}
+
+// Levenshtein similarity algorithm
+function calculateWordSimilarity(a, b) {
+  if (a === b) return 1.0;
+  if (!a || !b) return 0.0;
+  if (a.includes(b) || b.includes(a)) return 0.88;
+
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  const distance = matrix[b.length][a.length];
+  const maxLen = Math.max(a.length, b.length);
+  return Math.max(0, 1 - distance / maxLen);
+}
+
 
 

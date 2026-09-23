@@ -181,13 +181,16 @@ function updateMaintenanceTitleText() {
   }
 }
 
+adminState.allUsers = [];
+adminState.userSearchQuery = '';
+adminState.userStatusFilter = 'all';
+
 async function loadMetricsAndUsers() {
-  let userCount = 4;
   let usersList = [
-    { email: 'admin@gmail.com', name: 'Nguyễn Viết Kha (Chủ Web)', role: 'admin', status: 'active' },
-    { email: 'kiet@gmail.com', name: 'Tuấn Kiệt', role: 'learner', status: 'active' },
-    { email: 'minhanh@gmail.com', name: 'Minh Anh', role: 'learner', status: 'active' },
-    { email: 'chau@gmail.com', name: 'Bảo Châu', role: 'learner', status: 'active' }
+    { id: 'u_admin', uid: 'u_admin', email: 'khasnlh@gmail.com', name: 'Nguyễn Viết Kha (Chủ Web)', role: 'admin', status: 'active', xp: 1200, streak: 12 },
+    { id: 'u_1', uid: 'u_1', email: 'kiet@gmail.com', name: 'Tuấn Kiệt', role: 'learner', status: 'active', xp: 680, streak: 7 },
+    { id: 'u_2', uid: 'u_2', email: 'minhanh@gmail.com', name: 'Minh Anh', role: 'learner', status: 'active', xp: 420, streak: 5 },
+    { id: 'u_3', uid: 'u_3', email: 'chau@gmail.com', name: 'Bảo Châu', role: 'learner', status: 'active', xp: 310, streak: 3 }
   ];
 
   if (db) {
@@ -197,27 +200,262 @@ async function loadMetricsAndUsers() {
         usersList = [];
         snap.forEach(doc => {
           const d = doc.data();
-          usersList.push({ email: d.email || 'N/A', name: d.name || 'Học viên', role: d.role || 'learner', status: 'active' });
+          usersList.push({
+            id: doc.id,
+            uid: doc.id,
+            email: d.email || 'N/A',
+            name: d.name || 'Học viên',
+            role: d.role || 'learner',
+            status: d.status || 'active',
+            xp: d.xp || 0,
+            streak: d.streak || 1,
+            forcePasswordChange: d.forcePasswordChange || false,
+            createdAt: d.createdAt ? new Date(d.createdAt).toLocaleDateString('vi-VN') : 'Mới'
+          });
         });
-        userCount = usersList.length;
       }
-    } catch(e) {}
+    } catch(e) {
+      console.warn('Firestore load users warning:', e);
+    }
   }
 
-  document.getElementById('statTotalUsers').textContent = userCount;
-  document.getElementById('statAiCalls').textContent = adminState.aiUsageCount;
+  adminState.allUsers = usersList;
+  renderAdminUserTable();
+}
 
+function handleAdminUserSearch(e) {
+  adminState.userSearchQuery = (e.target.value || '').trim().toLowerCase();
+  renderAdminUserTable();
+}
+
+function handleAdminUserStatusFilter(e) {
+  adminState.userStatusFilter = e.target.value || 'all';
+  renderAdminUserTable();
+}
+
+function renderAdminUserTable() {
   const tbody = document.getElementById('adminUserTable');
   if (!tbody) return;
 
-  tbody.innerHTML = usersList.map(u => `
-    <tr>
-      <td style="font-size: 0.85rem; font-weight: 600;">${escapeHtml(u.email)}</td>
-      <td style="font-size: 0.85rem;">${escapeHtml(u.name)}</td>
-      <td><span class="mode-badge ${u.role === 'admin' ? 'ielts' : 'tieuhoc'}">${u.role === 'admin' ? 'Quản trị' : 'Học viên'}</span></td>
-      <td><span style="color:var(--success); font-weight:700; font-size:0.82rem;">Hoạt động</span></td>
-    </tr>
-  `).join('');
+  const totalEl = document.getElementById('statTotalUsers');
+  const aiEl = document.getElementById('statAiCalls');
+  const suspendedEl = document.getElementById('statSuspendedUsers');
+
+  if (totalEl) totalEl.textContent = adminState.allUsers.length;
+  if (aiEl) aiEl.textContent = adminState.aiUsageCount;
+  if (suspendedEl) {
+    suspendedEl.textContent = adminState.allUsers.filter(u => u.status === 'suspended').length;
+  }
+
+  const filtered = adminState.allUsers.filter(u => {
+    // 1. Text filter
+    if (adminState.userSearchQuery) {
+      const query = adminState.userSearchQuery;
+      const matchName = (u.name || '').toLowerCase().includes(query);
+      const matchEmail = (u.email || '').toLowerCase().includes(query);
+      if (!matchName && !matchEmail) return false;
+    }
+    // 2. Status filter
+    if (adminState.userStatusFilter !== 'all') {
+      if (adminState.userStatusFilter === 'active' && u.status === 'suspended') return false;
+      if (adminState.userStatusFilter === 'suspended' && u.status !== 'suspended') return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Không tìm thấy học viên nào khớp với bộ lọc.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(u => {
+    let statusBadge = `<span class="mode-badge" style="background:#dcfce7; color:#15803d; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Hoạt động</span>`;
+    if (u.status === 'suspended') {
+      statusBadge = `<span class="mode-badge" style="background:#fee2e2; color:#dc2626; font-weight:700;"><i class="fa-solid fa-lock"></i> Đã khóa</span>`;
+    } else if (u.forcePasswordChange) {
+      statusBadge = `<span class="mode-badge" style="background:#fef3c7; color:#d97706; font-weight:700;"><i class="fa-solid fa-key"></i> Chờ đổi MK</span>`;
+    }
+
+    const isSelf = adminState.authenticatedUser && adminState.authenticatedUser.email === u.email;
+
+    return `
+      <tr>
+        <td>
+          <div style="font-weight: 700; color: var(--text-1); font-size: 0.88rem;">${escapeHtml(u.name)}</div>
+          <div style="font-size: 0.76rem; color: var(--text-muted); font-family: monospace;">${escapeHtml(u.email)}</div>
+        </td>
+        <td>
+          <span class="mode-badge ${u.role === 'admin' ? 'ielts' : 'tieuhoc'}" style="font-size: 0.72rem;">
+            ${u.role === 'admin' ? '🛡️ Quản trị' : '🎓 Học viên'}
+          </span>
+        </td>
+        <td>${statusBadge}</td>
+        <td>
+          <div style="font-size: 0.8rem; font-weight: 600; color: var(--blue);">⚡ ${u.xp || 0} XP</div>
+          <div style="font-size: 0.74rem; color: var(--text-muted);">🔥 Streak ${u.streak || 1} ngày</div>
+        </td>
+        <td style="text-align: right;">
+          <div class="row" style="gap: 5px; justify-content: flex-end; flex-wrap: wrap;">
+            <button class="btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" title="Gửi email link đặt lại mật khẩu" onclick="handleAdminSendResetEmail('${escapeJs(u.email)}')">
+              <i class="fa-solid fa-envelope"></i> Link reset
+            </button>
+            <button class="btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" title="Cấp mật khẩu tạm thời" onclick="handleAdminIssueTempPassword('${escapeJs(u.uid)}', '${escapeJs(u.email)}')">
+              <i class="fa-solid fa-key"></i> Cấp MK tạm
+            </button>
+            ${!isSelf ? `
+              <button class="btn-secondary" style="padding: 4px 8px; font-size: 0.75rem; color: ${u.status === 'suspended' ? 'var(--success)' : 'var(--danger)'};" title="${u.status === 'suspended' ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}" onclick="handleAdminToggleUserStatus('${escapeJs(u.uid)}', '${u.status || 'active'}')">
+                <i class="fa-solid ${u.status === 'suspended' ? 'fa-lock-open' : 'fa-lock'}"></i> ${u.status === 'suspended' ? 'Mở khóa' : 'Khóa'}
+              </button>
+            ` : ''}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// 1. Send Password Reset Email (Admin-assisted)
+async function handleAdminSendResetEmail(email) {
+  if (!email || email === 'N/A') {
+    showToast('⚠️ Học viên chưa có địa chỉ email hợp lệ!', 'danger');
+    return;
+  }
+
+  if (!confirm(`Bạn có chắc muốn gửi email liên kết đặt lại mật khẩu tới "${email}"?`)) return;
+
+  try {
+    if (auth) {
+      await auth.sendPasswordResetEmail(email);
+    }
+    showToast(`📧 Đã gửi email đặt lại mật khẩu thành công tới ${email}!`);
+  } catch (err) {
+    console.warn('Send password reset error:', err);
+    showToast('❌ Lỗi khi gửi email: ' + (err.message || 'Thử lại sau'), 'danger');
+  }
+}
+
+// 2. Issue Temporary Password (Admin-assisted with forcePasswordChange)
+let currentGeneratedTempPass = '';
+
+async function handleAdminIssueTempPassword(uid, email) {
+  if (!uid) {
+    showToast('⚠️ Không tìm thấy định danh học viên!', 'danger');
+    return;
+  }
+
+  if (!confirm(`Cấp mật khẩu tạm thời cho học viên "${email}"?\nHọc viên sẽ đăng nhập bằng mật khẩu này và bắt buộc đổi mật khẩu mới.`)) return;
+
+  // Generate safe temporary password
+  const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const tempPass = `EKM@2026!${randomChars}`;
+  currentGeneratedTempPass = tempPass;
+
+  try {
+    // Call serverless manage-user endpoint if online
+    try {
+      await fetch('/api/admin/manage-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'issue-temp-password',
+          targetUid: uid,
+          email: email,
+          temporaryPassword: tempPass,
+          adminEmail: adminState.authenticatedUser?.email || 'khasnlh@gmail.com'
+        })
+      });
+    } catch(apiErr) {
+      console.warn('API manage-user note, applying direct Firestore update:', apiErr);
+    }
+
+    // Direct Firestore update for instant persistence
+    if (db) {
+      await db.collection('users').doc(uid).set({
+        forcePasswordChange: true,
+        tempPasswordIssuedAt: Date.now()
+      }, { merge: true });
+    }
+
+    // Update in-memory state
+    const user = adminState.allUsers.find(u => u.uid === uid);
+    if (user) user.forcePasswordChange = true;
+    renderAdminUserTable();
+
+    // Show result modal with copy button
+    const displayEl = document.getElementById('tempPasswordDisplay');
+    if (displayEl) displayEl.textContent = tempPass;
+    const modal = document.getElementById('tempPasswordModal');
+    if (modal) modal.style.display = 'flex';
+
+    showToast(`🔑 Đã cấp mật khẩu tạm thành công cho ${email}!`);
+  } catch (err) {
+    console.error('Issue temp password error:', err);
+    showToast('❌ Lỗi cấp mật khẩu tạm: ' + err.message, 'danger');
+  }
+}
+
+function handleCopyTempPassword() {
+  if (!currentGeneratedTempPass) return;
+  navigator.clipboard.writeText(currentGeneratedTempPass).then(() => {
+    const btn = document.getElementById('copyTempPassBtn');
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Đã sao chép!';
+      setTimeout(() => {
+        btn.innerHTML = '<i class="fa-solid fa-copy"></i> Sao chép mật khẩu';
+      }, 2000);
+    }
+    showToast('📋 Đã sao chép mật khẩu tạm vào bộ nhớ tạm.');
+  }).catch(() => {
+    showToast('⚠️ Hãy bôi đen và sao chép thủ công nhé.');
+  });
+}
+
+function closeTempPasswordModal() {
+  const modal = document.getElementById('tempPasswordModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// 3. Toggle User Account Status (Ban / Unban)
+async function handleAdminToggleUserStatus(uid, currentStatus) {
+  const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+  const actionName = newStatus === 'suspended' ? 'KHÓA' : 'MỞ KHÓA';
+
+  if (!confirm(`Bạn có chắc muốn ${actionName} tài khoản học viên này?`)) return;
+
+  try {
+    // Call serverless manage-user endpoint
+    try {
+      await fetch('/api/admin/manage-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle-status',
+          targetUid: uid,
+          newStatus: newStatus,
+          adminEmail: adminState.authenticatedUser?.email || 'khasnlh@gmail.com'
+        })
+      });
+    } catch(apiErr) {
+      console.warn('API toggle status note, applying direct Firestore update:', apiErr);
+    }
+
+    // Direct Firestore update
+    if (db) {
+      await db.collection('users').doc(uid).set({
+        status: newStatus
+      }, { merge: true });
+    }
+
+    // Update in-memory state
+    const user = adminState.allUsers.find(u => u.uid === uid);
+    if (user) user.status = newStatus;
+    renderAdminUserTable();
+
+    showToast(`✅ Đã ${actionName.toLowerCase()} tài khoản học viên thành công.`);
+  } catch (err) {
+    console.error('Toggle status error:', err);
+    showToast('❌ Lỗi cập nhật trạng thái: ' + err.message, 'danger');
+  }
 }
 
 function renderAdminFeedbackInbox() {
