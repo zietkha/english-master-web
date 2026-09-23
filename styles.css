@@ -1211,6 +1211,33 @@ h1, h2, h3, h4, h5 {
   display: flex; align-items: center; justify-content: space-between;
 }
 
+/* ── Pinned Modal Navigation Bar ────────────────────────── */
+.modal-nav-bar {
+  padding: 12px 24px 0 24px;
+  background: var(--glass-white-strong);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.modal-nav-bar .view-tabs {
+  border-bottom: none;
+  padding-bottom: 10px;
+  margin-bottom: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 8px;
+}
+
+.modal-nav-bar .view-tabs::-webkit-scrollbar {
+  display: none;
+}
+
 .modal-body {
   padding: 24px;
   overflow-y: auto;
@@ -2101,10 +2128,21 @@ input:checked + .slider:before   { transform: translateX(28px); }
     padding: 14px 16px;
   }
 
+  .modal-nav-bar {
+    padding: 10px 14px 0 14px;
+  }
+
+  .modal-nav-bar .view-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+  }
+
   .modal-body {
     padding: 16px;
     gap: 16px;
-    max-height: calc(100dvh - 110px);
+    max-height: calc(100dvh - 150px);
   }
 
   /* ── Quiz Section ── */

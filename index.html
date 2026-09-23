@@ -531,7 +531,8 @@
         </div>
       </div>
 
-      <div class="modal-body">
+      <!-- Pinned Lesson Navigation Tabs Bar (Always visible, never scrolled away) -->
+      <div class="modal-nav-bar">
         <div class="view-tabs">
           <button id="viewTabSummary" class="view-tab active" onclick="switchViewTab('summary')">
             <i class="fa-solid fa-align-left"></i> Tóm tắt
@@ -546,7 +547,9 @@
             <i class="fa-solid fa-circle-question"></i> Ôn tập Quiz (<span id="modalQuizCount">0</span>)
           </button>
         </div>
+      </div>
 
+      <div class="modal-body">
         <div id="summarySection">
           <h3 style="font-size: 1.05rem; margin-bottom: 12px; color: var(--primary);">
             <i class="fa-solid fa-lightbulb"></i> Tóm tắt tiếng Việt:
@@ -560,6 +563,14 @@
         </div>
 
         <div id="vocabSection" style="display: none;">
+          <div class="vocab-section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 0.9rem; color: var(--text-2); font-weight: 600;">
+              <i class="fa-solid fa-list-check" style="color: var(--blue);"></i> Danh sách từ vựng trọng tâm trong bài
+            </span>
+            <button class="btn-secondary" style="font-size: 0.82rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;" onclick="switchViewTab('flashcard')">
+              <i class="fa-solid fa-layer-group" style="color: var(--blue);"></i> Luyện qua Flashcards 3D ➔
+            </button>
+          </div>
           <div id="modalVocabGrid" class="vocab-grid"></div>
         </div>
 

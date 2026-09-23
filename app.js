@@ -1340,6 +1340,9 @@ function openLessonModal(id, updateHash = true) {
   const modal = document.getElementById('lessonModal');
   if (modal) modal.classList.add('active');
 
+  const modalBody = document.querySelector('#lessonModal .modal-body');
+  if (modalBody) modalBody.scrollTop = 0;
+
   if (updateHash) {
     updateHashRoute(`#/lesson/${id}`);
   }
@@ -1368,6 +1371,16 @@ function switchViewTab(tab) {
     if (btn) btn.classList.toggle('active', tab === t.toLowerCase());
     if (sec) sec.style.display = tab === t.toLowerCase() ? 'block' : 'none';
   });
+
+  const modalBody = document.querySelector('#lessonModal .modal-body');
+  if (modalBody) modalBody.scrollTop = 0;
+}
+
+function openWordInFlashcard(index) {
+  state.fcIndex = typeof index === 'number' ? index : 0;
+  state.fcFlipped = false;
+  renderFlashcardSection();
+  switchViewTab('flashcard');
 }
 
 function renderSummarySection() {
@@ -1381,13 +1394,14 @@ function renderVocabSection() {
   const grid = document.getElementById('modalVocabGrid');
   const vocab = state.activeLesson.vocab || [];
 
-  grid.innerHTML = vocab.map(v => `
+  grid.innerHTML = vocab.map((v, idx) => `
     <div class="vocab-card">
       <div class="vocab-header">
         <span class="vocab-word">${escapeHtml(v.word)}</span>
         <div class="row" style="gap: 6px;">
           <button class="audio-btn" onclick="speakWord('${escapeJs(v.word)}')" title="Nghe phát âm chuẩn (US)"><i class="fa-solid fa-volume-high"></i></button>
           <button class="voice-practice-btn" onclick="startVoicePractice('${escapeJs(v.word)}', '${escapeJs(v.meaning || '')}')" title="Luyện phát âm từ này bằng giọng nói"><i class="fa-solid fa-microphone"></i></button>
+          <button class="audio-btn" onclick="openWordInFlashcard(${idx})" title="Lật thẻ Flashcard 3D từ này" style="color: var(--blue);"><i class="fa-solid fa-layer-group"></i></button>
         </div>
       </div>
       <div class="vocab-meaning">${escapeHtml(v.meaning)}</div>
