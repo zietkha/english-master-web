@@ -1104,6 +1104,7 @@ function toggleChatKeyBar() {
 }
 
 function handleSaveGeminiKey() {
+  cachedGeminiEndpoint = null;
   const input = document.getElementById('customGeminiKeyInput');
   const statusEl = document.getElementById('chatKeyStatus');
   const key = input ? input.value.trim() : '';
@@ -1122,93 +1123,117 @@ function handleSaveGeminiKey() {
   }
 }
 
-// Helper to call Google Gemini directly from client with dynamic model auto-discovery
-async function callGeminiDirect(customKey, contents) {
+// Cached working endpoint to eliminate latency on subsequent calls
+let cachedGeminiEndpoint = null;
+
+// Helper to call Google Gemini directly from client with ultra-fast latency & fallback
+async function callGeminiDirect(customKey, contents, onProgress) {
   const cleanKey = (customKey || '').trim();
   if (!cleanKey) {
     return { success: false, status: 400, error: 'Chưa nhập API Key.' };
   }
 
-  // 1. Auto-discover active models supported by this specific key
-  let candidateModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash-latest'];
-  try {
-    let listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`);
-    if (!listRes.ok) {
-      listRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
-        headers: { 'x-goog-api-key': cleanKey }
-      });
+  // Helper fetch with timeout
+  const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+      throw err;
     }
-    if (listRes.ok) {
-      const listData = await listRes.json();
-      if (listData.models && Array.isArray(listData.models)) {
-        const supported = listData.models
-          .filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent'))
-          .map(m => m.name.replace(/^models\//, ''));
-        if (supported.length > 0) {
-          // Sort to prioritize gemini-3.8-flash, then flash models
-          supported.sort((a, b) => {
-            if (a === 'gemini-3.8-flash') return -1;
-            if (b === 'gemini-3.8-flash') return 1;
-            if (a.includes('3.8-flash')) return -1;
-            if (b.includes('3.8-flash')) return 1;
-            if (a.includes('flash') && !b.includes('flash')) return -1;
-            if (!a.includes('flash') && b.includes('flash')) return 1;
-            return 0;
-          });
-          candidateModels = Array.from(new Set([...supported, ...candidateModels]));
-        }
+  };
+
+  const payload = {
+    contents,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 1000
+    }
+  };
+
+  // 1. If we already found the working configuration for this key, call it directly!
+  if (cachedGeminiEndpoint && cachedGeminiEndpoint.key === cleanKey) {
+    if (onProgress) onProgress(`Đang trò chuyện cùng ${cachedGeminiEndpoint.model}...`);
+    try {
+      const res = await fetchWithTimeout(cachedGeminiEndpoint.url, {
+        method: 'POST',
+        headers: cachedGeminiEndpoint.headers,
+        body: JSON.stringify(payload)
+      }, 10000);
+
+      if (res.ok) {
+        const data = await res.json();
+        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (reply) return { success: true, reply, modelUsed: cachedGeminiEndpoint.model };
       }
+    } catch (e) {
+      console.warn('Cached endpoint failed, falling back to auto-discovery:', e);
+      cachedGeminiEndpoint = null;
     }
-  } catch (e) {
-    console.warn('Model list discovery error:', e);
   }
+
+  // 2. Fast Prioritized Sequence (Only 4 direct attempts instead of 20)
+  const prioritizedCalls = [
+    {
+      model: 'gemini-3.8-flash',
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(cleanKey)}`,
+      headers: { 'Content-Type': 'application/json' }
+    },
+    {
+      model: 'gemini-3.8-flash',
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent`,
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey }
+    },
+    {
+      model: 'gemini-2.5-flash',
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(cleanKey)}`,
+      headers: { 'Content-Type': 'application/json' }
+    },
+    {
+      model: 'gemini-2.0-flash',
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(cleanKey)}`,
+      headers: { 'Content-Type': 'application/json' }
+    }
+  ];
 
   let lastStatus = 0;
   let lastErrText = '';
 
-  for (const model of candidateModels) {
-    const versions = ['v1beta', 'v1'];
-    for (const ver of versions) {
-      const authVariants = [
-        {
-          url: `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`,
-          headers: { 'Content-Type': 'application/json' }
-        },
-        {
-          url: `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent`,
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey }
+  for (const call of prioritizedCalls) {
+    if (onProgress) onProgress(`Đang kết nối ${call.model}...`);
+    try {
+      const res = await fetchWithTimeout(call.url, {
+        method: 'POST',
+        headers: call.headers,
+        body: JSON.stringify(payload)
+      }, 7000);
+
+      lastStatus = res.status;
+      if (res.ok) {
+        const data = await res.json();
+        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (reply) {
+          // Cache the working setup for lightning-fast subsequent responses
+          cachedGeminiEndpoint = {
+            key: cleanKey,
+            model: call.model,
+            url: call.url,
+            headers: call.headers
+          };
+          return { success: true, reply, modelUsed: call.model };
         }
-      ];
-
-      for (const variant of authVariants) {
-        try {
-          const res = await fetch(variant.url, {
-            method: 'POST',
-            headers: variant.headers,
-            body: JSON.stringify({
-              contents,
-              generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 1000
-              }
-            })
-          });
-
-          lastStatus = res.status;
-          if (res.ok) {
-            const data = await res.json();
-            const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (reply) return { success: true, reply, modelUsed: model };
-          } else {
-            lastErrText = await res.text();
-            if (lastStatus === 401 || lastStatus === 403) {
-              return { success: false, status: lastStatus, error: lastErrText };
-            }
-          }
-        } catch (err) {
-          lastErrText = err.message;
+      } else {
+        lastErrText = await res.text();
+        if (lastStatus === 401 || lastStatus === 403) {
+          return { success: false, status: lastStatus, error: lastErrText };
         }
       }
+    } catch (err) {
+      lastErrText = err.name === 'AbortError' ? 'Yêu cầu kết nối quá thời gian (timeout)' : err.message;
     }
   }
 
@@ -1233,7 +1258,7 @@ async function handleSendAssistantMsg(e) {
 
   const botDiv = document.createElement('div');
   botDiv.className = 'chat-msg bot';
-  botDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Trợ lý AI đang suy nghĩ...';
+  botDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Trợ lý AI đang xử lý câu trả lời...';
   if (msgs) {
     msgs.appendChild(botDiv);
     msgs.scrollTop = msgs.scrollHeight;
@@ -1252,7 +1277,7 @@ async function handleSendAssistantMsg(e) {
   let reply = '';
 
   if (customKey) {
-    // 1. Call Google Gemini via direct helper
+    // 1. Call Google Gemini via direct helper with live progress update
     try {
       const contents = [
         { role: 'user', parts: [{ text: `[HƯỚNG DẪN HỆ THỐNG]: ${persona} Luôn trả lời bằng tiếng Việt kết hợp tiếng Anh chuẩn xác, trình bày có gạch đầu dòng rõ ràng, súc tích. Ngữ cảnh học tập hiện tại: [Chế độ: ${state.currentMode}, Cấp độ/Lớp: ${levelLabel}].` }] },
@@ -1268,7 +1293,13 @@ async function handleSendAssistantMsg(e) {
       }
       contents.push({ role: 'user', parts: [{ text }] });
 
-      const geminiResult = await callGeminiDirect(customKey, contents);
+      const onProgress = (statusMsg) => {
+        if (botDiv) {
+          botDiv.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${statusMsg}`;
+        }
+      };
+
+      const geminiResult = await callGeminiDirect(customKey, contents, onProgress);
 
       if (geminiResult.success) {
         reply = geminiResult.reply;
