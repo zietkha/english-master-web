@@ -551,21 +551,27 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
 
 // GOOGLE AUTH
 document.getElementById('googleBtn').addEventListener('click', async () => {
+  if (window.location.protocol === 'file:') {
+    alert('Google OAuth không cho phép chạy trên giao thức file:// cục bộ.\nVui lòng mở trang qua địa chỉ: http://localhost:3000/login.html');
+    window.location.href = 'http://localhost:3000/login.html';
+    return;
+  }
+
   if (auth) {
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
       const result = await auth.signInWithPopup(provider);
-      let role = 'learner';
+      let role = (result.user.email === 'khasnlh@gmail.com') ? 'admin' : 'learner';
       if (db) {
         try {
           const userDoc = await db.collection('users').doc(result.user.uid).get();
           if (userDoc.exists && userDoc.data().role) {
-            role = userDoc.data().role;
+            role = (result.user.email === 'khasnlh@gmail.com') ? 'admin' : userDoc.data().role;
           } else {
             await db.collection('users').doc(result.user.uid).set({
               name: result.user.displayName || (result.user.email ? result.user.email.split('@')[0] : 'Học viên'),
               email: result.user.email,
-              role: 'learner',
+              role: role,
               xp: 100,
               streak: 1,
               status: 'active',
@@ -579,14 +585,18 @@ document.getElementById('googleBtn').addEventListener('click', async () => {
       }
       setSecureSession({ ...result.user, role });
       toast('Đăng nhập Google thành công!', 'ok');
-      setTimeout(() => { window.location.href = 'index.html'; }, 600);
+      setTimeout(() => {
+        window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
+      }, 600);
       return;
     } catch(e) {
       console.error('Google sign-in error:', e);
       if (e.code === 'auth/operation-not-allowed') {
-        toast('Chưa bật Google Provider trong Firebase Console!', 'bad');
+        toast('Chưa bật Google Provider trong Firebase Console > Authentication!', 'bad');
       } else if (e.code === 'auth/popup-closed-by-user') {
         toast('Cửa sổ đăng nhập đã bị đóng trước khi hoàn tất.', 'bad');
+      } else if (e.code === 'auth/unauthorized-domain') {
+        toast('Tên miền này chưa được thêm vào Authorized Domains trong Firebase!', 'bad');
       } else {
         toast('Lỗi đăng nhập: ' + (e.message || e.code), 'bad');
       }
