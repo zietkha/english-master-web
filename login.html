@@ -469,7 +469,7 @@ async function handleSuccessfulLogin(user) {
   setSecureSession({ ...user, role });
   toast('Đăng nhập Google thành công!', 'ok');
   showWelcomeModal('login', user.displayName || user.email.split('@')[0], 1, () => {
-    window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
+    window.location.href = 'index.html';
   });
 }
 
@@ -653,7 +653,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       setSecureSession({ ...userCred.user, displayName: name, role, streak });
       toast('Đăng nhập thành công!', 'ok');
       showWelcomeModal('login', name, streak, () => {
-        window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
+        window.location.href = 'index.html';
       });
       return;
     } catch(err) {
