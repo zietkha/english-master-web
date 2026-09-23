@@ -1,14 +1,14 @@
 // Vercel serverless function — runs on server, keeps API key secure.
-// Requires GEMINI_API_KEY environment variable on Vercel.
+// Supports mode, grade (1-5), level (A1-C2), skill (reading, listening, writing, speaking)
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { material, mode } = req.body || {};
+  const { material, mode = 'ielts', grade, level, skill = 'reading' } = req.body || {};
   if (!material || typeof material !== 'string') {
-    return res.status(400).json({ error: 'Thiếu nội dung tài liệu (material).' });
+    return res.status(400).json({ error: 'Thiếu nội dung tài liệu hoặc chủ đề (material).' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -16,25 +16,47 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server chưa cấu hình GEMINI_API_KEY.' });
   }
 
-  const levelDesc = mode === 'ielts'
-    ? 'trình độ IELTS (band 5.5-7.5): tóm tắt học thuật, từ vựng nâng cao/học thuật, câu hỏi kiểu đọc hiểu IELTS'
-    : 'trình độ tiểu học Việt Nam (lớp 3-5): tóm tắt đơn giản dễ hiểu, từ vựng cơ bản thường gặp trong SGK, câu hỏi trắc nghiệm đơn giản';
+  let levelDesc = '';
+  if (mode === 'tieuhoc') {
+    const g = grade ? `Lớp ${grade}` : 'Tiểu học (Lớp 1-5)';
+    levelDesc = `dành cho học sinh Tiểu học Việt Nam (${g}), kỹ năng ${skill.toUpperCase()}. Từ vựng quen thuộc, giải nghĩa tiếng Việt đơn giản, câu hỏi ngắn gọn thân thiện`;
+  } else {
+    const l = level ? `Band ${level}` : 'IELTS (B1-C1)';
+    levelDesc = `dành cho học viên luyện thi IELTS (${l}), kỹ năng ${skill.toUpperCase()}. Bài đọc/nghe chuẩn format học thuật, từ vựng theo chủ đề kèm loại từ và phiên âm IPA, câu hỏi đọc hiểu tư duy`;
+  }
 
-  const prompt = `Bạn là giáo viên tiếng Anh. Dựa trên tài liệu tiếng Anh sau, hãy tạo một bài học ở ${levelDesc}.
+  const prompt = `Bạn là chuyên gia giảng dạy tiếng Anh của nền tảng English Kha Master.
+Dựa trên tài liệu/chủ đề sau, hãy biên soạn một bài học chuẩn theo yêu cầu: ${levelDesc}.
 
-TÀI LIỆU:
+TÀI LIỆU / CHỦ ĐỀ:
 """
 ${material.slice(0, 6000)}
 """
 
-Trả về CHỈ một JSON object hợp lệ (không markdown, không giải thích thêm) đúng cấu trúc:
+Trả về DUY NHẤT một JSON object hợp lệ (không markdown backticks, không giải thích ngoài JSON) theo đúng cấu trúc sau:
 {
-  "title": "tiêu đề ngắn gọn cho bài học bằng tiếng Việt",
-  "summary": "tóm tắt nội dung bằng tiếng Việt, 3-5 câu",
-  "vocab": [{"word": "từ tiếng Anh", "meaning": "nghĩa tiếng Việt ngắn gọn"}],
-  "quiz": [{"question": "câu hỏi", "options": ["A","B","C","D"], "correct": 0}]
+  "title": "Tiêu đề bài học ngắn gọn súc tích",
+  "originalContent": "Đoạn văn đọc hiểu hoặc bài transcript nghe tiếng Anh hoàn chỉnh (khoảng 120-250 từ cho tiểu học, 250-450 từ cho IELTS)",
+  "summary": "Tóm tắt nội dung bài học bằng tiếng Việt (3-5 câu)",
+  "vocab": [
+    {
+      "word": "từ vựng tiếng Anh",
+      "pos": "n/v/adj/adv",
+      "phonetics": "/phiên âm IPA/",
+      "meaning": "nghĩa tiếng Việt chính xác",
+      "example": "ví dụ câu ngắn gọn có chứa từ vựng"
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Câu hỏi trắc nghiệm kiểm tra độ hiểu bài",
+      "options": ["Lựa chọn A", "Lựa chọn B", "Lựa chọn C", "Lựa chọn D"],
+      "answer": 0,
+      "explanation": "Giải thích ngắn gọn tại sao chọn đáp án này bằng tiếng Việt"
+    }
+  ]
 }
-(khoảng 6-10 mục vocab, khoảng 5 mục quiz, "correct" là chỉ số 0-3 của đáp án đúng trong options)`;
+(Yêu cầu: chính xác 5 mục vocab chất lượng và 4-5 câu hỏi quiz; "answer" là số nguyên từ 0 đến 3 tương ứng vị trí trong options)`;
 
   try {
     const model = 'gemini-2.0-flash';

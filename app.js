@@ -52,7 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initUiListeners();
   initLevelAndSkillEngine();
   initActivityTracker();
-  navigateTo('learn');
+  navigateTo('learn', false);
+  initRouter();
   setTimeout(checkOnboardingStatus, 800);
 });
 
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
    1. Navigation & Routing
    ========================================================================== */
 
-function navigateTo(viewName) {
+function navigateTo(viewName, updateHash = true) {
   state.currentView = viewName;
 
   document.querySelectorAll('.app-view').forEach(el => el.classList.remove('active'));
@@ -83,6 +84,10 @@ function navigateTo(viewName) {
   if (viewName === 'profile') renderProfilePage();
   if (viewName === 'admin') window.location.href = 'admin.html';
   
+  if (updateHash && viewName !== 'learn') {
+    updateHashRoute(`#/${viewName}`);
+  }
+
   // Scroll to top on view change
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -430,52 +435,85 @@ function initFirebaseAndStorage() {
 
   if (state.db) {
     ['ielts', 'tieuhoc'].forEach(m => {
-      state.db.collection('lessons_' + m).orderBy('createdAt', 'desc').onSnapshot(snap => {
-        state.lessons[m] = snap.docs.map(d => ({
-          id: d.id,
-          ...d.data(),
-          createdAt: d.data().createdAt ? new Date(d.data().createdAt).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')
-        }));
-        if (state.currentView === 'learn') renderLessonsList();
+      const colRef = state.db.collection('lessons_' + m);
+      colRef.orderBy('createdAt', 'desc').onSnapshot(snap => {
+        if (!snap.empty) {
+          state.lessons[m] = snap.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: d.data().createdAt ? new Date(d.data().createdAt).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')
+          }));
+          saveToLocalStorage(false);
+          if (state.currentView === 'learn') renderLessonsList();
+        } else if (typeof CURRICULUM_DATA !== 'undefined' && CURRICULUM_DATA[m] && CURRICULUM_DATA[m].length > 0) {
+          // Auto-seed Firestore from CURRICULUM_DATA if collection is empty (Section 10.1 Schema)
+          console.log(`Auto-seeding initial Firestore curriculum for collection lessons_${m}...`);
+          const batch = state.db.batch();
+          CURRICULUM_DATA[m].forEach(lesson => {
+            const docRef = colRef.doc(lesson.id);
+            batch.set(docRef, {
+              ...lesson,
+              authorType: 'admin',
+              createdAt: Date.now()
+            }, { merge: true });
+          });
+          batch.commit().catch(e => console.warn('Firestore seed commit error:', e));
+        }
+      }, err => {
+        console.warn(`Firestore onSnapshot error for lessons_${m}:`, err);
       });
     });
-  } else {
-    try {
-      if ('BroadcastChannel' in window) {
-        state.syncChannel = new BroadcastChannel('english_master_realtime_sync');
-        state.syncChannel.onmessage = (event) => {
-          if (event.data?.type === 'SYNC_LESSONS') {
-            state.lessons = event.data.lessons;
-            saveToLocalStorage(false);
-            if (state.currentView === 'learn') renderLessonsList();
-          }
-        };
-      }
-    } catch (err) {}
   }
+
+  // Cross-tab real-time sync channel
+  try {
+    if ('BroadcastChannel' in window) {
+      state.syncChannel = new BroadcastChannel('english_master_realtime_sync');
+      state.syncChannel.onmessage = (event) => {
+        if (event.data?.type === 'SYNC_LESSONS') {
+          state.lessons = event.data.lessons;
+          saveToLocalStorage(false);
+          if (state.currentView === 'learn') renderLessonsList();
+        }
+      };
+    }
+  } catch (err) {}
 }
 
 async function addLessonToStorage(mode, lesson) {
   state.aiUsageCount++;
   localStorage.setItem('english_master_ai_calls', state.aiUsageCount.toString());
 
+  const collectionName = mode === 'tieuhoc' ? 'lessons_tieuhoc' : 'lessons_ielts';
+  const lessonData = {
+    ...lesson,
+    authorType: lesson.authorType || 'ai',
+    authorId: state.currentUser?.id || 'learner-user',
+    createdAt: Date.now()
+  };
+
   if (state.db) {
     try {
-      const docRef = await state.db.collection('lessons_' + mode).add({ ...lesson, createdAt: Date.now() });
+      const docRef = await state.db.collection(collectionName).add(lessonData);
       lesson.id = docRef.id;
     } catch (err) {
-      state.lessons[mode].unshift(lesson);
-      saveToLocalStorage(true);
+      console.warn('Firestore addLesson error:', err);
     }
-  } else {
-    state.lessons[mode].unshift(lesson);
-    saveToLocalStorage(true);
   }
+
+  state.lessons[mode] = state.lessons[mode].filter(l => l.id !== lesson.id);
+  state.lessons[mode].unshift(lesson);
+  saveToLocalStorage(true);
 }
 
 async function deleteLessonFromStorage(mode, id) {
   if (state.db) {
-    try { await state.db.collection('lessons_' + mode).doc(id).delete(); } catch (err) {}
+    try {
+      const collectionName = mode === 'tieuhoc' ? 'lessons_tieuhoc' : 'lessons_ielts';
+      await state.db.collection(collectionName).doc(id).delete();
+    } catch (err) {
+      console.warn('Firestore deleteLesson error:', err);
+    }
   }
   state.lessons[mode] = state.lessons[mode].filter(l => l.id !== id);
   saveToLocalStorage(true);
@@ -483,6 +521,7 @@ async function deleteLessonFromStorage(mode, id) {
 
 function saveToLocalStorage(broadcast = true) {
   try {
+    localStorage.setItem('english_master_lessons_v3', JSON.stringify(state.lessons));
     localStorage.setItem('english_master_lessons_v1', JSON.stringify(state.lessons));
     if (broadcast && state.syncChannel) {
       state.syncChannel.postMessage({ type: 'SYNC_LESSONS', lessons: state.lessons });
@@ -811,7 +850,7 @@ function renderLeaderboard() {
         <td><strong>#${idx + 1}</strong></td>
         <td>
           <div class="row" style="gap: 8px;">
-            <div class="user-avatar" style="width: 28px; height: 28px; font-size: 0.8rem;">${u.name.charAt(0)}</div>
+            <div class="user-avatar" style="width: 28px; height: 28px; font-size: 0.8rem;">${escapeHtml(u.name.charAt(0))}</div>
             <span>${escapeHtml(u.name)}</span>
           </div>
         </td>
@@ -881,22 +920,30 @@ function renderLevelCards() {
   }
 }
 
-function selectGrade(gradeId) {
-  state.selectedGrade = gradeId;
+function selectGrade(gradeId, updateHash = true) {
+  state.selectedGrade = String(gradeId);
   renderLevelCards();
   renderLessonsList();
   showToast(`🎒 Đang hiển thị bài học Tiếng Anh Lớp ${gradeId}`);
+  if (updateHash) {
+    const skillPart = state.selectedSkill ? `/${state.selectedSkill}` : '';
+    updateHashRoute(`#/tieuhoc/lop${gradeId}${skillPart}`);
+  }
 }
 
-function selectLevel(levelId) {
+function selectLevel(levelId, updateHash = true) {
   state.selectedLevel = levelId;
   renderLevelCards();
   renderLessonsList();
   const found = CEFR_LEVELS.find(l => l.id === levelId);
   showToast(`🎯 Đang hiển thị bài học trình độ ${levelId} (${found ? found.sub : ''})`);
+  if (updateHash) {
+    const skillPart = state.selectedSkill ? `/${state.selectedSkill}` : '';
+    updateHashRoute(`#/ielts/${levelId.toLowerCase()}${skillPart}`);
+  }
 }
 
-function selectSkill(skillName) {
+function selectSkill(skillName, updateHash = true) {
   document.querySelectorAll('.skill-card').forEach(el => el.classList.remove('active'));
   const target = document.getElementById(`skillCard${skillName.charAt(0).toUpperCase() + skillName.slice(1)}`);
   if (target) target.classList.add('active');
@@ -908,6 +955,11 @@ function selectSkill(skillName) {
   state.selectedSkill = skillName;
   renderLessonsList();
   showToast(`📖 Đang lọc bài học kỹ năng ${skillName.toUpperCase()}`);
+  if (updateHash) {
+    const mode = state.currentMode;
+    const sub = mode === 'tieuhoc' ? `lop${state.selectedGrade || '3'}` : (state.selectedLevel || 'b1').toLowerCase();
+    updateHashRoute(`#/${mode}/${sub}/${skillName}`);
+  }
 }
 
 /* ── Section 10.9: Activity & Time Online Tracker ── */
@@ -1006,16 +1058,44 @@ async function handleSendAssistantMsg(e) {
   }
 
   try {
-    const res = await fetch('/api/generate-lesson', {
+    state.chatHistory = state.chatHistory || [];
+    const levelLabel = state.currentMode === 'tieuhoc'
+      ? (state.selectedGrade ? `Lớp ${state.selectedGrade}` : 'Tiểu học')
+      : (state.selectedLevel ? `Band ${state.selectedLevel}` : 'IELTS');
+
+    const res = await fetch('/api/ai-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ material: text, mode: state.currentMode })
+      body: JSON.stringify({
+        message: text,
+        history: state.chatHistory,
+        context: {
+          mode: state.currentMode,
+          level: levelLabel
+        }
+      })
     });
+
+    let reply = '';
     if (res.ok) {
       const data = await res.json();
-      botDiv.innerHTML = `<strong>${escapeHtml(data.title || 'Giải đáp bài học')}:</strong><br>${escapeHtml(data.summary || '')}<br><br><em>💡 Từ vựng gợi ý:</em> ${(data.vocab || []).slice(0, 3).map(v => `<b>${escapeHtml(v.word)}</b> (${escapeHtml(v.meaning)})`).join(', ')}`;
+      reply = data.reply || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này ngay lúc này.';
     } else {
-      botDiv.textContent = `Câu hỏi rất hay! Về "${text}", bạn hãy chú ý ngữ cảnh sử dụng từ vựng và luyện tập thêm qua Flashcard nhé! ✨`;
+      reply = `Xin chào! Về "${text}", bạn hãy chú ý ngữ cảnh sử dụng từ vựng và xem thêm các bài đọc theo Band/Lớp nhé! ✨`;
+    }
+
+    state.chatHistory.push({ sender: 'user', text });
+    state.chatHistory.push({ sender: 'ai', text: reply });
+
+    botDiv.innerHTML = formatChatReply(reply);
+
+    // Sync chat message to Firestore chats/{uid}/messages (Roadmap 10.1 & 10.10)
+    if (state.db && state.currentUser) {
+      try {
+        const chatCol = state.db.collection('chats').doc(state.currentUser.uid).collection('messages');
+        await chatCol.add({ from: 'user', text, createdAt: Date.now(), readByAdmin: false });
+        await chatCol.add({ from: 'ai', text: reply, createdAt: Date.now() + 1 });
+      } catch(e) {}
     }
   } catch(err) {
     botDiv.textContent = `Chào bạn! Về "${text}" — bạn có thể áp dụng thêm vào bài tập đọc hiểu và tự tạo bài học AI từ văn bản mẫu nhé! 🌟`;
@@ -1173,7 +1253,7 @@ function handleSendFeedback() {
   closeFeedbackModal();
 }
 
-function openLessonModal(id) {
+function openLessonModal(id, updateHash = true) {
   const allLessons = [...state.lessons.ielts, ...state.lessons.tieuhoc];
   const lesson = allLessons.find(l => l.id === id);
   if (!lesson) return;
@@ -1186,8 +1266,8 @@ function openLessonModal(id) {
   document.getElementById('modalTitle').textContent = lesson.title;
   document.getElementById('modalMeta').innerHTML = `
     <span class="meta-item"><i class="fa-regular fa-user"></i> ${escapeHtml(lesson.creator || 'Người dùng')}</span>
-    <span class="meta-item"><i class="fa-solid fa-tag"></i> ${lesson.tag || 'Chung'}</span>
-    <span class="mode-badge ${lesson.mode}">${lesson.mode === 'ielts' ? 'IELTS' : 'Tiểu học'}</span>
+    <span class="meta-item"><i class="fa-solid fa-tag"></i> ${escapeHtml(lesson.tag || 'Chung')}</span>
+    <span class="mode-badge ${escapeHtml(lesson.mode || '')}">${lesson.mode === 'ielts' ? 'IELTS' : 'Tiểu học'}</span>
   `;
 
   document.getElementById('modalVocabCount').textContent = lesson.vocab?.length || 0;
@@ -1203,12 +1283,21 @@ function openLessonModal(id) {
 
   const modal = document.getElementById('lessonModal');
   if (modal) modal.classList.add('active');
+
+  if (updateHash) {
+    updateHashRoute(`#/lesson/${id}`);
+  }
 }
 
 function closeLessonModal() {
   const modal = document.getElementById('lessonModal');
   if (modal) modal.classList.remove('active');
   state.activeLesson = null;
+
+  const mode = state.currentMode;
+  const sub = mode === 'tieuhoc' ? `lop${state.selectedGrade || '3'}` : (state.selectedLevel || 'b1').toLowerCase();
+  const skillPart = state.selectedSkill ? `/${state.selectedSkill}` : '';
+  updateHashRoute(`#/${mode}/${sub}${skillPart}`);
 }
 
 function handleModalOverlayClick(e) {
@@ -1484,8 +1573,8 @@ function initUiListeners() {
   // Obsolete client API key inputs removed per Section 2 audit
 }
 
-function switchMode(mode) {
-  if (state.currentMode === mode) return;
+function switchMode(mode, updateHash = true) {
+  if (state.currentMode === mode && !updateHash) return;
   state.currentMode = mode;
   document.getElementById('tabIelts')?.classList.toggle('active', mode === 'ielts');
   document.getElementById('tabTieuhoc')?.classList.toggle('active', mode === 'tieuhoc');
@@ -1496,6 +1585,12 @@ function switchMode(mode) {
   }
   renderLevelCards();
   renderLessonsList();
+
+  if (updateHash) {
+    const sub = mode === 'tieuhoc' ? (state.selectedGrade ? `lop${state.selectedGrade}` : 'lop3') : (state.selectedLevel || 'b1').toLowerCase();
+    const skillPart = state.selectedSkill ? `/${state.selectedSkill}` : '';
+    updateHashRoute(`#/${mode}/${sub}${skillPart}`);
+  }
 }
 
 function showToast(message, type = 'success') {
@@ -1519,6 +1614,15 @@ function escapeHtml(str) {
 function escapeJs(str) {
   if (!str) return '';
   return String(str).replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+function formatChatReply(str) {
+  if (!str) return '';
+  const escaped = escapeHtml(str);
+  return escaped
+    .replace(/^[\*\-]\s+(.*)$/gm, '• $1')
+    .replace(/\n\n+/g, '<br><br>')
+    .replace(/\n/g, '<br>');
 }
 
 function loadSampleLessons() {
@@ -1754,4 +1858,64 @@ function nextOnboardingStep() {
     showToast('🎉 Chúc bạn có trải nghiệm học tập tuyệt vời!');
   }
 }
+
+/* ==========================================================================
+   Section 11: Single-Page URL Routing Engine (Deep-linking & History)
+   ========================================================================== */
+
+function initRouter() {
+  window.addEventListener('hashchange', handleHashRoute);
+  if (window.location.hash) {
+    setTimeout(handleHashRoute, 200);
+  }
+}
+
+function handleHashRoute() {
+  const hash = window.location.hash.replace(/^#\/?/, '').trim();
+  if (!hash) return;
+
+  const parts = hash.split('/').map(p => decodeURIComponent(p.toLowerCase()));
+  const [route, sub1, sub2] = parts;
+
+  if (route === 'tieuhoc') {
+    navigateTo('learn', false);
+    switchMode('tieuhoc', false);
+    if (sub1) {
+      const gradeNum = sub1.replace(/^(lop|grade)/, '');
+      if (['1', '2', '3', '4', '5'].includes(gradeNum)) {
+        selectGrade(gradeNum, false);
+      }
+    }
+    if (sub2 && ['reading', 'listening', 'writing', 'speaking'].includes(sub2)) {
+      selectSkill(sub2, false);
+    }
+  } else if (route === 'ielts') {
+    navigateTo('learn', false);
+    switchMode('ielts', false);
+    if (sub1) {
+      const lvl = sub1.toUpperCase();
+      if (['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(lvl)) {
+        selectLevel(lvl, false);
+      }
+    }
+    if (sub2 && ['reading', 'listening', 'writing', 'speaking'].includes(sub2)) {
+      selectSkill(sub2, false);
+    }
+  } else if (route === 'lesson' && sub1) {
+    const all = [...(state.lessons.ielts || []), ...(state.lessons.tieuhoc || [])];
+    const target = all.find(l => l.id.toLowerCase() === sub1.toLowerCase());
+    if (target) {
+      openLessonModal(target.id, false);
+    }
+  } else if (['leaderboard', 'explore', 'mylessons', 'profile'].includes(route)) {
+    navigateTo(route, false);
+  }
+}
+
+function updateHashRoute(newHash) {
+  if (window.location.hash !== newHash) {
+    history.replaceState(null, '', newHash);
+  }
+}
+
 

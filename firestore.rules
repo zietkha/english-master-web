@@ -23,17 +23,22 @@ service cloud.firestore {
     }
 
     match /lessons_ielts/{lessonId} {
-      allow read: if isSignedIn();
+      allow read: if true; // Public read so learners can view lessons
       allow create: if isSignedIn();
       allow update, delete: if isAdmin() ||
         (isSignedIn() && resource.data.authorId == request.auth.uid);
     }
 
     match /lessons_tieuhoc/{lessonId} {
-      allow read: if isSignedIn();
+      allow read: if true; // Public read so learners can view lessons
       allow create: if isSignedIn();
       allow update, delete: if isAdmin() ||
         (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    match /chats/{userId}/messages/{msgId} {
+      allow read, create: if isOwner(userId) || isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     match /feedback/{feedbackId} {

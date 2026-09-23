@@ -144,6 +144,7 @@ function initAdminDashboard() {
 
   loadMetricsAndUsers();
   renderAdminFeedbackInbox();
+  initAdminLessonTool();
 }
 
 function toggleMaintenanceMode() {
@@ -237,7 +238,7 @@ function renderAdminFeedbackInbox() {
           <i class="fa-solid fa-user"></i> Người gửi: ${escapeHtml(fb.contact || 'Ẩn danh')}
           ${fb.type === 'report' ? '<span class="mode-badge" style="background:#fee2e2; color:#dc2626; margin-left:8px;">Báo cáo bài học</span>' : ''}
         </span>
-        <span style="color:var(--text-muted); font-size:0.75rem;">${fb.createdAt || ''}</span>
+        <span style="color:var(--text-muted); font-size:0.75rem;">${escapeHtml(fb.createdAt || '')}</span>
       </div>
       <p style="font-size:0.9rem; color:var(--text-primary); margin-top:6px; line-height:1.5;">${escapeHtml(fb.message)}</p>
     </div>
@@ -250,6 +251,313 @@ function clearFeedbackInbox() {
   localStorage.setItem('english_master_feedback', '[]');
   renderAdminFeedbackInbox();
   showToast('🗑️ Đã làm sạch hòm thư phản hồi.');
+}
+
+/* ==========================================================================
+   Section 10.7: Admin Content Tool With AI Assist & Firestore Seeder
+   ========================================================================== */
+
+adminState.lessons = { ielts: [], tieuhoc: [] };
+
+function initAdminLessonTool() {
+  handleAdminModeChange();
+  loadAdminLessons();
+}
+
+function handleAdminModeChange() {
+  const modeSelect = document.getElementById('adminLessonMode');
+  const levelSelect = document.getElementById('adminLessonLevel');
+  const levelLabel = document.getElementById('adminLevelLabel');
+  if (!modeSelect || !levelSelect) return;
+
+  const mode = modeSelect.value;
+  if (mode === 'tieuhoc') {
+    levelLabel.textContent = '2. Chọn Lớp Tiểu học:';
+    levelSelect.innerHTML = `
+      <option value="1">🎒 Lớp 1 (Làm quen & Chữ cái)</option>
+      <option value="2">🎨 Lớp 2 (Từ vựng & Màu sắc)</option>
+      <option value="3">🌟 Lớp 3 (Giao tiếp đơn giản)</option>
+      <option value="4">🚀 Lớp 4 (Ngữ pháp cơ bản)</option>
+      <option value="5">🏆 Lớp 5 (Luyện thi chuyển cấp)</option>
+    `;
+  } else {
+    levelLabel.textContent = '2. Chọn Band CEFR IELTS:';
+    levelSelect.innerHTML = `
+      <option value="A1">🌱 Band A1 — Sơ cấp (IELTS 1.0 – 2.5)</option>
+      <option value="A2">🌿 Band A2 — Cơ bản (IELTS 3.0 – 3.5)</option>
+      <option value="B1">⭐ Band B1 — Trung cấp (IELTS 4.0 – 5.0)</option>
+      <option value="B2" selected>🚀 Band B2 — Trung cao cấp (IELTS 5.5 – 6.5)</option>
+      <option value="C1">🏆 Band C1 — Cao cấp (IELTS 7.0 – 8.0)</option>
+      <option value="C2">👑 Band C2 — Thành thạo (IELTS 8.5 – 9.0)</option>
+    `;
+  }
+}
+
+function toggleAddLessonForm() {
+  const container = document.getElementById('adminAddLessonFormContainer');
+  const text = document.getElementById('toggleFormBtnText');
+  if (!container) return;
+  const isHidden = container.style.display === 'none';
+  container.style.display = isHidden ? 'block' : 'none';
+  if (text) text.textContent = isHidden ? 'Đóng Form Soạn Bài' : 'Mở Form Soạn Bài Mới';
+}
+
+async function handleAdminAiDraft() {
+  const mode = document.getElementById('adminLessonMode').value;
+  const levelOrGrade = document.getElementById('adminLessonLevel').value;
+  const skill = document.getElementById('adminLessonSkill').value;
+  const title = document.getElementById('adminLessonTitle').value.trim();
+  const prompt = document.getElementById('adminLessonPrompt').value.trim();
+
+  if (!prompt && !title) {
+    showToast('⚠️ Vui lòng nhập tiêu đề hoặc chủ đề/tài liệu để AI soạn thảo!', 'danger');
+    return;
+  }
+
+  const btn = document.getElementById('adminAiDraftBtn');
+  const origHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Đang kết nối Gemini AI soạn thảo...</span>';
+  btn.style.pointerEvents = 'none';
+
+  try {
+    const payload = {
+      material: prompt || title,
+      mode,
+      skill,
+      grade: mode === 'tieuhoc' ? parseInt(levelOrGrade, 10) : undefined,
+      level: mode === 'ielts' ? levelOrGrade : undefined
+    };
+
+    const res = await fetch('/api/generate-lesson', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Lỗi serverless function');
+    }
+
+    const data = await res.json();
+
+    if (data.title && !title) {
+      document.getElementById('adminLessonTitle').value = data.title;
+    }
+    document.getElementById('adminDraftSummary').value = data.summary || '';
+    document.getElementById('adminDraftContent').value = data.originalContent || prompt || '';
+    document.getElementById('adminDraftVocab').value = JSON.stringify(data.vocab || [], null, 2);
+    document.getElementById('adminDraftQuiz').value = JSON.stringify(data.quiz || [], null, 2);
+
+    document.getElementById('adminDraftContainer').style.display = 'block';
+    showToast('✨ AI đã biên soạn xong bản nháp! Bạn hãy kiểm tra lại và nhấn Xuất bản.');
+  } catch (err) {
+    console.error('AI Draft Error:', err);
+    showToast('Lỗi AI: ' + err.message, 'danger');
+    handleAdminManualDraft();
+  } finally {
+    btn.innerHTML = origHtml;
+    btn.style.pointerEvents = 'auto';
+  }
+}
+
+function handleAdminManualDraft() {
+  document.getElementById('adminDraftContainer').style.display = 'block';
+  if (!document.getElementById('adminDraftVocab').value.trim()) {
+    document.getElementById('adminDraftVocab').value = JSON.stringify([
+      { "word": "example", "pos": "noun", "phonetics": "/ɪɡˈzæmpəl/", "meaning": "ví dụ mẫu", "example": "This is an example." }
+    ], null, 2);
+  }
+  if (!document.getElementById('adminDraftQuiz').value.trim()) {
+    document.getElementById('adminDraftQuiz').value = JSON.stringify([
+      { "question": "Câu hỏi đọc hiểu kiểm tra?", "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"], "answer": 0, "explanation": "Giải thích vì sao đúng..." }
+    ], null, 2);
+  }
+}
+
+async function handleAdminPublishLesson(e) {
+  e.preventDefault();
+  const mode = document.getElementById('adminLessonMode').value;
+  const levelOrGrade = document.getElementById('adminLessonLevel').value;
+  const skill = document.getElementById('adminLessonSkill').value;
+  const title = document.getElementById('adminLessonTitle').value.trim();
+  const summary = document.getElementById('adminDraftSummary').value.trim();
+  const originalContent = document.getElementById('adminDraftContent').value.trim();
+  const vocabRaw = document.getElementById('adminDraftVocab').value.trim();
+  const quizRaw = document.getElementById('adminDraftQuiz').value.trim();
+
+  if (!title || !summary) {
+    showToast('⚠️ Vui lòng nhập đầy đủ Tiêu đề và Tóm tắt bài học!', 'danger');
+    return;
+  }
+
+  let vocab = [], quiz = [];
+  try {
+    vocab = vocabRaw ? JSON.parse(vocabRaw) : [];
+    quiz = quizRaw ? JSON.parse(quizRaw) : [];
+  } catch(e) {
+    showToast('⚠️ Định dạng JSON từ vựng hoặc Quiz bị lỗi cú pháp!', 'danger');
+    return;
+  }
+
+  const lessonId = `${mode}-${levelOrGrade}-${skill}-${Date.now().toString().slice(-6)}`;
+  const newLesson = {
+    id: lessonId,
+    mode,
+    grade: mode === 'tieuhoc' ? parseInt(levelOrGrade, 10) : null,
+    level: mode === 'ielts' ? levelOrGrade : null,
+    skill,
+    title,
+    summary,
+    originalContent: originalContent || summary,
+    vocab,
+    quiz,
+    authorId: adminState.authenticatedUser?.uid || 'admin-root',
+    authorType: 'admin',
+    creator: 'Ban Quản Trị English Kha Master',
+    createdAt: Date.now(),
+    likes: 5,
+    comments: []
+  };
+
+  const publishBtn = document.getElementById('adminPublishBtn');
+  const origText = publishBtn.innerHTML;
+  publishBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu vào Firestore...';
+  publishBtn.style.pointerEvents = 'none';
+
+  try {
+    // 1. Save to Firestore if available
+    if (db) {
+      const collectionName = mode === 'tieuhoc' ? 'lessons_tieuhoc' : 'lessons_ielts';
+      await db.collection(collectionName).doc(lessonId).set(newLesson);
+    }
+
+    // 2. Save to local storage & broadcast to user app
+    adminState.lessons[mode].unshift(newLesson);
+    saveAdminLessonsToStorage();
+
+    showToast('🎉 Đã xuất bản bài học mới vào thẻ thành công!');
+    document.getElementById('adminLessonForm').reset();
+    document.getElementById('adminDraftContainer').style.display = 'none';
+    renderAdminLessonsTable();
+  } catch(err) {
+    console.error('Publish error:', err);
+    showToast('Lỗi lưu bài học: ' + err.message, 'danger');
+  } finally {
+    publishBtn.innerHTML = origText;
+    publishBtn.style.pointerEvents = 'auto';
+  }
+}
+
+async function loadAdminLessons() {
+  // Load from Firestore first
+  if (db) {
+    try {
+      const ieltsSnap = await db.collection('lessons_ielts').get();
+      if (!ieltsSnap.empty) {
+        adminState.lessons.ielts = ieltsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+      const tieuhocSnap = await db.collection('lessons_tieuhoc').get();
+      if (!tieuhocSnap.empty) {
+        adminState.lessons.tieuhoc = tieuhocSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+    } catch(e) {
+      console.warn('Firestore load lessons in admin:', e);
+    }
+  }
+
+  // Fallback to CURRICULUM_DATA / localStorage if empty
+  if (adminState.lessons.ielts.length === 0 && typeof CURRICULUM_DATA !== 'undefined') {
+    adminState.lessons.ielts = [...(CURRICULUM_DATA.ielts || [])];
+    adminState.lessons.tieuhoc = [...(CURRICULUM_DATA.tieuhoc || [])];
+  } else {
+    const cached = localStorage.getItem('english_master_lessons_v3');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (adminState.lessons.ielts.length === 0) adminState.lessons.ielts = parsed.ielts || [];
+        if (adminState.lessons.tieuhoc.length === 0) adminState.lessons.tieuhoc = parsed.tieuhoc || [];
+      } catch(e) {}
+    }
+  }
+
+  renderAdminLessonsTable();
+}
+
+function saveAdminLessonsToStorage() {
+  try {
+    localStorage.setItem('english_master_lessons_v3', JSON.stringify(adminState.lessons));
+    localStorage.setItem('english_master_lessons_v1', JSON.stringify(adminState.lessons));
+    if ('BroadcastChannel' in window) {
+      const bc = new BroadcastChannel('english_master_realtime_sync');
+      bc.postMessage({ type: 'SYNC_LESSONS', lessons: adminState.lessons });
+    }
+  } catch(e) {}
+}
+
+function renderAdminLessonsTable() {
+  const tbody = document.getElementById('adminLessonsTableBody');
+  const filterMode = document.getElementById('adminFilterMode')?.value || 'all';
+  const filterSkill = document.getElementById('adminFilterSkill')?.value || 'all';
+  if (!tbody) return;
+
+  let all = [];
+  if (filterMode === 'all' || filterMode === 'ielts') {
+    all = all.concat((adminState.lessons.ielts || []).map(l => ({ ...l, mode: 'ielts' })));
+  }
+  if (filterMode === 'all' || filterMode === 'tieuhoc') {
+    all = all.concat((adminState.lessons.tieuhoc || []).map(l => ({ ...l, mode: 'tieuhoc' })));
+  }
+
+  if (filterSkill !== 'all') {
+    all = all.filter(l => l.skill === filterSkill);
+  }
+
+  if (all.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">Chưa có bài học nào khớp với bộ lọc.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = all.map(l => {
+    const badgeLabel = l.grade ? `Lớp ${l.grade}` : (l.level ? `Band ${l.level}` : (l.mode === 'tieuhoc' ? 'Tiểu học' : 'IELTS'));
+    const badgeCls = l.mode === 'ielts' ? 'ielts' : 'tieuhoc';
+    const skillLabel = l.skill === 'listening' ? '🎧 Listening' : '📖 Reading';
+
+    return `
+      <tr>
+        <td style="font-size:0.88rem; font-weight:700; color:var(--text-1); max-width:240px;">
+          ${escapeHtml(l.title)}
+        </td>
+        <td><span class="mode-badge ${badgeCls}">${escapeHtml(badgeLabel)}</span></td>
+        <td><span style="font-size:0.82rem; font-weight:600;">${skillLabel}</span></td>
+        <td style="font-size:0.82rem; color:var(--text-2);">${escapeHtml(l.creator || 'Admin')}</td>
+        <td style="font-size:0.82rem;">${(l.vocab || []).length} từ · ${(l.quiz || []).length} quiz</td>
+        <td>
+          <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem; color:var(--danger);" onclick="deleteAdminLesson('${l.mode}', '${l.id}')">
+            <i class="fa-solid fa-trash-can"></i> Xoá
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function deleteAdminLesson(mode, id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa bài học này khỏi thẻ và hệ thống?')) return;
+
+  if (db) {
+    try {
+      const collectionName = mode === 'tieuhoc' ? 'lessons_tieuhoc' : 'lessons_ielts';
+      await db.collection(collectionName).doc(id).delete();
+    } catch(e) {
+      console.warn('Firestore delete error:', e);
+    }
+  }
+
+  adminState.lessons[mode] = (adminState.lessons[mode] || []).filter(l => l.id !== id);
+  saveAdminLessonsToStorage();
+  renderAdminLessonsTable();
+  showToast('🗑️ Đã xóa bài học thành công.');
 }
 
 function showToast(message, type = 'success') {
@@ -280,3 +588,4 @@ function escapeHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
+

@@ -207,6 +207,149 @@
       </div>
     </div>
 
+    <!-- Card 4: Section 10.7 — Admin Content Tool With AI Assist -->
+    <div class="card glass-panel" style="margin-bottom: 30px;">
+      <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 class="card-title" style="color: var(--primary);">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Thêm & Quản Lý Bài Học Vào Thẻ (Mục 10.7)
+          </h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+            Thêm bài học chuẩn vào từng Thẻ Lớp Tiểu học (1–5) hoặc Thẻ IELTS Band (A1–C2) có AI biên soạn hỗ trợ và lưu trực tiếp vào Firestore.
+          </p>
+        </div>
+        <button class="btn-secondary" style="font-size: 0.82rem;" onclick="toggleAddLessonForm()">
+          <i class="fa-solid fa-plus"></i> <span id="toggleFormBtnText">Mở Form Soạn Bài Mới</span>
+        </button>
+      </div>
+
+      <!-- Add Lesson Form -->
+      <div id="adminAddLessonFormContainer" style="display: none; padding-top: 16px; border-top: 1px solid var(--border);">
+        <form id="adminLessonForm" onsubmit="handleAdminPublishLesson(event)">
+          <div class="row" style="gap: 16px; flex-wrap: wrap; margin-bottom: 16px;">
+            <div style="flex: 1; min-width: 200px;">
+              <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">1. Chọn Chế độ Học:</label>
+              <select id="adminLessonMode" class="input-field" onchange="handleAdminModeChange()" style="width: 100%;">
+                <option value="ielts">Luyện thi IELTS (A1 – C2)</option>
+                <option value="tieuhoc">Ôn thi Tiểu học (Lớp 1 – 5)</option>
+              </select>
+            </div>
+
+            <div style="flex: 1; min-width: 200px;">
+              <label id="adminLevelLabel" style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">2. Chọn Cấp độ / Band:</label>
+              <select id="adminLessonLevel" class="input-field" style="width: 100%;">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <div style="flex: 1; min-width: 200px;">
+              <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">3. Chọn Kỹ năng:</label>
+              <select id="adminLessonSkill" class="input-field" style="width: 100%;">
+                <option value="reading">📖 Reading (Đọc hiểu)</option>
+                <option value="listening">🎧 Listening (Nghe hiểu)</option>
+                <option value="writing">✍️ Writing (Viết luận - Đang phát triển)</option>
+                <option value="speaking">🗣️ Speaking (Nói - Đang phát triển)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">4. Tiêu đề bài học:</label>
+            <input type="text" id="adminLessonTitle" class="input-field" placeholder="Ví dụ: Climate Change Solutions & Renewable Energy" style="width: 100%;" required>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2);">5. Nội dung tài liệu hoặc Chủ đề (Để AI soạn thảo phụ):</label>
+              <span style="font-size: 0.78rem; color: var(--text-3);">Nhập đoạn văn tiếng Anh hoặc chỉ cần gõ yêu cầu chủ đề</span>
+            </div>
+            <textarea id="adminLessonPrompt" class="input-field" rows="4" placeholder="Nhập tài liệu mẫu hoặc prompt yêu cầu (Ví dụ: 'Soạn một bài đọc học thuật về Trí tuệ nhân tạo trong y tế, từ vựng band B2, có 5 từ mới và 5 câu hỏi trắc nghiệm')..." style="width: 100%; resize: vertical;"></textarea>
+          </div>
+
+          <!-- AI Assist Button -->
+          <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+            <button type="button" id="adminAiDraftBtn" class="btn-primary" style="background: linear-gradient(135deg, #2563eb, #7c3aed); display: inline-flex; align-items: center; gap: 8px;" onclick="handleAdminAiDraft()">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> <span>✨ AI Soạn Thảo Tự Động (Tích hợp AI phụ tôi)</span>
+            </button>
+            <button type="button" class="btn-secondary" onclick="handleAdminManualDraft()">
+              <i class="fa-solid fa-pen-to-square"></i> <span>Tự nhập thủ công</span>
+            </button>
+          </div>
+
+          <!-- Draft Editor Area -->
+          <div id="adminDraftContainer" style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px; display: none;">
+            <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-file-lines"></i> Bản Nháp Bài Học (Xem trước & Chỉnh sửa trước khi Xuất bản)
+            </h4>
+
+            <div style="margin-bottom: 12px;">
+              <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 4px;">Tóm tắt tiếng Việt:</label>
+              <textarea id="adminDraftSummary" class="input-field" rows="2" style="width: 100%;"></textarea>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+              <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 4px;">Nội dung bài đọc / Transcript tiếng Anh:</label>
+              <textarea id="adminDraftContent" class="input-field" rows="5" style="width: 100%;"></textarea>
+            </div>
+
+            <div class="row" style="gap: 14px; flex-wrap: wrap; margin-bottom: 16px;">
+              <div style="flex: 1; min-width: 260px;">
+                <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 4px;">Từ vựng (JSON danh sách 5 từ):</label>
+                <textarea id="adminDraftVocab" class="input-field font-mono" rows="6" style="width: 100%; font-size: 0.78rem;"></textarea>
+              </div>
+              <div style="flex: 1; min-width: 260px;">
+                <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 4px;">Quiz Trắc nghiệm (JSON 4-5 câu hỏi):</label>
+                <textarea id="adminDraftQuiz" class="input-field font-mono" rows="6" style="width: 100%; font-size: 0.78rem;"></textarea>
+              </div>
+            </div>
+
+            <button type="submit" id="adminPublishBtn" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-cloud-arrow-up"></i> <span>🚀 Lưu & Xuất Bản Vào Firestore Hệ Thống</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Current Lessons Filter & Table -->
+      <div style="margin-top: 20px;">
+        <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+          <h3 style="font-size: 1rem; font-weight: 800; color: var(--text-1);">
+            <i class="fa-solid fa-list-check"></i> Kho Bài Học Hiện Tại Trong Thẻ
+          </h3>
+          <div class="row" style="gap: 8px; flex-wrap: wrap;">
+            <select id="adminFilterMode" class="input-field" style="padding: 4px 10px; font-size: 0.82rem;" onchange="renderAdminLessonsTable()">
+              <option value="all">Tất cả chế độ</option>
+              <option value="ielts">Chỉ IELTS</option>
+              <option value="tieuhoc">Chỉ Tiểu học</option>
+            </select>
+            <select id="adminFilterSkill" class="input-field" style="padding: 4px 10px; font-size: 0.82rem;" onchange="renderAdminLessonsTable()">
+              <option value="all">Tất cả kỹ năng</option>
+              <option value="reading">📖 Reading</option>
+              <option value="listening">🎧 Listening</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto; max-height: 380px;">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Tiêu đề bài học</th>
+                <th>Chế độ / Thẻ</th>
+                <th>Kỹ năng</th>
+                <th>Tác giả</th>
+                <th>Từ vựng & Quiz</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="adminLessonsTableBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <!-- Toast -->
@@ -219,7 +362,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
+  <!-- Curriculum seed & Admin scripts -->
+  <script src="curriculum.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>

@@ -1,2 +1,3 @@
 /api/generate-lesson  /.netlify/functions/generate-lesson  200
+/api/ai-chat          /.netlify/functions/ai-chat          200
 /*  /index.html  200
