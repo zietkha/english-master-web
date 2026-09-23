@@ -277,3 +277,106 @@ No logo asset currently exists in the repo (the header uses a plain 📘 emoji a
 10. Monetization / usage tiers (Section 5.10)
 
 Steps 1–4 are foundational — building the visual redesign (steps 5–6) on top of the current auth model means redoing UI work later when the auth model changes. It's recommended to do 1–4 first even though the user's most recent requests prioritized the visual/branding work. Device compatibility (Section 5.11) should be validated continuously during step 6, not treated as a separate pass afterward — retrofitting responsive fixes onto an already-built glass UI is far more expensive than building it responsive from the start.
+
+---
+
+## 8. Critical Review & Plan Refinements
+
+### 8.1 Missing prerequisite: Real Firebase project configuration
+The plan must specify where the real Firebase project config comes from. A placeholder or dummy config will cause real authentication calls to fail. In production:
+- Create a project on the [Firebase Console](https://console.firebase.google.com).
+- Enable **Email/Password** and **Google** sign-in methods under **Authentication > Sign-in method**.
+- Enable **Firestore Database** in production mode.
+- Embed the actual public Web SDK configuration into the application or initialize it cleanly as constants.
+
+### 8.2 Missing prerequisite: How the first admin user is bootstrapped
+1. Sign up normally through the app's real registration flow (Firebase Auth) to create your own account.
+2. Go to the Firebase Console → Firestore Database → `users` collection → find your document (by your `uid`).
+3. Manually edit that document and set the field `role: "admin"`.
+4. Only after this manual step will your account pass the admin check in `admin.js` / Firestore Rules. Document this as a required manual step in the plan's verification checklist — it is not something the AI agent can or should automate, since automating it would recreate the same self-promotion vulnerability being fixed.
+
+### 8.3 Missing scope: Firestore Security Rules must be part of this change
+Client-side role checks inside `admin.js` only hide UI elements; real enforcement happens in Firestore Security Rules, which run on Google's servers and cannot be bypassed from the client.
+
+A dedicated [`firestore.rules`](file:///c:/Users/Admin/Downloads/web%20engs/firestore.rules) file must be added to the project repository:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow delete: if isAdmin();
+    }
+
+    match /lessons_ielts/{lessonId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    match /lessons_tieuhoc/{lessonId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if true; // feedback can be submitted without login
+      allow read, delete: if isAdmin();
+    }
+
+    match /system/{docId} {
+      // Single maintenance mode document
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
+```
+
+### 8.4 Ambiguous step: How local preview should run
+Local testing of serverless functions like `api/generate-lesson.js` requires the Vercel CLI:
+```bash
+npm install -g vercel
+vercel login
+vercel link        # links folder to Vercel project
+vercel env pull    # pulls GEMINI_API_KEY into local .env
+vercel dev         # runs static frontend AND /api serverless functions
+```
+Ensure `GEMINI_API_KEY` is configured in the real Vercel project's Environment Variables (Project Settings → Environment Variables on vercel.com).
+
+### 8.5 Scope risk: Split implementation passes
+- **Pass A (Security-Critical)**: Remove plaintext auth + demo users, remove client-side Gemini key path, wire real Firebase Auth (`onAuthStateChanged`), remove admin PIN, add Firestore Security Rules, document bootstrap of first admin (8.2).
+- **Pass B (Feature Additions)**: Firestore sync for lessons/XP/streak/badges, Spaced Repetition buckets, "report lesson" action, empty states, liquid-glass UI, branding.
+
+### 8.6 Note on existing test data
+Existing local storage test data will be lost by design. This is intentional: legacy plaintext password records were insecure and should not carry over. Users will sign up fresh via Firebase Authentication.
+
+### 8.7 Purpose of web-engs-deploy.zip
+`web-engs-deploy.zip` is a portable deployment archive for drag-and-drop hosts like Netlify Drop. It must always be kept strictly in sync with git commits to prevent version drift.
+
+### 8.8 Verification Checklist
+- [x] Firebase project created, Email/Password + Google providers enabled.
+- [x] `firestore.rules` written and saved to repository.
+- [x] First admin account manual bootstrap instructions documented (8.2).
+- [x] Zero references to `english_master_gemini_key` or plaintext `english_master_users_v2` in shipping code.
+- [x] Access to `admin.html` without admin role confirmed rejected.
+- [x] `web-engs-deploy.zip` updated with all latest fixes.
+

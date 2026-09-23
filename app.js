@@ -783,23 +783,7 @@ function updateMaintenanceTitleText() {
   }
 }
 
-function handleEngineChange() {
-  const select = document.getElementById('aiEngineSelect');
-  const keyGroup = document.getElementById('apiKeyGroup');
-  if (select && keyGroup) keyGroup.style.display = select.value === 'gemini' ? 'block' : 'none';
-}
 
-function saveAdminSettings() {
-  const select = document.getElementById('aiEngineSelect');
-  const keyInput = document.getElementById('apiKeyInput');
-  const firebaseInput = document.getElementById('firebaseConfigInput');
-
-  if (select) { state.aiEngine = select.value; localStorage.setItem('english_master_ai_engine', state.aiEngine); }
-  if (keyInput) { state.apiKey = keyInput.value.trim(); localStorage.setItem('english_master_gemini_key', state.apiKey); }
-  if (firebaseInput) { state.firebaseConfigRaw = firebaseInput.value.trim(); localStorage.setItem('english_master_firebase_config', state.firebaseConfigRaw); }
-
-  showToast('💾 Đã lưu cấu hình hệ thống thành công!');
-}
 
 function renderAdminUsersList() {
   document.getElementById('statTotalUsers').textContent = state.users.length;
