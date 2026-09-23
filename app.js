@@ -1211,21 +1211,16 @@ async function callGeminiDirect(customKey, contents, onProgress) {
     }
   }
 
-  // 2. Fast Prioritized Sequence (Modern Gemini 3.x Flash models)
+  // 2. Fast Prioritized Sequence (gemini-3.6-flash is currently ultra-fast and stable, with 3.8-flash fallback)
   const prioritizedCalls = [
-    {
-      model: 'gemini-3.8-flash',
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(cleanKey)}`,
-      headers: { 'Content-Type': 'application/json' }
-    },
     {
       model: 'gemini-3.6-flash',
       url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(cleanKey)}`,
       headers: { 'Content-Type': 'application/json' }
     },
     {
-      model: 'gemini-3.5-flash',
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(cleanKey)}`,
+      model: 'gemini-3.8-flash',
+      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(cleanKey)}`,
       headers: { 'Content-Type': 'application/json' }
     }
   ];
@@ -1303,6 +1298,11 @@ async function handleSendAssistantMsg(e) {
     ? 'Bạn là trợ lý gia sư tiếng Anh thân thiện, kiên nhẫn dành cho học sinh Tiểu học Việt Nam. Hãy giải thích ngắn gọn, dùng từ ngữ dễ hiểu, có ví dụ gần gũi, khích lệ các em học tập.'
     : 'Bạn là trợ lý luyện thi IELTS & tiếng Anh thông minh mang tên English Kha Master AI. Hãy giải thích súc tích, chỉ ra lỗi ngữ pháp/từ vựng (nếu có), gợi ý collocation, idiom hoặc cách diễn đạt band cao (6.5 - 8.0). Khi người dùng hỏi về kỹ năng (nghe, nói, đọc, phát âm) hoặc thắc mắc tại sao không nói được, hãy ân cần giải thích và đưa ra lời khuyên cụ thể, hữu ích.';
 
+  // Auto-migrate any old typo key in localStorage to BUILTIN_GEMINI_KEY
+  const storedKey = localStorage.getItem('gemini_api_key');
+  if (!storedKey || storedKey.includes('jdkWelen') || storedKey.includes('Tilu')) {
+    localStorage.setItem('gemini_api_key', BUILTIN_GEMINI_KEY);
+  }
   const customKey = localStorage.getItem('gemini_api_key') || BUILTIN_GEMINI_KEY;
   let reply = '';
 
@@ -1314,7 +1314,8 @@ async function handleSendAssistantMsg(e) {
         { role: 'model', parts: [{ text: 'Dạ, tôi đã hiểu. Tôi là trợ lý AI của English Kha Master, sẵn sàng hỗ trợ bạn mọi thắc mắc về tiếng Anh và học tập!' }] }
       ];
 
-      const recent = (state.chatHistory || []).slice(-6);
+      // Filter out any previous error messages from history context
+      const recent = (state.chatHistory || []).filter(h => !h.text.startsWith('⚠️')).slice(-6);
       for (const h of recent) {
         contents.push({
           role: h.sender === 'user' ? 'user' : 'model',
