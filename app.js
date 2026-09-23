@@ -1122,6 +1122,99 @@ function handleSaveGeminiKey() {
   }
 }
 
+// Helper to call Google Gemini directly from client with dynamic model auto-discovery
+async function callGeminiDirect(customKey, contents) {
+  const cleanKey = (customKey || '').trim();
+  if (!cleanKey) {
+    return { success: false, status: 400, error: 'Chưa nhập API Key.' };
+  }
+
+  // 1. Auto-discover active models supported by this specific key
+  let candidateModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash-latest'];
+  try {
+    let listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cleanKey)}`);
+    if (!listRes.ok) {
+      listRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+        headers: { 'x-goog-api-key': cleanKey }
+      });
+    }
+    if (listRes.ok) {
+      const listData = await listRes.json();
+      if (listData.models && Array.isArray(listData.models)) {
+        const supported = listData.models
+          .filter(m => !m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => m.name.replace(/^models\//, ''));
+        if (supported.length > 0) {
+          // Sort to prioritize gemini-3.8-flash, then flash models
+          supported.sort((a, b) => {
+            if (a === 'gemini-3.8-flash') return -1;
+            if (b === 'gemini-3.8-flash') return 1;
+            if (a.includes('3.8-flash')) return -1;
+            if (b.includes('3.8-flash')) return 1;
+            if (a.includes('flash') && !b.includes('flash')) return -1;
+            if (!a.includes('flash') && b.includes('flash')) return 1;
+            return 0;
+          });
+          candidateModels = Array.from(new Set([...supported, ...candidateModels]));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Model list discovery error:', e);
+  }
+
+  let lastStatus = 0;
+  let lastErrText = '';
+
+  for (const model of candidateModels) {
+    const versions = ['v1beta', 'v1'];
+    for (const ver of versions) {
+      const authVariants = [
+        {
+          url: `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`,
+          headers: { 'Content-Type': 'application/json' }
+        },
+        {
+          url: `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent`,
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cleanKey }
+        }
+      ];
+
+      for (const variant of authVariants) {
+        try {
+          const res = await fetch(variant.url, {
+            method: 'POST',
+            headers: variant.headers,
+            body: JSON.stringify({
+              contents,
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1000
+              }
+            })
+          });
+
+          lastStatus = res.status;
+          if (res.ok) {
+            const data = await res.json();
+            const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (reply) return { success: true, reply, modelUsed: model };
+          } else {
+            lastErrText = await res.text();
+            if (lastStatus === 401 || lastStatus === 403) {
+              return { success: false, status: lastStatus, error: lastErrText };
+            }
+          }
+        } catch (err) {
+          lastErrText = err.message;
+        }
+      }
+    }
+  }
+
+  return { success: false, status: lastStatus, error: lastErrText };
+}
+
 async function handleSendAssistantMsg(e) {
   e.preventDefault();
   const input = document.getElementById('assistantChatInput');
@@ -1159,7 +1252,7 @@ async function handleSendAssistantMsg(e) {
   let reply = '';
 
   if (customKey) {
-    // 1. Call Google Gemini (starting with gemini-3.8-flash, falling back gracefully)
+    // 1. Call Google Gemini via direct helper
     try {
       const contents = [
         { role: 'user', parts: [{ text: `[HƯỚNG DẪN HỆ THỐNG]: ${persona} Luôn trả lời bằng tiếng Việt kết hợp tiếng Anh chuẩn xác, trình bày có gạch đầu dòng rõ ràng, súc tích. Ngữ cảnh học tập hiện tại: [Chế độ: ${state.currentMode}, Cấp độ/Lớp: ${levelLabel}].` }] },
@@ -1175,52 +1268,27 @@ async function handleSendAssistantMsg(e) {
       }
       contents.push({ role: 'user', parts: [{ text }] });
 
-      const modelsToTry = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-      let geminiData = null;
-      let lastErrText = '';
-      let lastStatus = 0;
+      const geminiResult = await callGeminiDirect(customKey, contents);
 
-      for (const model of modelsToTry) {
-        try {
-          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${customKey}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': customKey
-            },
-            body: JSON.stringify({
-              contents,
-              generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 1000
-              }
-            })
-          });
-
-          lastStatus = geminiRes.status;
-          if (geminiRes.ok) {
-            geminiData = await geminiRes.json();
-            break;
-          } else {
-            lastErrText = await geminiRes.text();
-            // If authentication failed on the key, no need to try other models with the same broken key
-            if (lastStatus === 401 || lastStatus === 403) break;
-          }
-        } catch(e) {
-          lastErrText = e.message;
-        }
-      }
-
-      if (geminiData) {
-        reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này ngay lúc này.';
+      if (geminiResult.success) {
+        reply = geminiResult.reply;
       } else {
-        if (lastErrText.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || lastStatus === 401) {
+        const lastErrText = geminiResult.error || '';
+        const lastStatus = geminiResult.status || 0;
+
+        if (lastErrText.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || lastStatus === 401 || lastStatus === 403) {
           reply = `⚠️ <b>Google Cloud chưa kích hoạt Generative Language API</b> cho dự án của bạn (Project: 1084095345720).<br><br>` +
             `👉 Bạn chỉ cần mở link sau và bấm nút <b>[Enable] (Bật API)</b>:<br>` +
             `<a href="https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com?project=1084095345720" target="_blank" style="color:var(--blue);font-weight:700;text-decoration:underline;">🔗 Bật Generative Language API tại Google Cloud ↗</a><br><br>` +
-            `<i>💡 Hoặc: Truy cập <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue);text-decoration:underline;">aistudio.google.com</a> bấm <b>"Create API key in new project"</b> để nhận key tự động kích hoạt ngay tức thì!</i>`;
+            `<i>💡 Hoặc cách nhanh nhất: Mở <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue);text-decoration:underline;">aistudio.google.com</a> bấm <b>"Create API key in new project"</b> để nhận key mới (bắt đầu bằng <code>AIzaSy...</code>) tự động kích hoạt ngay tức thì!</i>`;
+        } else if (lastStatus === 404) {
+          reply = `⚠️ <b>Lỗi Google Gemini (404 Not Found)</b>: Google không tìm thấy model tương thích với API Key của bạn.<br><br>` +
+            `💡 <b>Hướng dẫn nhận API Key chuẩn của Google AI Studio (100% hoạt động):</b><br>` +
+            `1. Mở <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue);font-weight:700;text-decoration:underline;">Google AI Studio API Keys ↗</a><br>` +
+            `2. Bấm nút <b>"Create API key"</b> -> Chọn <b>"Create API key in new project"</b>.<br>` +
+            `3. Sao chép chuỗi Key mới (bắt đầu bằng <code>AIzaSy...</code>) và bấm nút 🔑 ở trên để dán vào!`;
         } else {
-          reply = `⚠️ Lỗi gọi Google Gemini API (${lastStatus}): ${lastErrText.slice(0, 150)}. Vui lòng kiểm tra lại API Key bằng cách bấm nút 🔑 ở trên!`;
+          reply = `⚠️ Lỗi gọi Google Gemini API (${lastStatus}): ${lastErrText.slice(0, 200)}. Vui lòng kiểm tra lại API Key bằng cách bấm nút 🔑 ở trên!`;
         }
       }
     } catch(err) {
