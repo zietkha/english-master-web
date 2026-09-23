@@ -77,7 +77,7 @@ exports.handler = async (event) => {
   contents.push({ role: 'user', parts: [{ text: message }] });
 
   try {
-    const modelsToTry = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
     let geminiData = null;
     let lastError = '';
 
@@ -87,8 +87,7 @@ exports.handler = async (event) => {
         const geminiRes = await fetch(url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             contents,
