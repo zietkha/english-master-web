@@ -69,12 +69,20 @@ function navigateTo(viewName) {
   const activeNav = document.getElementById(`nav${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`);
   if (activeNav) activeNav.classList.add('active');
 
+  // Synchronize mobile bottom nav
+  document.querySelectorAll('.bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
+  const activeBNav = document.getElementById(`bnav-${viewName}`);
+  if (activeBNav) activeBNav.classList.add('active');
+
   if (viewName === 'learn') renderLessonsList();
   if (viewName === 'explore') renderExploreGrid();
   if (viewName === 'leaderboard') renderLeaderboard();
   if (viewName === 'mylessons') renderMyLessons();
   if (viewName === 'profile') renderProfilePage();
   if (viewName === 'admin') window.location.href = 'admin.html';
+  
+  // Scroll to top on view change
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function checkMaintenanceMode() {

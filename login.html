@@ -1,286 +1,301 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>English Kha Master — Đăng nhập</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="styles.css">
 <style>
-:root {
-  --bg: #f4f7fe; --panel: rgba(255, 255, 255, 0.72); --panel2: rgba(238, 243, 255, 0.75);
-  --border: rgba(255, 255, 255, 0.65); --text: #152238; --muted: #6b7794;
-  --accent: #2563eb; --accent-dark: #1d4ed8; --ok: #16a34a; --bad: #dc2626;
-  --glass-blur: 24px;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b1329; --panel: rgba(20, 31, 54, 0.75); --panel2: rgba(27, 41, 70, 0.75);
-    --border: rgba(255, 255, 255, 0.1); --text: #f8fafc; --muted: #93a1c4;
-  }
-}
-* { box-sizing: border-box; }
+/* ── Login Page Styles — White Dominant + Liquid Glass ── */
 body {
   margin: 0;
-  min-height: 100vh;
-  min-height: 100dvh;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  color: var(--text);
+  min-height: 100vh; min-height: 100dvh;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #f8f9fc;
   overflow-x: hidden;
-  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(37,99,235,0.06) 0%, transparent 44%),
+    radial-gradient(circle at 88% 82%, rgba(99,102,241,0.05) 0%, transparent 44%);
+  background-attachment: fixed;
 }
-
-/* Multi-blob liquid mesh background */
-.bg-mesh {
-  position: fixed; inset: 0; z-index: -1;
-  background: radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.08) 0%, transparent 40%),
-              radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 40%);
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(37,99,235,0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none; z-index: -1;
 }
+.bg-mesh { position: fixed; inset: 0; z-index: -1; }
 .blob {
-  position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.35; z-index: -1;
-  animation: floatSlow 22s ease-in-out infinite; pointer-events: none;
+  position: fixed; border-radius: 50%;
+  filter: blur(72px); opacity: 0.16; z-index: -1;
+  animation: blobDrift 22s ease-in-out infinite;
+  pointer-events: none;
 }
-.blob1 { width: 380px; height: 380px; background: #60a5fa; top: -100px; left: -80px; animation-duration: 20s; }
-.blob2 { width: 340px; height: 340px; background: #93c5fd; bottom: -80px; right: -60px; animation-duration: 24s; animation-delay: 3s; }
-.blob3 { width: 280px; height: 280px; background: #bfdbfe; top: 35%; left: 55%; animation-duration: 26s; animation-delay: 6s; }
-
-@keyframes floatSlow {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(35px, -25px) scale(1.08); }
+.blob1 { width: 420px; height: 420px; background: #60a5fa; top: -100px; left: -100px; animation-duration: 20s; }
+.blob2 { width: 360px; height: 360px; background: #818cf8; bottom: -80px; right: -80px; animation-duration: 24s; animation-delay: 3s; }
+.blob3 { width: 300px; height: 300px; background: #93c5fd; top: 40%; left: 55%; animation-duration: 28s; animation-delay: 6s; }
+@keyframes blobDrift {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  50% { transform: translate(28px,-20px) scale(1.06); }
 }
-
 .wrap {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: calc(32px + env(safe-area-inset-top,0px)) 16px
+           calc(32px + env(safe-area-inset-bottom,0px));
 }
-
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-  cursor: pointer;
-  text-decoration: none;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 28px; cursor: pointer; text-decoration: none;
+  animation: fadeDown 0.5s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .brand-logo-svg {
-  width: 44px;
-  height: 44px;
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  width: 46px; height: 46px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   color: white;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 8px 24px rgba(37,99,235,0.28), inset 0 1px 0 rgba(255,255,255,0.25);
+  flex-shrink: 0;
 }
 .brand h1 {
-  font-size: 22px;
-  font-weight: 800;
-  margin: 0;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, var(--text), var(--accent));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.22rem; font-weight: 800; margin: 0;
+  letter-spacing: -0.035em;
+  background: linear-gradient(135deg, #0f172a 30%, #2563eb 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
-
+/* Auth card — liquid glass */
 .auth-card {
-  width: 100%;
-  max-width: 420px;
-  border-radius: 28px;
-  padding: 30px 26px;
-  border: 1px solid var(--border);
-  box-shadow: 0 16px 45px rgba(37, 99, 235, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  transform: translateY(16px);
-  opacity: 0;
-  animation: cardEnter 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  width: 100%; max-width: 428px;
+  border-radius: 26px; padding: 32px 28px;
+  background: rgba(255,255,255,0.82);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow:
+    0 20px 60px rgba(37,99,235,0.09),
+    0 4px 16px rgba(37,99,235,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.90);
+  position: relative; overflow: hidden;
+  transform: translateY(20px); opacity: 0;
+  animation: cardEnter 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s forwards;
 }
-@keyframes cardEnter {
-  to { transform: translateY(0); opacity: 1; }
+.auth-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.9) 50%, transparent 100%);
 }
-
+@keyframes cardEnter { to { transform: translateY(0); opacity: 1; } }
+/* Tabs — liquid glass blue */
 .tabs {
   display: flex;
-  background: var(--panel2);
-  border-radius: 14px;
-  padding: 4px;
-  margin-bottom: 22px;
-  position: relative;
-  border: 1px solid var(--border);
+  background: rgba(241,244,251,0.80);
+  border-radius: 14px; padding: 4px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(37,99,235,0.09);
 }
 .tab {
-  flex: 1;
-  text-align: center;
-  padding: 10px 0;
-  font-size: 14.5px;
-  font-weight: 700;
-  color: var(--muted);
-  cursor: pointer;
-  border-radius: 10px;
-  z-index: 1;
-  transition: color 0.25s;
-  user-select: none;
+  flex: 1; text-align: center; padding: 10px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; font-weight: 700;
+  color: #7a8fb0; cursor: pointer;
+  border-radius: 10px; position: relative; z-index: 1;
+  transition: color 0.22s ease, background 0.22s ease, border-color 0.22s ease;
+  user-select: none; border: 1px solid transparent;
+  letter-spacing: -0.01em;
 }
-.tab.active { color: #fff; }
-.tab-highlight {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: calc(50% - 4px);
-  height: calc(100% - 8px);
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-  border-radius: 10px;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-  z-index: 0;
+.tab.active {
+  color: #2563eb;
+  background: rgba(37,99,235,0.10);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border-color: rgba(37,99,235,0.22);
+  box-shadow: 0 2px 10px rgba(37,99,235,0.12), inset 0 1px 0 rgba(255,255,255,0.80);
 }
-
+#tabHighlight { display: none; }
+.panel { display: none; }
+.panel.active {
+  display: block;
+  animation: fadeSlide 0.28s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+/* Fields */
 .field { margin-bottom: 16px; }
 label {
-  display: block;
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 6px;
-  font-weight: 600;
+  display: block; font-family: 'Inter', sans-serif;
+  font-size: 0.82rem; color: #3d4f6e;
+  margin-bottom: 6px; font-weight: 600; letter-spacing: -0.01em;
 }
 input {
   width: 100%;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--text);
-  padding: 12px 14px;
-  font-size: 16px; /* 16px prevents iOS Safari auto-zoom bug */
-  min-height: 44px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  font-family: inherit;
+  background: rgba(255,255,255,0.90);
+  border: 1px solid rgba(30,60,130,0.12);
+  border-radius: 12px; color: #0f172a;
+  padding: 11px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px; min-height: 44px;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  outline: none;
 }
 input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.14);
+  background: #ffffff;
 }
 .err {
-  color: var(--bad);
-  font-size: 12.5px;
-  margin-top: 5px;
-  min-height: 16px;
+  color: #dc2626; font-family: 'Inter', sans-serif;
+  font-size: 0.78rem; margin-top: 5px;
+  min-height: 16px; font-weight: 500;
 }
-
+/* Buttons */
 .btn-primary {
   width: 100%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%), linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(180deg,rgba(255,255,255,0.20) 0%,rgba(255,255,255,0) 50%),
+              linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 12px;
-  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 12px; padding: 12px;
   min-height: 46px;
-  font-size: 15px;
-  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem; font-weight: 700;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.32), inset 0 1px 0 rgba(255,255,255,0.22);
+  letter-spacing: -0.01em;
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 7px 22px rgba(37,99,235,0.42), inset 0 1px 0 rgba(255,255,255,0.22);
 }
-.btn-primary:active { transform: scale(0.98); }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-
+.btn-primary:active { transform: scale(0.97); }
+.btn-primary:disabled { opacity: 0.58; cursor: not-allowed; }
 .divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 18px 0;
-  color: var(--muted);
-  font-size: 12.5px;
+  display: flex; align-items: center; gap: 12px;
+  margin: 18px 0; color: #7a8fb0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
 }
 .divider::before, .divider::after {
-  content: ''; flex: 1; height: 1px; background: var(--border);
+  content: ''; flex: 1; height: 1px; background: rgba(30,60,130,0.10);
 }
-
 .btn-google {
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(255,255,255,0.90);
+  border: 1px solid rgba(30,60,130,0.12);
+  border-radius: 12px; padding: 12px;
   min-height: 46px;
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; font-weight: 600;
+  color: #0f172a; cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+  letter-spacing: -0.01em;
 }
-.btn-google:hover { background: var(--panel2); }
+.btn-google:hover {
+  background: #ffffff;
+  border-color: rgba(37,99,235,0.22);
+  box-shadow: 0 3px 10px rgba(37,99,235,0.10);
+  transform: translateY(-1px);
+}
 .btn-google:active { transform: scale(0.98); }
-
 .forgot {
-  display: block;
-  text-align: right;
-  font-size: 13px;
-  color: var(--accent);
-  margin: -6px 0 16px;
-  cursor: pointer;
-  text-decoration: none;
+  display: block; text-align: right;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem; font-weight: 600; color: #2563eb;
+  margin: -4px 0 16px; cursor: pointer; text-decoration: none;
+  transition: opacity 0.15s;
 }
-.forgot:hover { text-decoration: underline; }
-
-.panel { display: none; }
-.panel.active { display: block; animation: fadeSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-@keyframes fadeSlide { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
-
+.forgot:hover { opacity: 0.72; text-decoration: underline; }
 .foot-credit {
-  margin-top: 30px;
-  text-align: center;
-  font-size: 12.5px;
-  color: var(--muted);
-  line-height: 1.6;
+  margin-top: 28px; text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem; color: #7a8fb0; line-height: 1.65;
 }
-.foot-credit b { color: var(--accent); }
-
+.foot-credit b { color: #2563eb; font-weight: 700; }
+/* Toast */
 #toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 12px 20px;
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
-  z-index: 50;
-  max-width: 90vw;
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: rgba(255,255,255,0.94);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.80);
+  color: #0f172a;
+  padding: 12px 20px; border-radius: 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; font-weight: 600;
+  box-shadow: 0 10px 30px rgba(15,23,42,0.12);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16,1,0.3,1);
+  z-index: 50; max-width: 90vw; white-space: nowrap;
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-#toast.ok { border-color: var(--ok); color: var(--ok); }
-#toast.bad { border-color: var(--bad); color: var(--bad); }
-
+#toast.ok  { border-left: 3px solid #16a34a; color: #15803d; }
+#toast.bad { border-left: 3px solid #dc2626; color: #dc2626; }
+/* Input shake animation */
+@keyframes inputShake {
+  10%, 90% { transform: translate3d(-1px,0,0); }
+  20%, 80% { transform: translate3d(2px,0,0); }
+  30%, 50%, 70% { transform: translate3d(-4px,0,0); }
+  40%, 60% { transform: translate3d(4px,0,0); }
+}
+.input-shake { animation: inputShake 0.4s cubic-bezier(0.36,0.07,0.19,0.97) both; }
+/* Dark theme */
+[data-theme="dark"] body {
+  background: #0d1117;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(88,166,255,0.05) 0%, transparent 44%),
+    radial-gradient(circle at 88% 82%, rgba(99,102,241,0.04) 0%, transparent 44%);
+}
+[data-theme="dark"] .auth-card {
+  background: rgba(22,27,34,0.88);
+  border-color: rgba(255,255,255,0.09);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.07);
+}
+[data-theme="dark"] .tabs { background: rgba(21,26,33,0.80); border-color: rgba(255,255,255,0.07); }
+[data-theme="dark"] .tab { color: #6e7681; }
+[data-theme="dark"] .tab.active { color: #58a6ff; background: rgba(88,166,255,0.10); border-color: rgba(88,166,255,0.25); }
+[data-theme="dark"] input { background: rgba(30,37,47,0.80); border-color: rgba(255,255,255,0.09); color: #f0f6fc; }
+[data-theme="dark"] input:focus { border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,0.14); background: rgba(33,38,45,0.95); }
+[data-theme="dark"] label { color: #8b949e; }
+[data-theme="dark"] .btn-google { background: rgba(30,37,47,0.80); border-color: rgba(255,255,255,0.09); color: #f0f6fc; }
+[data-theme="dark"] .btn-google:hover { background: rgba(33,38,45,0.95); border-color: rgba(88,166,255,0.25); }
+[data-theme="dark"] .brand h1 { background: linear-gradient(135deg, #f0f6fc 30%, #58a6ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+[data-theme="dark"] .foot-credit { color: #6e7681; }
+[data-theme="dark"] .foot-credit b { color: #58a6ff; }
+[data-theme="dark"] #toast { background: rgba(22,27,34,0.92); border-color: rgba(255,255,255,0.10); color: #f0f6fc; }
 @media (prefers-reduced-motion: reduce) {
   *, .blob { animation: none !important; transition: none !important; }
 }
+@media (max-width: 480px) {
+  .wrap { padding: calc(16px + env(safe-area-inset-top,0px)) 12px calc(16px + env(safe-area-inset-bottom,0px)); }
+  .auth-card { padding: 24px 16px; border-radius: 20px; }
+  .brand { margin-bottom: 20px; }
+  .brand h1 { font-size: 1.05rem; }
+}
+@media (max-width: 360px) {
+  .auth-card { padding: 20px 12px; }
+  .tab { padding: 8px 4px; font-size: 0.78rem; }
+}
 </style>
+
 </head>
 <body>
 <div class="bg-mesh"></div>
@@ -398,6 +413,37 @@ function toast(msg, type) {
   t.className = 'show ' + (type || '');
   clearTimeout(window._tt);
   window._tt = setTimeout(() => { t.className = t.className.replace('show', ''); }, 3500);
+}
+
+// SHARED SUCCESS HANDLER
+async function handleSuccessfulLogin(user) {
+  let role = (user.email === 'khasnlh@gmail.com') ? 'admin' : 'learner';
+  if (db) {
+    try {
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      if (userDoc.exists && userDoc.data().role) {
+        role = (user.email === 'khasnlh@gmail.com') ? 'admin' : userDoc.data().role;
+      } else {
+        await db.collection('users').doc(user.uid).set({
+          name: user.displayName || (user.email ? user.email.split('@')[0] : 'Học viên'),
+          email: user.email,
+          role: role,
+          xp: 100,
+          streak: 1,
+          status: 'active',
+          badges: ['first_lesson'],
+          createdAt: Date.now()
+        }, { merge: true });
+      }
+    } catch(err) {
+      console.warn('Firestore user profile sync error:', err);
+    }
+  }
+  setSecureSession({ ...user, role });
+  toast('Đăng nhập Google thành công!', 'ok');
+  setTimeout(() => {
+    window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
+  }, 600);
 }
 
 // Global Google Auth Handler
@@ -539,8 +585,6 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       } else {
         errEl.textContent = 'Lỗi đăng nhập: ' + (err.message || err.code);
       }
-    } catch(err) {
-      errEl.textContent = 'Lỗi kết nối Firebase: ' + (err.message || err);
     }
   } else {
     errEl.textContent = 'Dịch vụ Firebase Auth chưa sẵn sàng.';
@@ -616,103 +660,6 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
 
   btn.disabled = false;
   document.getElementById('signupBtnText').textContent = 'Tạo tài khoản';
-});
-
-// SHARED SUCCESS HANDLER
-async function handleSuccessfulLogin(user) {
-  let role = (user.email === 'khasnlh@gmail.com') ? 'admin' : 'learner';
-  if (db) {
-    try {
-      const userDoc = await db.collection('users').doc(user.uid).get();
-      if (userDoc.exists && userDoc.data().role) {
-        role = (user.email === 'khasnlh@gmail.com') ? 'admin' : userDoc.data().role;
-      } else {
-        await db.collection('users').doc(user.uid).set({
-          name: user.displayName || (user.email ? user.email.split('@')[0] : 'Học viên'),
-          email: user.email,
-          role: role,
-          xp: 100,
-          streak: 1,
-          status: 'active',
-          badges: ['first_lesson'],
-          createdAt: Date.now()
-        }, { merge: true });
-      }
-    } catch(err) {
-      console.warn('Firestore user profile sync error:', err);
-    }
-  }
-  setSecureSession({ ...user, role });
-  toast('Đăng nhập Google thành công!', 'ok');
-  setTimeout(() => {
-    window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
-  }, 600);
-}
-
-// Check if user just returned from Google Redirect
-if (auth) {
-  auth.getRedirectResult().then((result) => {
-    if (result && result.user) {
-      handleSuccessfulLogin(result.user);
-    }
-  }).catch((e) => console.warn('Redirect auth check:', e));
-}
-
-// GOOGLE AUTH
-const googleBtn = document.getElementById('googleBtn');
-googleBtn.addEventListener('click', async () => {
-  if (window.location.protocol === 'file:') {
-    alert('Google OAuth không cho phép chạy trên giao thức file:// cục bộ.\nVui lòng mở trang qua địa chỉ: http://localhost:3000/login.html');
-    window.location.href = 'http://localhost:3000/login.html';
-    return;
-  }
-
-  if (!auth) {
-    toast('Dịch vụ Firebase Auth chưa sẵn sàng.', 'bad');
-    return;
-  }
-
-  const originalHtml = googleBtn.innerHTML;
-  googleBtn.disabled = true;
-  googleBtn.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin"></i> Đang mở Google...</span>';
-
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('email');
-    provider.addScope('profile');
-    provider.setCustomParameters({ prompt: 'select_account' });
-
-    let result;
-    try {
-      result = await auth.signInWithPopup(provider);
-    } catch(popupErr) {
-      console.warn('Popup attempt failed, checking fallback:', popupErr);
-      if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/cancelled-popup-request') {
-        toast('Đang chuyển hướng sang Google Sign-In...', 'ok');
-        await auth.signInWithRedirect(provider);
-        return;
-      }
-      throw popupErr;
-    }
-
-    if (result && result.user) {
-      await handleSuccessfulLogin(result.user);
-    }
-  } catch(e) {
-    console.error('Google sign-in error:', e);
-    googleBtn.disabled = false;
-    googleBtn.innerHTML = originalHtml;
-
-    if (e.code === 'auth/operation-not-allowed') {
-      toast('Chưa bật Google Provider trong Firebase Console > Authentication!', 'bad');
-    } else if (e.code === 'auth/popup-closed-by-user') {
-      toast('Cửa sổ đăng nhập đã bị đóng trước khi chọn tài khoản.', 'bad');
-    } else if (e.code === 'auth/unauthorized-domain') {
-      toast('Tên miền này chưa được cấp phép trong Firebase Authorized domains!', 'bad');
-    } else {
-      toast('Lỗi đăng nhập: ' + (e.message || e.code), 'bad');
-    }
-  }
 });
 
 // FORGOT PASSWORD
