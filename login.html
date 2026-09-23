@@ -323,7 +323,7 @@ input:focus {
         <span id="loginBtnText">Đăng nhập</span>
       </button>
       <div class="divider">hoặc</div>
-      <button class="btn-google" id="googleBtn">
+      <button class="btn-google" id="googleBtn" type="button" onclick="handleGoogleAuthClick()">
         <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.8 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3c-7.4 0-13.8 4.1-17.1 10.1z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.6C29.5 35.9 26.9 37 24 37c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.9 40.5 16.4 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.9-2.9 5.3-5.4 6.9l6.6 5.6C39.9 38.1 43 32.6 43 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
         Đăng nhập với Google
       </button>
@@ -393,11 +393,80 @@ try {
 
 function toast(msg, type) {
   const t = document.getElementById('toast');
+  if (!t) return;
   t.textContent = msg;
   t.className = 'show ' + (type || '');
   clearTimeout(window._tt);
-  window._tt = setTimeout(() => { t.className = t.className.replace('show', ''); }, 3200);
+  window._tt = setTimeout(() => { t.className = t.className.replace('show', ''); }, 3500);
 }
+
+// Global Google Auth Handler
+window.handleGoogleAuthClick = async function() {
+  if (window.location.protocol === 'file:') {
+    alert('Google OAuth không thể chạy trên giao thức file:// cục bộ.\nVui lòng mở trang qua địa chỉ: http://localhost:3000/login.html');
+    window.location.href = 'http://localhost:3000/login.html';
+    return;
+  }
+
+  const btn = document.getElementById('googleBtn');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = '<span style="display:inline-flex; align-items:center; gap:8px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang mở Google...</span>';
+    btn.style.opacity = '0.75';
+    btn.style.pointerEvents = 'none';
+  }
+
+  if (!auth) {
+    alert('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang!');
+    if (btn) {
+      btn.innerHTML = originalHtml;
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+    }
+    return;
+  }
+
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    let result;
+    try {
+      result = await auth.signInWithPopup(provider);
+    } catch(popupErr) {
+      console.warn('Popup attempt failed, checking fallback to redirect:', popupErr);
+      if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/cancelled-popup-request') {
+        toast('Đang chuyển hướng sang Google Sign-In...', 'ok');
+        await auth.signInWithRedirect(provider);
+        return;
+      }
+      throw popupErr;
+    }
+
+    if (result && result.user) {
+      await handleSuccessfulLogin(result.user);
+    }
+  } catch(e) {
+    console.error('Google sign-in error:', e);
+    if (btn) {
+      btn.innerHTML = originalHtml;
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+    }
+
+    if (e.code === 'auth/operation-not-allowed') {
+      alert('Chưa bật Google Provider trong Firebase Console!\nVui lòng vào Authentication > Sign-in method > bấm Enable Google.');
+    } else if (e.code === 'auth/popup-closed-by-user') {
+      toast('Cửa sổ đăng nhập đã bị đóng trước khi chọn tài khoản.', 'bad');
+    } else if (e.code === 'auth/unauthorized-domain') {
+      alert('Tên miền này chưa được cấp phép trong Firebase Authorized domains!\nHãy kiểm tra Authentication > Settings > Authorized domains.');
+    } else {
+      alert('Lỗi đăng nhập Google: ' + (e.message || e.code));
+    }
+  }
+};
 
 // Tab Switching
 const tabs = document.querySelectorAll('.tab');

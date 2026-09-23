@@ -85,6 +85,58 @@ function denyAccess() {
   document.getElementById('adminMainContent').style.display = 'none';
 }
 
+window.handleAdminDirectGoogleLogin = async function() {
+  if (window.location.protocol === 'file:') {
+    alert('Google OAuth không thể chạy trên giao thức file:// cục bộ.\nVui lòng mở trang qua: http://localhost:3000/admin.html');
+    window.location.href = 'http://localhost:3000/admin.html';
+    return;
+  }
+
+  const btn = document.getElementById('adminDirectGoogleBtn');
+  if (btn) {
+    btn.innerHTML = '<span style="display:inline-flex; align-items:center; gap:8px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang mở Google...</span>';
+    btn.style.opacity = '0.75';
+    btn.style.pointerEvents = 'none';
+  }
+
+  if (!auth) {
+    alert('Firebase Auth chưa sẵn sàng. Vui lòng tải lại trang!');
+    if (btn) { btn.innerHTML = '<span>Đăng nhập với Google Admin</span>'; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+    return;
+  }
+
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    let result;
+    try {
+      result = await auth.signInWithPopup(provider);
+    } catch(err) {
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        alert('Trình duyệt chặn popup, đang chuyển hướng sang trang Google...');
+        await auth.signInWithRedirect(provider);
+        return;
+      }
+      throw err;
+    }
+
+    if (result && result.user) {
+      verifyAdminAccess();
+    }
+  } catch(e) {
+    console.error('Admin Google sign-in error:', e);
+    if (btn) {
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.8 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3c-7.4 0-13.8 4.1-17.1 10.1z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3c-7.4 0-13.8 4.1-17.1 10.1z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.6C29.5 35.9 26.9 37 24 37c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.9 40.5 16.4 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.9-2.9 5.3-5.4 6.9l6.6 5.6C39.9 38.1 43 32.6 43 24c0-1.4-.1-2.7-.4-3.5z"/></svg> <span>Đăng nhập với Google Admin</span>';
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+    }
+    alert('Lỗi đăng nhập Admin: ' + (e.message || e.code));
+  }
+};
+
 function initAdminDashboard() {
   const toggle = document.getElementById('maintenanceToggle');
   if (toggle) toggle.checked = adminState.maintenanceMode;

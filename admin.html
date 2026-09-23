@@ -95,13 +95,15 @@
       <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
         Bạn cần đăng nhập tài khoản có quyền Quản trị (Admin) để truy cập trang này. Mọi thao tác được bảo mật nghiêm ngặt bằng Firebase Authentication.
       </p>
-      <div style="display: flex; gap: 12px; justify-content: center;">
-        <a href="login.html" class="btn-primary" style="text-decoration: none;">
-          <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập Admin
-        </a>
-        <a href="index.html" class="btn-secondary" style="text-decoration: none;">
-          Quay lại trang chủ
-        </a>
+      <div style="display: flex; flex-direction: column; gap: 12px; max-width: 320px; margin: 0 auto;">
+        <button id="adminDirectGoogleBtn" class="btn-primary" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; cursor: pointer;" type="button" onclick="handleAdminDirectGoogleLogin()">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.8 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3c-7.4 0-13.8 4.1-17.1 10.1z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.6C29.5 35.9 26.9 37 24 37c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.9 40.5 16.4 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.9-2.9 5.3-5.4 6.9l6.6 5.6C39.9 38.1 43 32.6 43 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
+          <span>Đăng nhập với Google Admin</span>
+        </button>
+        <div style="display: flex; gap: 8px; justify-content: center;">
+          <a href="login.html" class="btn-secondary" style="text-decoration: none; font-size: 0.85rem;">Trang Đăng nhập</a>
+          <a href="index.html" class="btn-secondary" style="text-decoration: none; font-size: 0.85rem;">Về trang chủ</a>
+        </div>
       </div>
     </div>
   </div>
