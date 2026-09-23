@@ -1089,6 +1089,39 @@ function closeAssistantChat() {
   if (win) win.classList.remove('active');
 }
 
+function toggleChatKeyBar() {
+  const bar = document.getElementById('chatApiKeyBar');
+  if (!bar) return;
+  const isHidden = bar.style.display === 'none';
+  bar.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
+    const input = document.getElementById('customGeminiKeyInput');
+    if (input) {
+      input.value = localStorage.getItem('gemini_api_key') || '';
+      input.focus();
+    }
+  }
+}
+
+function handleSaveGeminiKey() {
+  const input = document.getElementById('customGeminiKeyInput');
+  const statusEl = document.getElementById('chatKeyStatus');
+  const key = input ? input.value.trim() : '';
+  if (key) {
+    localStorage.setItem('gemini_api_key', key);
+    if (statusEl) {
+      statusEl.innerHTML = '<span style="color: #10b981; font-weight:700;">✅ Đã lưu Google Gemini API Key! Giờ bạn có thể chat trực tiếp với AI thông minh.</span>';
+    }
+    showToast('Đã lưu Gemini API Key thành công!', 'success');
+  } else {
+    localStorage.removeItem('gemini_api_key');
+    if (statusEl) {
+      statusEl.innerHTML = '<span>Đã xóa custom key. Sử dụng server endpoint mặc định.</span>';
+    }
+    showToast('Đã xóa Gemini API Key.', 'info');
+  }
+}
+
 async function handleSendAssistantMsg(e) {
   e.preventDefault();
   const input = document.getElementById('assistantChatInput');
@@ -1113,49 +1146,101 @@ async function handleSendAssistantMsg(e) {
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  try {
-    state.chatHistory = state.chatHistory || [];
-    const levelLabel = state.currentMode === 'tieuhoc'
-      ? (state.selectedGrade ? `Lớp ${state.selectedGrade}` : 'Tiểu học')
-      : (state.selectedLevel ? `Band ${state.selectedLevel}` : 'IELTS');
+  state.chatHistory = state.chatHistory || [];
+  const levelLabel = state.currentMode === 'tieuhoc'
+    ? (state.selectedGrade ? `Lớp ${state.selectedGrade}` : 'Tiểu học')
+    : (state.selectedLevel ? `Band ${state.selectedLevel}` : 'IELTS');
 
-    const res = await fetch('/api/ai-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: text,
-        history: state.chatHistory,
-        context: {
-          mode: state.currentMode,
-          level: levelLabel
-        }
-      })
-    });
+  const persona = state.currentMode === 'tieuhoc'
+    ? 'Bạn là trợ lý gia sư tiếng Anh thân thiện, kiên nhẫn dành cho học sinh Tiểu học Việt Nam. Hãy giải thích ngắn gọn, dùng từ ngữ dễ hiểu, có ví dụ gần gũi, khích lệ các em học tập.'
+    : 'Bạn là trợ lý luyện thi IELTS & tiếng Anh thông minh mang tên English Kha Master AI. Hãy giải thích súc tích, chỉ ra lỗi ngữ pháp/từ vựng (nếu có), gợi ý collocation, idiom hoặc cách diễn đạt band cao (6.5 - 8.0). Khi người dùng hỏi về kỹ năng (nghe, nói, đọc, phát âm) hoặc thắc mắc tại sao không nói được, hãy ân cần giải thích và đưa ra lời khuyên cụ thể, hữu ích.';
 
-    let reply = '';
-    if (res.ok) {
-      const data = await res.json();
-      reply = data.reply || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này ngay lúc này.';
-    } else {
-      reply = `Xin chào! Về "${text}", bạn hãy chú ý ngữ cảnh sử dụng từ vựng và xem thêm các bài đọc theo Band/Lớp nhé! ✨`;
+  const customKey = localStorage.getItem('gemini_api_key');
+  let reply = '';
+
+  if (customKey) {
+    // 1. Call Google Gemini 2.0 Flash DIRECTLY from client
+    try {
+      const contents = [
+        { role: 'user', parts: [{ text: `[HƯỚNG DẪN HỆ THỐNG]: ${persona} Luôn trả lời bằng tiếng Việt kết hợp tiếng Anh chuẩn xác, trình bày có gạch đầu dòng rõ ràng, súc tích. Ngữ cảnh học tập hiện tại: [Chế độ: ${state.currentMode}, Cấp độ/Lớp: ${levelLabel}].` }] },
+        { role: 'model', parts: [{ text: 'Dạ, tôi đã hiểu. Tôi là trợ lý AI của English Kha Master, sẵn sàng hỗ trợ bạn mọi thắc mắc về tiếng Anh và học tập!' }] }
+      ];
+
+      const recent = (state.chatHistory || []).slice(-6);
+      for (const h of recent) {
+        contents.push({
+          role: h.sender === 'user' ? 'user' : 'model',
+          parts: [{ text: h.text }]
+        });
+      }
+      contents.push({ role: 'user', parts: [{ text }] });
+
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${customKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1000
+          }
+        })
+      });
+
+      if (geminiRes.ok) {
+        const geminiData = await geminiRes.json();
+        reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này ngay lúc này.';
+      } else {
+        const errText = await geminiRes.text();
+        reply = `⚠️ Lỗi gọi Google Gemini API (${geminiRes.status}): ${errText.slice(0, 150)}. Vui lòng kiểm tra lại API Key bằng cách bấm nút 🔑 ở trên!`;
+      }
+    } catch(err) {
+      reply = `⚠️ Lỗi mạng khi gọi Gemini API: ${err.message}.`;
     }
+  } else {
+    // 2. Try Serverless Endpoint /api/ai-chat
+    try {
+      const res = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          history: state.chatHistory,
+          context: { mode: state.currentMode, level: levelLabel }
+        })
+      });
 
-    state.chatHistory.push({ sender: 'user', text });
-    state.chatHistory.push({ sender: 'ai', text: reply });
-
-    botDiv.innerHTML = formatChatReply(reply);
-
-    // Sync chat message to Firestore chats/{uid}/messages (Roadmap 10.1 & 10.10)
-    if (state.db && state.currentUser) {
-      try {
-        const chatCol = state.db.collection('chats').doc(state.currentUser.uid).collection('messages');
-        await chatCol.add({ from: 'user', text, createdAt: Date.now(), readByAdmin: false });
-        await chatCol.add({ from: 'ai', text: reply, createdAt: Date.now() + 1 });
-      } catch(e) {}
+      if (res.ok) {
+        const data = await res.json();
+        reply = data.reply || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này ngay lúc này.';
+      } else {
+        reply = `⚠️ <b>Trợ lý AI chưa có Gemini API Key để xử lý trực tiếp</b>.<br><br>` +
+          `👉 Bạn hãy bấm vào nút biểu tượng <b>🔑 (Chìa khóa)</b> ở góc trên khung chat và dán <b>Google Gemini API Key</b> của bạn (hoàn toàn miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue);text-decoration:underline;">aistudio.google.com</a>) để trò chuyện với AI thông minh ngay lập tức nhé!`;
+        const keyBar = document.getElementById('chatApiKeyBar');
+        if (keyBar) keyBar.style.display = 'block';
+      }
+    } catch(err) {
+      reply = `⚠️ <b>Chưa thể kết nối tới server AI</b>.<br>` +
+        `Bạn hãy bấm nút biểu tượng <b>🔑 (Chìa khóa)</b> ở góc trên để dán Google Gemini API Key gọi trực tiếp nhé!`;
+      const keyBar = document.getElementById('chatApiKeyBar');
+      if (keyBar) keyBar.style.display = 'block';
     }
-  } catch(err) {
-    botDiv.textContent = `Chào bạn! Về "${text}" — bạn có thể áp dụng thêm vào bài tập đọc hiểu và tự tạo bài học AI từ văn bản mẫu nhé! 🌟`;
   }
+
+  state.chatHistory.push({ sender: 'user', text });
+  state.chatHistory.push({ sender: 'ai', text: reply });
+
+  botDiv.innerHTML = formatChatReply(reply);
+
+  // Sync chat message to Firestore chats/{uid}/messages (Roadmap 10.1 & 10.10)
+  if (state.db && state.currentUser) {
+    try {
+      const chatCol = state.db.collection('chats').doc(state.currentUser.uid).collection('messages');
+      await chatCol.add({ from: 'user', text, createdAt: Date.now(), readByAdmin: false });
+      await chatCol.add({ from: 'ai', text: reply, createdAt: Date.now() + 1 });
+    } catch(e) {}
+  }
+
   if (msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
@@ -2058,6 +2143,8 @@ function startVoicePractice(word, phonetic) {
   const resultBox = document.getElementById('speakingResultBox');
   const micIcon = document.getElementById('speakingMicIcon');
   const recordBtn = document.getElementById('speakingRecordBtn');
+  const braveHelpBtn = document.getElementById('braveHelpBtn');
+  const braveHelpBox = document.getElementById('braveHelpBox');
 
   if (targetWordEl) targetWordEl.textContent = word;
   if (phoneticEl) phoneticEl.textContent = phonetic || '';
@@ -2065,9 +2152,23 @@ function startVoicePractice(word, phonetic) {
   if (resultBox) resultBox.style.display = 'none';
   if (micIcon) micIcon.className = 'fa-solid fa-microphone';
   if (recordBtn) recordBtn.style.background = '';
+  if (braveHelpBox) braveHelpBox.style.display = 'none';
+
+  // Check if Brave browser is used
+  const isBrave = (navigator.brave && typeof navigator.brave.isBrave === 'function') || (navigator.userAgent && navigator.userAgent.includes('Brave'));
+  if (braveHelpBtn) {
+    braveHelpBtn.style.display = isBrave ? 'inline-flex' : 'none';
+  }
 
   if (modal) {
     modal.classList.add('active');
+  }
+}
+
+function toggleBraveHelp() {
+  const box = document.getElementById('braveHelpBox');
+  if (box) {
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
   }
 }
 
@@ -2080,7 +2181,7 @@ function closeSpeakingPracticeModal() {
   isSpeechRecording = false;
 }
 
-function toggleSpeechRecording() {
+async function toggleSpeechRecording() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     showToast('⚠️ Trình duyệt của bạn chưa hỗ trợ Web Speech API. Vui lòng dùng Google Chrome hoặc Microsoft Edge!', 'danger');
@@ -2093,6 +2194,7 @@ function toggleSpeechRecording() {
   const resultBox = document.getElementById('speakingResultBox');
   const recognizedTextEl = document.getElementById('speakingRecognizedText');
   const scoreBadgeEl = document.getElementById('speakingScoreBadge');
+  const braveHelpBtn = document.getElementById('braveHelpBtn');
 
   if (isSpeechRecording) {
     if (speechRecognitionInstance) {
@@ -2105,7 +2207,30 @@ function toggleSpeechRecording() {
     return;
   }
 
-  speechRecognitionInstance = new SpeechRecognition();
+  // Explicitly prompt for microphone access via getUserMedia if available
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop temporary track right away once allowed
+      stream.getTracks().forEach(t => t.stop());
+    } catch(err) {
+      console.warn('Microphone permission check:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        if (statusEl) {
+          statusEl.innerHTML = `<span style="color: #ef4444; font-weight: 700;"><i class="fa-solid fa-lock"></i> Chưa cấp quyền Micro!</span><br><span style="font-size: 0.8rem; color: var(--text-2);">Vui lòng nhấn biểu tượng ổ khóa 🔒 trên thanh địa chỉ và chọn <b>Cho phép (Allow)</b> Micro.</span>`;
+        }
+        return;
+      }
+    }
+  }
+
+  try {
+    speechRecognitionInstance = new SpeechRecognition();
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '⚠️ Không thể khởi tạo Speech Recognition trên trình duyệt này.';
+    return;
+  }
+
   speechRecognitionInstance.lang = 'en-US';
   speechRecognitionInstance.interimResults = false;
   speechRecognitionInstance.maxAlternatives = 3;
@@ -2148,11 +2273,38 @@ function toggleSpeechRecording() {
     }
   };
 
-  speechRecognitionInstance.onerror = () => {
+  speechRecognitionInstance.onerror = (event) => {
     isSpeechRecording = false;
     if (micIcon) micIcon.className = 'fa-solid fa-microphone';
     if (recordBtn) recordBtn.style.background = '';
-    if (statusEl) statusEl.textContent = '❌ Không nhận diện được âm thanh. Vui lòng thử lại!';
+
+    const err = event.error;
+    console.warn('Speech recognition error:', err);
+
+    const isBrave = (navigator.brave && typeof navigator.brave.isBrave === 'function') || (navigator.userAgent && navigator.userAgent.includes('Brave'));
+    if (braveHelpBtn && isBrave) braveHelpBtn.style.display = 'inline-flex';
+
+    if (err === 'not-allowed') {
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color: #ef4444; font-weight: 700;"><i class="fa-solid fa-lock"></i> Chưa cấp quyền Micro!</span><br><span style="font-size: 0.8rem; color: var(--text-2);">Vui lòng nhấn biểu tượng ổ khóa 🔒 trên thanh địa chỉ và chọn <b>Cho phép (Allow)</b> Micro.</span>`;
+      }
+    } else if (err === 'network' || err === 'service-not-allowed') {
+      if (isBrave) {
+        if (statusEl) {
+          statusEl.innerHTML = `<span style="color: #d97706; font-weight: 700;"><i class="fa-solid fa-triangle-exclamation"></i> Brave đang chặn dịch vụ Google Speech</span><br><span style="font-size: 0.8rem; color: var(--text-2);">Brave chặn Google Speech mặc định. Hãy vào <b>brave://settings/system</b> bật <i>'Use Google services for speech recognition'</i> hoặc mở web trên <b>Chrome / Edge / Cốc Cốc</b> nhé!</span>`;
+        }
+        const helpBox = document.getElementById('braveHelpBox');
+        if (helpBox) helpBox.style.display = 'block';
+      } else {
+        if (statusEl) {
+          statusEl.innerHTML = `<span style="color: #ef4444; font-weight: 700;"><i class="fa-solid fa-wifi"></i> Lỗi kết nối dịch vụ giọng nói</span><br><span style="font-size: 0.8rem; color: var(--text-2);">Vui lòng kiểm tra lại kết nối mạng hoặc thử trên Google Chrome / Edge.</span>`;
+        }
+      }
+    } else if (err === 'no-speech') {
+      if (statusEl) statusEl.textContent = '⏱️ Chưa nghe thấy giọng nói. Hãy bấm lại micro và đọc to rõ ràng nhé!';
+    } else {
+      if (statusEl) statusEl.textContent = `❌ Không nhận diện được âm thanh (${err}). Vui lòng thử lại!`;
+    }
   };
 
   speechRecognitionInstance.onend = () => {

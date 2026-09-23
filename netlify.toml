@@ -1,0 +1,23 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/generate-lesson"
+  to = "/.netlify/functions/generate-lesson"
+  status = 200
+
+[[redirects]]
+  from = "/api/ai-chat"
+  to = "/.netlify/functions/ai-chat"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/manage-user"
+  to = "/.netlify/functions/manage-user"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
