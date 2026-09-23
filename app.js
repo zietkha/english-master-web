@@ -1052,13 +1052,28 @@ function formatOnlineTime(seconds) {
 /* ── Section 10.10: Floating Multi-Action & AI Chat Assistant ── */
 function toggleFabMenu() {
   const menu = document.getElementById('fabMenu');
-  if (menu) menu.classList.toggle('active');
+  const icon = document.getElementById('fabMainIcon');
+  if (menu) {
+    const isActive = menu.classList.toggle('active');
+    if (icon) {
+      icon.className = isActive ? 'fa-solid fa-xmark' : 'fa-solid fa-comments';
+    }
+  }
 }
 
 function closeFabMenu() {
   const menu = document.getElementById('fabMenu');
+  const icon = document.getElementById('fabMainIcon');
   if (menu) menu.classList.remove('active');
+  if (icon) icon.className = 'fa-solid fa-comments';
 }
+
+document.addEventListener('click', (e) => {
+  const container = document.querySelector('.fab-container');
+  if (container && !container.contains(e.target)) {
+    closeFabMenu();
+  }
+});
 
 function openAssistantChat() {
   closeFabMenu();

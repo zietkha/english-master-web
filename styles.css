@@ -2391,24 +2391,32 @@ input:checked + .slider:before   { transform: translateX(28px); }
 }
 
 .fab-main-btn {
-  width: 52px;
-  height: 52px;
-  border-radius: 26px;
+  width: 54px;
+  height: 54px;
+  border-radius: 27px;
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.38);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fabPulse 3s infinite;
+}
+
+@keyframes fabPulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45), 0 8px 24px rgba(37, 99, 235, 0.35); }
+  70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0), 0 8px 24px rgba(37, 99, 235, 0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0), 0 8px 24px rgba(37, 99, 235, 0.35); }
 }
 
 .fab-main-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.45);
+  transform: scale(1.1);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.5);
+  animation: none;
 }
 
 .fab-menu {
