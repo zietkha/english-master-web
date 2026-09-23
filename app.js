@@ -326,11 +326,11 @@ async function addXp(amount) {
 
 function initFirebaseAndStorage() {
   try {
-    const savedData = localStorage.getItem('english_master_lessons_v1');
+    const savedData = localStorage.getItem('english_master_lessons_v3');
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      state.lessons.ielts = parsed.ielts || [];
-      state.lessons.tieuhoc = parsed.tieuhoc || [];
+      state.lessons.ielts = (parsed.ielts && parsed.ielts.length >= 6) ? parsed.ielts : (typeof CURRICULUM_DATA !== 'undefined' ? CURRICULUM_DATA.ielts : []);
+      state.lessons.tieuhoc = (parsed.tieuhoc && parsed.tieuhoc.length >= 6) ? parsed.tieuhoc : (typeof CURRICULUM_DATA !== 'undefined' ? CURRICULUM_DATA.tieuhoc : []);
     } else {
       loadSampleLessons();
     }
@@ -606,25 +606,76 @@ function renderLessonsList() {
   if (!container) return;
 
   const activeLessons = state.lessons[state.currentMode] || [];
-  const filtered = activeLessons.filter(l => 
-    (l.title && l.title.toLowerCase().includes(query)) ||
-    (l.summary && l.summary.toLowerCase().includes(query)) ||
-    (l.creator && l.creator.toLowerCase().includes(query))
-  );
 
-  if (countBadge) countBadge.textContent = `${activeLessons.length} bài học`;
+  // Filter lessons based on search query, selected grade/level, and selected skill
+  const filtered = activeLessons.filter(l => {
+    // 1. Text search query
+    const matchQuery = !query || 
+      (l.title && l.title.toLowerCase().includes(query)) ||
+      (l.summary && l.summary.toLowerCase().includes(query)) ||
+      (l.creator && l.creator.toLowerCase().includes(query));
+    if (!matchQuery) return false;
 
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="empty-state"><p>Chưa có bài học nào trong danh sách.</p></div>`;
+    // 2. Grade filter (for tieuhoc mode)
+    if (state.currentMode === 'tieuhoc' && state.selectedGrade && l.grade) {
+      if (l.grade !== state.selectedGrade) return false;
+    }
+
+    // 3. Level filter (for ielts mode)
+    if (state.currentMode === 'ielts' && state.selectedLevel && l.level) {
+      if (l.level !== state.selectedLevel) return false;
+    }
+
+    // 4. Skill filter (reading, listening)
+    if (state.selectedSkill && l.skill) {
+      if (l.skill !== state.selectedSkill) return false;
+    }
+
+    return true;
+  });
+
+  const displayLessons = (filtered.length > 0 || query) ? filtered : activeLessons;
+
+  if (countBadge) {
+    const filterLabel = state.currentMode === 'tieuhoc' 
+      ? (state.selectedGrade ? `Lớp ${state.selectedGrade}` : 'Tất cả')
+      : (state.selectedLevel ? `Band ${state.selectedLevel}` : 'Tất cả');
+    const skillLabel = state.selectedSkill ? ` · ${state.selectedSkill.toUpperCase()}` : '';
+    countBadge.textContent = `${displayLessons.length} bài học (${filterLabel}${skillLabel})`;
+  }
+
+  if (displayLessons.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 32px 16px; text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">📚</div>
+        <p style="font-weight: 700; color: var(--text-1); margin-bottom: 6px;">Chưa có bài học nào khớp với bộ lọc này.</p>
+        <p style="font-size: 0.85rem; color: var(--text-3); margin-bottom: 14px;">Bạn có thể tạo bài học AI mới bằng form bên cạnh hoặc bấm nút dưới để xem tất cả bài học.</p>
+        <button class="btn-secondary" style="font-size: 0.85rem; padding: 7px 18px;" onclick="clearLevelFilters()">
+          <i class="fa-solid fa-rotate-left"></i> Xem tất cả bài học
+        </button>
+      </div>
+    `;
     return;
   }
 
-  container.innerHTML = filtered.map(lesson => renderLessonCardHtml(lesson)).join('');
+  container.innerHTML = displayLessons.map(lesson => renderLessonCardHtml(lesson)).join('');
+}
+
+function clearLevelFilters() {
+  state.selectedGrade = null;
+  state.selectedLevel = null;
+  state.selectedSkill = null;
+  document.querySelectorAll('.skill-card').forEach(el => el.classList.remove('active'));
+  renderLevelCards();
+  renderLessonsList();
 }
 
 function renderLessonCardHtml(lesson) {
   const isLiked = lesson.likes > 0;
   const isBookmarked = state.currentUser?.bookmarks?.includes(lesson.id);
+  const tagColor = lesson.skill === 'listening' ? '#10b981' : '#2563eb';
+  const tagBg = lesson.skill === 'listening' ? 'rgba(16,185,129,0.08)' : 'rgba(37,99,235,0.08)';
+  const levelBadge = lesson.grade ? `Lớp ${lesson.grade}` : lesson.level ? `Band ${lesson.level}` : (lesson.mode === 'tieuhoc' ? 'Tiểu học' : 'IELTS');
 
   return `
     <div class="lesson-card" onclick="openLessonModal('${lesson.id}')">
@@ -643,8 +694,13 @@ function renderLessonCardHtml(lesson) {
         ${escapeHtml(lesson.summary)}
       </p>
       <div class="lesson-card-meta">
-        <span class="meta-item"><i class="fa-regular fa-user"></i> ${escapeHtml(lesson.creator || 'Vô danh')}</span>
-        <span class="meta-item"><i class="fa-solid fa-tag"></i> ${lesson.tag || 'Chung'}</span>
+        <span class="meta-item" style="color: var(--blue); font-weight: 700; background: rgba(37,99,235,0.08); padding: 2px 8px; border-radius: 999px;">
+          ${escapeHtml(levelBadge)}
+        </span>
+        <span class="meta-item" style="color: ${tagColor}; font-weight: 600; background: ${tagBg}; padding: 2px 8px; border-radius: 999px;">
+          ${lesson.skill === 'listening' ? '🎧 Listening' : '📖 Reading'}
+        </span>
+        <span class="meta-item"><i class="fa-solid fa-tag"></i> ${escapeHtml(lesson.tag || 'Chung')}</span>
         <span class="meta-item"><i class="fa-solid fa-font"></i> ${lesson.vocab?.length || 0} từ</span>
         <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="event.stopPropagation(); toggleLike('${lesson.id}')">
           <i class="fa-solid fa-heart"></i> ${lesson.likes || 0}
@@ -828,14 +884,16 @@ function renderLevelCards() {
 function selectGrade(gradeId) {
   state.selectedGrade = gradeId;
   renderLevelCards();
-  showToast(`🎒 Đã chọn nội dung Tiếng Anh Lớp ${gradeId}`);
+  renderLessonsList();
+  showToast(`🎒 Đang hiển thị bài học Tiếng Anh Lớp ${gradeId}`);
 }
 
 function selectLevel(levelId) {
   state.selectedLevel = levelId;
   renderLevelCards();
+  renderLessonsList();
   const found = CEFR_LEVELS.find(l => l.id === levelId);
-  showToast(`🎯 Đã chọn mục tiêu trình độ ${levelId} (${found ? found.sub : ''})`);
+  showToast(`🎯 Đang hiển thị bài học trình độ ${levelId} (${found ? found.sub : ''})`);
 }
 
 function selectSkill(skillName) {
@@ -844,10 +902,12 @@ function selectSkill(skillName) {
   if (target) target.classList.add('active');
 
   if (skillName === 'writing' || skillName === 'speaking') {
-    showToast('⏳ Kỹ năng này đang trong quá trình hoàn thiện — hãy thử luyện các kỹ năng khác trước nhé! ✨');
+    showToast('⏳ Kỹ năng này đang trong quá trình hoàn thiện — hãy thử luyện Reading hoặc Listening trước nhé! ✨');
     return;
   }
-  showToast(`📖 Đang mở chuyên đề luyện kỹ năng ${skillName.toUpperCase()}`);
+  state.selectedSkill = skillName;
+  renderLessonsList();
+  showToast(`📖 Đang lọc bài học kỹ năng ${skillName.toUpperCase()}`);
 }
 
 /* ── Section 10.9: Activity & Time Online Tracker ── */
@@ -1462,38 +1522,10 @@ function escapeJs(str) {
 }
 
 function loadSampleLessons() {
-  state.lessons = {
-    ielts: [{
-      id: 'sample_ielts_1',
-      mode: 'ielts',
-      title: 'Global Climate Change & Sustainable Energy',
-      creator: 'Gia đình / Thầy cô',
-      creatorId: 'u_admin',
-      tag: 'Môi trường',
-      createdAt: new Date().toLocaleDateString('vi-VN'),
-      originalContent: 'Climate change presents one of the most significant challenges of the twenty-first century.',
-      summary: 'Bài đọc phân tích những thách thức nghiêm trọng của biến đổi khí hậu trong thế kỷ 21 và tầm quan trọng của năng lượng tái tạo.',
-      vocab: [{ word: 'Industrialization', meaning: 'sự công nghiệp hóa (n)' }, { word: 'Reliance', meaning: 'sự phụ thuộc (n)' }],
-      quiz: [{ question: 'What is identified as a primary cause of emissions?', options: ['Heavy reliance on fossil fuels', 'Solar panels'], correct: 0 }],
-      likes: 5,
-      comments: [{ id: 'c1', author: 'Tuấn Kiệt', text: 'Bài học rất hay và bổ ích!', date: '10:15' }]
-    }],
-    tieuhoc: [{
-      id: 'sample_tieuhoc_1',
-      mode: 'tieuhoc',
-      title: 'The Friendly Puppy and the Garden',
-      creator: 'Mẹ Thu Hà',
-      creatorId: 'u_2',
-      tag: 'Gia đình',
-      createdAt: new Date().toLocaleDateString('vi-VN'),
-      originalContent: 'Max is a happy little dog living in a big house with a beautiful green garden.',
-      summary: 'Đoạn văn kể về chú cún nhỏ đáng yêu tên là Max sống trong khu vườn xanh mát.',
-      vocab: [{ word: 'Puppy', meaning: 'chú cún con (n)' }, { word: 'Garden', meaning: 'khu vườn (n)' }],
-      quiz: [{ question: 'Chú cún trong câu chuyện tên là gì?', options: ['Max', 'Tom'], correct: 0 }],
-      likes: 3,
-      comments: []
-    }]
-  };
+  if (typeof CURRICULUM_DATA !== 'undefined' && CURRICULUM_DATA) {
+    state.lessons = JSON.parse(JSON.stringify(CURRICULUM_DATA));
+  }
+  localStorage.setItem('english_master_lessons_v3', JSON.stringify(state.lessons));
   saveToLocalStorage(false);
 }
 
