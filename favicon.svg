@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="ekmGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="glassLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#2563eb" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <!-- Background Glass Rounded Square -->
+  <rect x="8" y="8" width="112" height="112" rx="30" fill="url(#ekmGrad)" filter="url(#shadow)"/>
+  <!-- Highlight Top Surface -->
+  <rect x="9" y="9" width="110" height="55" rx="28" fill="url(#glassLight)"/>
+  <rect x="8" y="8" width="112" height="112" rx="30" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.5"/>
+  <!-- Open Book & AI Sparkle Icon -->
+  <path d="M64 42 C72 35 90 35 98 39 L98 84 C88 80 72 81 64 88 C56 81 40 80 30 84 L30 39 C38 35 56 35 64 42 Z" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="64" y1="44" x2="64" y2="88" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  <!-- AI Sparkle on top right -->
+  <path d="M96 24 L99 31 L106 34 L99 37 L96 44 L93 37 L86 34 L93 31 Z" fill="#fde047"/>
+</svg>

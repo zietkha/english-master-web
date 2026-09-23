@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>English Kha Master — Đăng nhập</title>
+<title>English Kha Master — Đăng nhập & Đăng ký</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="description" content="Đăng nhập English Kha Master - Nền Tảng Học & Ôn Tiếng Anh Thông Minh bằng AI. Phát triển bởi Nguyễn Viết Kha (HUTECH).">
+<meta property="og:title" content="English Kha Master — Đăng nhập">
+<meta property="og:description" content="Nền tảng học và ôn luyện tiếng Anh thông minh với AI, Flashcards 3D, Spaced Repetition.">
+<meta property="og:image" content="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
@@ -375,6 +380,28 @@ input:focus {
   </div>
 </div>
 
+<!-- Celebration & Welcome Popup (Sections 10.3 & 10.4) -->
+<div id="welcomeModal" style="position:fixed; inset:0; background:rgba(15,23,42,0.65); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); z-index:9999; display:none; align-items:center; justify-content:center; padding:20px; opacity:0; transition:opacity 0.3s ease;">
+  <div style="background:rgba(255,255,255,0.96); backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.9); border-radius:28px; padding:36px 28px; max-width:400px; width:100%; text-align:center; box-shadow:0 24px 64px rgba(37,99,235,0.22); transform:scale(0.92); transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);" id="welcomeBox">
+    <div id="welcomeEmoji" style="font-size:3.6rem; margin-bottom:14px; display:inline-block; animation:bounceCelebration 1.2s ease infinite;">🎉</div>
+    <h3 id="welcomeTitle" style="font-family:'Plus Jakarta Sans',sans-serif; font-size:1.35rem; font-weight:800; color:#0f172a; margin:0 0 8px 0; letter-spacing:-0.03em;">Tạo tài khoản thành công!</h3>
+    <p id="welcomeDesc" style="font-size:0.92rem; color:#475569; margin:0 0 20px 0; line-height:1.55;">Chào mừng bạn đến với English Kha Master — chúc bạn học tập vui vẻ!</p>
+    <div id="welcomeBadge" style="display:inline-flex; align-items:center; gap:8px; background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.2); padding:8px 18px; border-radius:999px; color:#2563eb; font-weight:700; font-size:0.92rem; margin-bottom:24px;">
+      <i class="fa-solid fa-sparkles"></i> <span>+50 XP Khởi đầu</span>
+    </div>
+    <button id="welcomeActionBtn" class="btn-primary" style="width:100%; font-size:1rem; padding:13px 20px;">
+      Bắt đầu học ngay 🚀
+    </button>
+  </div>
+</div>
+
+<style>
+@keyframes bounceCelebration {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-12px) scale(1.1); }
+}
+</style>
+
 <div id="toast"></div>
 
 <!-- Firebase SDKs -->
@@ -441,9 +468,9 @@ async function handleSuccessfulLogin(user) {
   }
   setSecureSession({ ...user, role });
   toast('Đăng nhập Google thành công!', 'ok');
-  setTimeout(() => {
+  showWelcomeModal('login', user.displayName || user.email.split('@')[0], 1, () => {
     window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
-  }, 600);
+  });
 }
 
 // Global Google Auth Handler
@@ -544,6 +571,52 @@ function setSecureSession(user) {
   localStorage.setItem('eng-app-username', safeProfile.name);
 }
 
+// Celebration & Welcome Modal Handler (Sections 10.3 & 10.4)
+function showWelcomeModal(type, name, streak, onProceed) {
+  const modal = document.getElementById('welcomeModal');
+  const box = document.getElementById('welcomeBox');
+  const emoji = document.getElementById('welcomeEmoji');
+  const title = document.getElementById('welcomeTitle');
+  const desc = document.getElementById('welcomeDesc');
+  const badge = document.getElementById('welcomeBadge');
+  const btn = document.getElementById('welcomeActionBtn');
+
+  if (type === 'signup') {
+    emoji.textContent = '🎉';
+    title.textContent = 'Tạo tài khoản thành công!';
+    desc.textContent = `Chào mừng ${name || 'bạn'} đến với English Kha Master! Chúc bạn học vui vẻ và bứt phá tiếng Anh.`;
+    badge.innerHTML = '<i class="fa-solid fa-sparkles"></i> <span>+50 XP Khởi đầu</span>';
+    btn.innerHTML = 'Bắt đầu học ngay 🚀';
+  } else {
+    emoji.textContent = '👋';
+    title.textContent = `Chào mừng trở lại, ${name || 'Học viên'}!`;
+    desc.textContent = 'Rất vui được gặp lại bạn trên hành trình chinh phục tiếng Anh.';
+    badge.innerHTML = `<i class="fa-solid fa-fire" style="color:#f59e0b;"></i> <span>Đang giữ Streak ${streak || 1} ngày!</span>`;
+    btn.innerHTML = 'Vào học tiếp 🔥';
+  }
+
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => {
+    modal.style.opacity = '1';
+    box.style.transform = 'scale(1)';
+  });
+
+  let navigated = false;
+  const proceed = () => {
+    if (navigated) return;
+    navigated = true;
+    modal.style.opacity = '0';
+    box.style.transform = 'scale(0.92)';
+    setTimeout(() => {
+      modal.style.display = 'none';
+      onProceed();
+    }, 250);
+  };
+
+  btn.onclick = proceed;
+  setTimeout(proceed, 1600);
+}
+
 // SECURE LOGIN: Firebase Auth as sole path
 document.getElementById('loginBtn').addEventListener('click', async () => {
   const email = document.getElementById('loginEmail').value.trim();
@@ -564,17 +637,24 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
     try {
       const userCred = await auth.signInWithEmailAndPassword(email, pass);
       let role = 'learner';
+      let name = userCred.user.displayName || email.split('@')[0];
+      let streak = 1;
       if (db) {
         try {
           const userDoc = await db.collection('users').doc(userCred.user.uid).get();
-          if (userDoc.exists && userDoc.data().role) {
-            role = userDoc.data().role;
+          if (userDoc.exists && userDoc.data()) {
+            const ud = userDoc.data();
+            role = ud.role || role;
+            name = ud.name || name;
+            streak = ud.streak || streak;
           }
         } catch(e) {}
       }
-      setSecureSession({ ...userCred.user, role });
+      setSecureSession({ ...userCred.user, displayName: name, role, streak });
       toast('Đăng nhập thành công!', 'ok');
-      setTimeout(() => { window.location.href = 'index.html'; }, 500);
+      showWelcomeModal('login', name, streak, () => {
+        window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
+      });
       return;
     } catch(err) {
       console.warn('Firebase login check:', err.code);
@@ -642,7 +722,9 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
       }
       setSecureSession({ ...cred.user, displayName: name, role: 'learner', xp: 50 });
       toast('Tạo tài khoản thành công! (+50 XP)', 'ok');
-      setTimeout(() => { window.location.href = 'index.html'; }, 600);
+      showWelcomeModal('signup', name, 1, () => {
+        window.location.href = 'index.html';
+      });
       return;
     } catch(err) {
       if (err.code === 'auth/email-already-in-use') {
@@ -654,7 +736,9 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
   } else {
     setSecureSession({ uid: 'u_' + Date.now(), email, displayName: name, xp: 50 });
     toast('Tạo tài khoản thành công! (+50 XP)', 'ok');
-    setTimeout(() => { window.location.href = 'index.html'; }, 600);
+    showWelcomeModal('signup', name, 1, () => {
+      window.location.href = 'index.html';
+    });
     return;
   }
 

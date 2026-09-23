@@ -2143,3 +2143,354 @@ input:checked + .slider:before   { transform: translateX(28px); }
   }
 }
 
+/* ============================================================
+   Section 10 Additions: Level Cards, Skill Cards & Floating AI Widget
+   ============================================================ */
+
+/* ── Grade & Level Selector Cards ────────────────────────── */
+.level-selector-section {
+  margin-bottom: 24px;
+}
+
+.level-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.level-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 14px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.level-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--blue-border);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+}
+
+.level-card.active {
+  background: var(--surface);
+  border-color: var(--blue);
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.18), inset 0 0 0 1px var(--blue);
+}
+
+.level-card .level-icon {
+  font-size: 1.8rem;
+  margin-bottom: 6px;
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.level-card:hover .level-icon {
+  transform: scale(1.1);
+}
+
+.level-card .level-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.level-card .level-sub {
+  font-size: 0.76rem;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.level-card.active .level-name {
+  color: var(--blue);
+}
+
+/* ── 4-Skill Cards Grid ─────────────────────────────────── */
+.skill-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.skill-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.04);
+}
+
+.skill-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--blue-border);
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.12);
+}
+
+.skill-card.active {
+  border-color: var(--blue);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(255, 255, 255, 0.95) 100%);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.14);
+}
+
+.skill-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+  background: var(--blue-light);
+  color: var(--blue);
+  transition: transform 0.2s ease;
+}
+
+.skill-card:hover .skill-icon-wrap {
+  transform: scale(1.08);
+}
+
+.skill-card-info h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-1);
+  margin: 0 0 4px 0;
+}
+
+.skill-card-info p {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.skill-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.skill-badge.ready {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+
+.skill-badge.wip {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+}
+
+/* ── Floating Action Menu (AI Chat & Admin Contact) ──────── */
+.fab-container {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  right: 24px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .fab-container {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+  }
+}
+
+.fab-main-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fab-main-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.45);
+}
+
+.fab-menu {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fab-menu.active {
+  display: flex;
+}
+
+.fab-item-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-1);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.12);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.fab-item-btn:hover {
+  transform: translateX(-4px);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+/* ── Sleek Floating AI Chat Window ───────────────────────── */
+.chat-window-overlay {
+  position: fixed;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  right: 24px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  height: 520px;
+  max-height: calc(100vh - 120px);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  z-index: 950;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  animation: cardEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chat-window-overlay.active {
+  display: flex;
+}
+
+.chat-header {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.96rem;
+  color: var(--text-1);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-msg {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  animation: fadeIn 0.2s ease;
+}
+
+.chat-msg.bot {
+  align-self: flex-start;
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-msg.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-input-area {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  outline: none;
+  background: var(--surface-2);
+}
+
+.chat-input:focus {
+  border-color: var(--blue);
+  background: var(--surface);
+}
+
+.chat-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.chat-send-btn:hover {
+  transform: scale(1.08);
+}
+

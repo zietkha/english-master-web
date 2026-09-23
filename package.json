@@ -1,0 +1,22 @@
+{
+  "name": "english-kha-master",
+  "version": "1.0.0",
+  "description": "Nền tảng Học & Ôn Tiếng Anh Thông Minh bằng AI - Phát triển bởi Nguyễn Viết Kha (HUTECH)",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "python -m http.server 3000"
+  },
+  "keywords": [
+    "english",
+    "learning",
+    "ielts",
+    "primary-school",
+    "ai",
+    "gemini"
+  ],
+  "author": "Nguyễn Viết Kha",
+  "license": "MIT"
+}

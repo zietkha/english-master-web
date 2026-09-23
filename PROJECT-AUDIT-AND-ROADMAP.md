@@ -280,27 +280,30 @@ Steps 1–4 are foundational — building the visual redesign (steps 5–6) on t
 
 ---
 
-## 8. Critical Review & Plan Refinements
+## 8. Implementation Addendum — Gaps Found in the Antigravity Build Plan
 
-### 8.1 Missing prerequisite: Real Firebase project configuration
-The plan must specify where the real Firebase project config comes from. A placeholder or dummy config will cause real authentication calls to fail. In production:
-- Create a project on the [Firebase Console](https://console.firebase.google.com).
-- Enable **Email/Password** and **Google** sign-in methods under **Authentication > Sign-in method**.
-- Enable **Firestore Database** in production mode.
-- Embed the actual public Web SDK configuration into the application or initialize it cleanly as constants.
+This section responds to a specific implementation plan drafted by an AI coding agent ("Antigravity") based on this document. The plan correctly captured the file-level changes (Section 2–4 above), but omitted several operational steps without which the plan will fail on first run or silently remain insecure. These must be added to the plan's scope before execution.
 
-### 8.2 Missing prerequisite: How the first admin user is bootstrapped
+### 8.1 Missing step: create the real Firebase project first
+The plan assumes a Firebase project with Authentication and Firestore already exists and simply needs its config "hardcoded" into the app. If no real project exists yet, every auth call will fail immediately. Add this as literal Step 0, before any code changes:
+1. Go to https://console.firebase.google.com → Create project.
+2. In **Authentication → Sign-in method**, enable **Email/Password** and **Google** providers.
+3. In **Firestore Database**, create a database (start in production mode, not test mode — test mode leaves data fully open for 30 days by default).
+4. In **Project settings → General**, register a Web App and copy the `firebaseConfig` object (`apiKey`, `authDomain`, `projectId`, etc.) — this is the object that gets hardcoded into the app per Section 2.3. It is safe to commit publicly.
+
+### 8.2 Missing step: bootstrapping the first admin account
+The plan says the admin console should "verify Firestore role === 'admin'," but does not say how any account gets that role in the first place. A user cannot be allowed to self-assign `role: 'admin'` through the app UI — if that were possible, anyone could grant themselves admin access, defeating the entire point of the fix. This must be a manual, one-time, out-of-band step:
 1. Sign up normally through the app's real registration flow (Firebase Auth) to create your own account.
 2. Go to the Firebase Console → Firestore Database → `users` collection → find your document (by your `uid`).
 3. Manually edit that document and set the field `role: "admin"`.
-4. Only after this manual step will your account pass the admin check in `admin.js` / Firestore Rules. Document this as a required manual step in the plan's verification checklist — it is not something the AI agent can or should automate, since automating it would recreate the same self-promotion vulnerability being fixed.
+4. Only after this manual step will your account pass the admin check in `admin.js`/Firestore Rules.
+Document this as a required manual step in the plan's verification checklist — it is not something the AI agent can or should automate, since automating it would recreate the same self-promotion vulnerability being fixed.
 
-### 8.3 Missing scope: Firestore Security Rules must be part of this change
-Client-side role checks inside `admin.js` only hide UI elements; real enforcement happens in Firestore Security Rules, which run on Google's servers and cannot be bypassed from the client.
+### 8.3 Missing scope: Firestore Security Rules must be part of this change, not just client-side role checks
+The plan's admin authorization step only describes checking `role === 'admin'` inside `admin.js` (client-side JavaScript). This is necessary but not sufficient — a client-side check only hides UI elements from unauthorized users; it does not stop someone from calling the Firestore REST API or SDK directly (e.g., via browser DevTools console, or any HTTP client) to read or write data they shouldn't have access to. Real enforcement happens in Firestore Security Rules, which run on Google's servers and cannot be bypassed from the client.
 
-A dedicated [`firestore.rules`](file:///c:/Users/Admin/Downloads/web%20engs/firestore.rules) file must be added to the project repository:
-
-```javascript
+Add to the plan's scope: a `firestore.rules` file, deployed via `firebase deploy --only firestore:rules` (or through the Firebase Console's Rules editor), with rules along these lines:
+```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -338,47 +341,240 @@ service cloud.firestore {
     }
 
     match /feedback/{feedbackId} {
-      allow create: if true; // feedback can be submitted without login
+      allow create: if true; // feedback can be submitted without login, per current product behavior
       allow read, delete: if isAdmin();
     }
 
     match /system/{docId} {
-      // Single maintenance mode document
+      // e.g. the single "maintenance mode" document
       allow read: if true;
       allow write: if isAdmin();
     }
   }
 }
 ```
+This ruleset should be reviewed and adjusted to match the actual final collection names/fields once implemented, but the principle — admin status is checked server-side via `get()` on the requester's own user document, never trusted from client input — must be preserved.
 
-### 8.4 Ambiguous step: How local preview should run
-Local testing of serverless functions like `api/generate-lesson.js` requires the Vercel CLI:
+### 8.4 Ambiguous step: how "local preview" should actually run
+The plan's verification step says to "run local preview on http://localhost:3000 via browser subagent" without specifying how. This matters because `api/generate-lesson.js` is a Vercel serverless function — opening `index.html` directly in a browser (or via a plain static file server) will make any `fetch('/api/generate-lesson')` call fail with a 404, since there's no server routing that path to the function.
+
+Correct local testing requires the Vercel CLI:
 ```bash
 npm install -g vercel
 vercel login
-vercel link        # links folder to Vercel project
-vercel env pull    # pulls GEMINI_API_KEY into local .env
-vercel dev         # runs static frontend AND /api serverless functions
+vercel link        # links this folder to the Vercel project
+vercel env pull     # pulls GEMINI_API_KEY and other env vars into a local .env file
+vercel dev          # runs both the static frontend AND the /api serverless functions locally
 ```
-Ensure `GEMINI_API_KEY` is configured in the real Vercel project's Environment Variables (Project Settings → Environment Variables on vercel.com).
+Add this as an explicit prerequisite in the plan's verification section, and confirm `GEMINI_API_KEY` is actually set in the real Vercel project's **Environment Variables** (Project Settings → Environment Variables on vercel.com) — not just referenced in code — before testing or deploying.
 
-### 8.5 Scope risk: Split implementation passes
-- **Pass A (Security-Critical)**: Remove plaintext auth + demo users, remove client-side Gemini key path, wire real Firebase Auth (`onAuthStateChanged`), remove admin PIN, add Firestore Security Rules, document bootstrap of first admin (8.2).
-- **Pass B (Feature Additions)**: Firestore sync for lessons/XP/streak/badges, Spaced Repetition buckets, "report lesson" action, empty states, liquid-glass UI, branding.
+### 8.5 Scope risk: Component 1 bundles too many unrelated changes into `app.js` at once
+The plan's Component 1 asks for all of the following inside a single pass over `app.js`: removing plaintext auth, removing the client-side Gemini path, wiring up `onAuthStateChanged`, adding Firestore sync for profile/XP/streak/badges, adding a full spaced-repetition bucket system, and adding a "report lesson" feature. That is a large, unrelated set of changes to a 1400+ line file in one shot, which makes any resulting bug hard to isolate (is it an auth bug, a sync bug, or an SRS bug?).
 
-### 8.6 Note on existing test data
-Existing local storage test data will be lost by design. This is intentional: legacy plaintext password records were insecure and should not carry over. Users will sign up fresh via Firebase Authentication.
+Recommended split into two separate passes with independent verification between them:
+- **Pass A (security-critical, do first):** remove plaintext auth + demo users, remove client-side Gemini key path, wire real Firebase Auth (`onAuthStateChanged`), remove admin PIN, add Firestore Security Rules, bootstrap first admin (8.2). Verify this pass fully (8.6 checklist) before proceeding.
+- **Pass B (feature additions, do after Pass A is verified):** Firestore sync for lessons/XP/streak/badges, spaced-repetition buckets, "report lesson" action, empty states, liquid-glass UI, branding.
 
-### 8.7 Purpose of web-engs-deploy.zip
-`web-engs-deploy.zip` is a portable deployment archive for drag-and-drop hosts like Netlify Drop. It must always be kept strictly in sync with git commits to prevent version drift.
+### 8.6 Missing note: existing local test data will be lost, by design
+If any accounts were created during earlier testing using the old plaintext `localStorage` system, they will not carry over once Firebase Auth becomes the only login path — this is expected and correct (that data was insecure and should not be preserved), not a bug to fix. Mention this explicitly in the plan so it isn't mistaken for a regression during testing: after this change, you will need to sign up again through the real Firebase-backed flow to get a working account, including redoing the admin bootstrap step in 8.2.
 
-### 8.8 Verification Checklist
-- [x] Firebase project created, Email/Password + Google providers enabled, Firestore database created in production mode.
-- [x] `firestore.rules` written and deployed (Section 8.3), server-side rule enforcement with `isOwner()` and `isAdmin()`.
-- [x] First admin account manual bootstrap instructions documented (Section 8.2).
-- [x] `vercel dev` configured with serverless function routing in `vercel.json` (Section 8.4).
-- [x] Firestore security rules block unauthorized cross-user profile access and unauthorized admin writes.
-- [x] Attempt to open `admin.html` directly by URL while logged out or as a non-admin learner confirmed strictly rejected.
-- [x] `web-engs-deploy.zip` updated to match latest commits to prevent version drift.
-- [x] Zero references to `english_master_gemini_key`, `english_master_firebase_config`, `admin123` PIN, or plaintext `english_master_users_v2` in shipping code.
+### 8.7 Clarify: purpose of `web-engs-deploy.zip`
+The plan's final step mentions "re-compress updated `web-engs-deploy.zip`" without prior context establishing what this zip is for or where it's used. Before running the plan, confirm with whoever set up the original deployment process: is this zip a manual upload target for a hosting provider other than Vercel (e.g., a separate static host), or a leftover/unused artifact? If it is an active second deployment path alongside the Git-based Vercel deployment, both paths need to be updated together or they will drift out of sync — one link could be serving old, insecure code (with the plaintext auth and hardcoded PIN still active) even after the "real" fix is deployed via Git. If it's unused, remove it from the plan and from the repo to avoid confusion.
 
+### 8.8 Suggested addition to the plan's verification checklist
+In addition to the plan's existing verification steps, add:
+- [ ] Firebase project created, Email/Password + Google providers enabled, Firestore database created in production mode
+- [ ] `firestore.rules` written and deployed (Section 8.3), not just a client-side role check
+- [ ] First admin account manually bootstrapped per Section 8.2 and confirmed working
+- [ ] `vercel dev` used for local testing (Section 8.4), `GEMINI_API_KEY` confirmed present in real Vercel project settings
+- [ ] Attempt to read another user's Firestore document while logged in as a non-admin learner, via the browser console — confirm it is rejected (this tests the Security Rules, not just the UI)
+- [ ] Attempt to open `admin.html` directly by URL while logged out, and while logged in as a non-admin learner — confirm both are rejected
+- [ ] Confirm `web-engs-deploy.zip` (Section 8.7) is either updated to match or removed from the deployment process
+- [ ] Confirm no remaining references to `english_master_gemini_key`, `english_master_firebase_config`, or the plaintext `english_master_users_v2` key exist anywhere in the codebase (`grep -r` for these strings should return zero results after the change)
+
+---
+
+## 9. Second-Pass Review Findings
+
+A closer pass over files not covered in detail in the first audit (`_redirects`, the duplicate `generate-lesson.js` at repo root, `files/index.html`, and meta tag / dead-code checks) surfaced the following. Item 9.1 is critical and should be resolved before any further deployment work.
+
+### 9.1 CRITICAL: Hosting platform mismatch — Netlify config present, but the whole plan assumes Vercel
+The repo root contains a `_redirects` file (`/* /index.html 200`), which is **Netlify's** SPA-fallback redirect syntax — this file has no effect on Vercel at all. Meanwhile, `api/generate-lesson.js` is written as a **Vercel serverless function** (`export default function handler(req, res)`), and Section 8.4 of this document instructs testing via `vercel dev`. These two pieces of config point at two different, incompatible hosting platforms.
+
+This needs to be resolved before any deployment or local-testing work continues, because right now it's ambiguous whether the live site is actually served from Netlify or Vercel:
+- **If the project is actually deployed on Netlify:** `api/generate-lesson.js` in its current Vercel-function format will not run there at all — it would need to be rewritten as a Netlify Function (`exports.handler = async (event) => {...}`, placed in a `netlify/functions/` folder, with `GEMINI_API_KEY` set in Netlify's environment variable settings instead of Vercel's). The `_redirects` file would then be correct as-is.
+- **If the project is actually deployed on Vercel:** the `_redirects` file is a harmless leftover (likely copied from an earlier Netlify experiment or a template) and should be deleted to avoid confusing future maintainers, and SPA fallback routing (if needed at all — this app doesn't appear to use client-side routing that would require it) should instead be configured via a `vercel.json` `rewrites` rule.
+
+**Action required:** confirm which platform the live domain is actually pointed at (check the deployment dashboard / DNS), delete the config belonging to the platform *not* in use, and make sure this is settled before Section 8.4's local testing instructions are followed — testing against the wrong platform's tooling will produce misleading results either way.
+
+### 9.2 No `package.json` or dependency manifest
+There is no `package.json` in the repo. This isn't strictly required for a no-build-step static site, but it does mean: no documented Node.js version for the serverless function runtime, no way to pin or track any future npm dependency, and no `vercel dev`/`netlify dev` auto-detection of the project type (both tools work better with at least a minimal `package.json` present). Recommend adding a minimal one:
+```json
+{
+  "name": "english-kha-master",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=18" }
+}
+```
+
+### 9.3 Dead/duplicate files should be removed, not carried forward
+- **Root-level `generate-lesson.js`** is a near-duplicate of `api/generate-lesson.js` — the only difference found is the language of the code comments (Vietnamese vs English). Having two copies of the same serverless function logic is a maintenance hazard: a future fix applied to one will silently not apply to the other. Delete the root-level copy; `api/generate-lesson.js` is the one actually wired to the `/api/generate-lesson` route.
+- **`files/index.html`** appears to be an earlier, smaller prototype version of the main app (same CSS variable names, but a much simpler single-file layout with none of the current features). This looks like a leftover from an earlier iteration rather than a file currently linked to from anywhere in the live app. Confirm whether anything still references `files/index.html`; if not, delete it — unused HTML files left in a public repo/deployment are occasionally discoverable and can confuse both future contributors and any automated security scanning of the live site.
+
+### 9.4 Favicon and social preview metadata are missing
+`index.html` has a good `<title>` and `<meta name="description">`, but there is no `<link rel="icon">` (favicon) anywhere in the repo, and no Open Graph / Twitter Card meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`). Practical effect: the browser tab shows a generic blank icon, and if a link to the site is ever shared on Zalo, Facebook, or Messenger, it will render as a bare link with no preview image or title card — a small but real credibility/polish gap for something meant to be shared parent-to-parent or student-to-student. This should be bundled into the branding work in Section 6 — the same SVG mark exported for the favicon can double as the `og:image` base.
+
+### 9.5 Inconsistent use of `escapeHtml` before `innerHTML` writes
+A quick check found roughly 20 places in `app.js` that assign to `.innerHTML`, but only ~19 calls to the existing `escapeHtml()` helper — close, but not a guaranteed 1:1 match, meaning at least one `innerHTML` write may be inserting unescaped user- or AI-generated content (lesson titles, feedback messages, or Gemini-returned text) directly into the DOM. This is a stored-XSS risk: if a malicious string ever ends up in a lesson title or feedback message (either typed by a user, or — less likely but possible — echoed back oddly by the AI), it could execute as script in another user's (or the admin's) browser when that content is displayed.
+**Action:** during the Pass A/Pass B refactor (Section 8.5), audit every `.innerHTML =` assignment in `app.js` and `admin.js` individually, and either route the inserted value through `escapeHtml()` or switch to safer DOM APIs (`textContent`, or building elements with `createElement`/`.textContent` instead of string-concatenated HTML) wherever the value could contain user-supplied or AI-generated text.
+
+### 9.6 No automated tests of any kind
+There are currently no unit tests, integration tests, or even a manual smoke-test script/checklist committed to the repo. Given the scope of the refactor being planned (auth system replacement, Security Rules, UI overhaul all at once), this significantly raises the risk of a regression going unnoticed until a real user hits it. At minimum, recommend the manual verification checklist in Section 8.8 be kept as a permanent `TESTING.md` checklist in the repo (not just a one-time PR comment), re-run before every future deploy — this is a low-effort substitute for real automated tests until there's time to add them properly (e.g., Playwright for a few critical end-to-end flows: signup → create lesson → complete quiz → admin login).
+
+### 9.7 No data export/backup path for the admin
+Once Firestore becomes the real source of truth (Section 2.3), there is currently no way for the admin to export user data, lesson content, or feedback for backup, analysis, or — importantly — to fulfil a data-deletion request from a user (relevant given the Section 5.8 note on Vietnam's personal data protection decree, especially for the elementary-school/children's-data use case). Recommend a simple "Export as JSON/CSV" action in the admin console for the `users`, `lessons_*`, and `feedback` collections as a low-effort addition once the admin console rebuild (Section 3.2) is underway.
+
+---
+
+## 10. Feature Expansion — Grade/Level Cards, Auth-First Flow, Gamification, Admin Content Tools, AI Chat
+
+This section specifies ten feature requests gathered directly from the product owner after reviewing the live build. It assumes Section 2 (security hardening) and Section 3 (user/admin split) are already implemented, since several items here (per-user leaderboard stats, admin-added content, chat history) depend on Firestore being the real source of truth with a working `role` field.
+
+### 10.1 Data model changes required first
+
+The current schema (`mode: 'ielts' | 'tieuhoc'`, a flat `tag` string) cannot represent "grade 1–5" or "6 CEFR bands × 4 skills." Restructure before building any of the UI below:
+
+```
+lessons_tieuhoc/{lessonId}
+  grade: 1 | 2 | 3 | 4 | 5
+  skill: "reading" | "listening" | "writing" | "speaking"
+  title, content, vocab[], quiz[], imageUrl, authorId, authorType: "ai" | "admin"
+  createdAt
+
+lessons_ielts/{lessonId}
+  level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2"
+  skill: "reading" | "listening" | "writing" | "speaking"
+  title, content, vocab[], quiz[], imageUrl, authorId, authorType: "ai" | "admin"
+  sourceLabel: string | null   // e.g. "Cambridge IELTS 17, Test 3" — see 10.6
+  answerKeyUrl: string | null  // see 10.6
+  createdAt
+
+users/{uid}
+  name, email, role, status
+  grade: 1 | 2 | 3 | 4 | 5 | null      // set for elementary-track learners
+  ieltsLevel: "A1".."C2" | null        // set for IELTS-track learners
+  xp, streak, badges[]
+  stats: {
+    totalOnlineSeconds: number
+    lastActiveDate: string   // yyyy-mm-dd, for streak/attendance calc
+    attendanceDates: string[]  // array of yyyy-mm-dd the user was active, for the leaderboard's "điểm danh" column
+    lessonsCompleted: number
+  }
+
+chats/{uid}/messages/{messageId}   // Section 10.10
+  from: "user" | "admin" | "ai"
+  text, createdAt, readByAdmin: boolean
+```
+
+Only `role: 'admin'` accounts write `authorType: "admin"` lessons directly (Section 10.7); everything else keeps flowing through `/api/generate-lesson` as already built.
+
+### 10.2 Auth-first landing (Requirement 2)
+Currently, `index.html` allows an anonymous visitor to browse the landing/hero section before hitting a login wall on lesson creation. Change to: **any visit to the root URL, if there's no active Firebase session, redirects straight to `login.html`.** No public marketing page in between — this matches the product owner's intent ("vô link thì vô trang đăng ký/đăng nhập trước").
+
+Implementation:
+```javascript
+// at the top of index.html's init script
+firebase.auth().onAuthStateChanged(user => {
+  if (!user) {
+    window.location.href = '/login.html';
+    return;
+  }
+  initApp(user); // existing app bootstrap
+});
+```
+Firebase Auth's own SDK already persists the session (`firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)`, the default) — this is the "lưu cookies để lần sau vô luôn" behavior the owner asked for, achieved correctly through Firebase's own session persistence rather than a custom cookie/localStorage mechanism. No extra code needed beyond confirming persistence mode is `LOCAL` (survives browser restarts), not `SESSION` (cleared on tab close).
+
+### 10.3 Signup success popup with animated sticker (Requirement 3)
+After a successful `createUserWithEmailAndPassword` call (or successful Google sign-up), show a `.glass-panel` modal before redirecting to `index.html`:
+- Headline: "🎉 Tạo tài khoản thành công!"
+- Subtext: "Chào mừng đến với English Kha Master — chúc bạn học vui vẻ!"
+- An animated sticker: use a small Lottie animation (celebration/confetti character) via the lightweight `@lottiefiles/lottie-player` web component loaded from `cdnjs.cloudflare.com` (per the allowed-CDN list), or — if keeping fully dependency-free is preferred — a CSS-only bouncing mascot/emoji burst (e.g. a large 🎉 or 🥳 with a `bounce-in` keyframe plus 6–8 small emoji confetti pieces animated with randomized fall/rotate, similar to the quiz-completion confetti already planned in the original brief). Reuse whichever confetti approach ends up implemented for quiz completion (original brief's Section 3) so there's only one confetti system in the codebase, not two.
+- One button: "Bắt đầu học ngay" → proceeds to grade/level selection (Section 10.5/10.6).
+
+### 10.4 Login welcome-back popup with animated sticker (Requirement 4)
+Same modal pattern as 10.3, triggered after successful `signInWithEmailAndPassword` / Google sign-in:
+- Headline: "👋 Chào mừng trở lại!"
+- Subtext: pull the user's first name from their Firestore profile: "Rất vui được gặp lại, {name}!" — and optionally surface their current streak here if it's already meaningful ("Bạn đang giữ streak {n} ngày 🔥") since this is a natural, low-effort moment to reinforce the streak mechanic.
+- Different sticker/animation from signup (e.g. a waving mascot vs. a celebrating one) so the two moments feel distinct.
+- Button: "Vào học tiếp" → if the user has a `grade`/`ieltsLevel` already set, skip the level-selection screen and go straight to their last-active level's dashboard; if not yet set (first login after an account created some other way), send them to grade/level selection.
+
+### 10.5 Elementary track: Grade 1–5 selection → 4-skill cards (Requirement 5)
+New screen (or new state within `index.html`), reachable after auth for any user in the "Tiểu học" track:
+- **Grade selection:** 5 `.glass-panel` cards in a row/grid, labeled "Lớp 1" through "Lớp 5" (icon or simple illustration per grade — see 10.8 on imagery). Tapping a grade sets `users/{uid}.grade` and navigates to that grade's skill screen.
+- **Skill screen (per grade):** 4 cards: **Reading, Listening, Writing, Speaking.** Each card shows lesson count available at that grade for that skill (`lessons_tieuhoc` filtered by `grade` + `skill`).
+- **Skills not yet built:** per the product owner's explicit instruction, Writing and Speaking (or any skill without real content yet) should still render as a card, but tapping it opens a small toast/modal: *"Kỹ năng này đang trong quá trình hoàn thiện — hãy thử luyện các kỹ năng khác trước nhé!"* rather than a broken or empty page. This keeps the full 4-skill structure visible (so the product looks complete and sets expectations for what's coming) without shipping broken functionality.
+
+### 10.6 IELTS track: CEFR band selection → 4-skill cards, with real past-paper content (Requirement 6)
+Same card-based pattern as 10.5, but for the IELTS track:
+- **Level selection:** 6 cards — **A1, A2, B1, B2, C1, C2** — each subtitled with its IELTS band range exactly as given by the product owner:
+  | Card | Subtitle |
+  |---|---|
+  | A1 — Sơ cấp | IELTS 1.0 – 2.5 |
+  | A2 — Cơ bản | IELTS 3.0 – 3.5 |
+  | B1 — Trung cấp | IELTS 4.0 – 5.0 |
+  | B2 — Trung cao cấp | IELTS 5.5 – 6.5 |
+  | C1 — Cao cấp | IELTS 7.0 – 8.0 |
+  | C2 — Thành thạo | IELTS 8.5 – 9.0 |
+- **Skill screen (per level):** same 4 cards (Reading/Listening/Writing/Speaking) with the same "in progress" fallback behavior as 10.5 for any skill not yet populated.
+- **Seeding real past-exam content:** the product owner asked for a batch of well-known IELTS practice tests with publicly available answers/explanations to be pre-loaded. **Important copyright caveat:** official Cambridge IELTS Practice Test books and most other widely circulated IELTS materials are commercially copyrighted — the full text of reading passages, listening scripts, or writing prompts cannot legally be copied verbatim into this app's database, even if answer keys for them are freely discussed online. Recommended approach instead of direct copying:
+  1. Use the AI lesson-generation pipeline already built (`/api/generate-lesson`) to generate **original** reading passages, listening-style scripts, and quiz questions that match the style, topic range, and difficulty of each CEFR band — this sidesteps the copyright issue entirely while still giving learners level-appropriate practice.
+  2. Where the product owner specifically wants recognizable, "famous" practice material, link out (via `sourceLabel` / an external reference link, not by copying the text) to legitimate free/official sources — e.g. the British Council's and IDP's own free sample tests, which are intentionally published for public practice use — rather than reproducing copyrighted third-party test-book content inside the app's own database.
+  3. Store the origin as metadata only (`sourceLabel: "Phong cách đề thi IELTS Cambridge"` type labels, not literal reproductions) so learners understand the practice style without the app hosting copyrighted text directly.
+
+### 10.7 Admin content tool with AI assist (Requirement 7)
+New admin console screen: **"Thêm bài học vào thẻ."**
+- Form fields: track (Tiểu học / IELTS), then grade (1–5) or level (A1–C2) depending on track, then skill (Reading/Listening/Writing/Speaking).
+- Two content paths, both landing in the same `lessons_tieuhoc`/`lessons_ielts` collections with `authorType: "admin"`:
+  - **Manual:** admin types/pastes the lesson content, vocab list, and quiz directly.
+  - **AI-assisted (the "tích hợp AI phụ tôi" request):** admin pastes source material or just a topic prompt ("bài đọc về môi trường, trình độ B1"), and the same `/api/generate-lesson` backend is called (reusing the existing, already-secured endpoint — no new AI integration needed) with the grade/level/skill baked into the prompt so the output matches CEFR-appropriate vocabulary and sentence complexity. The generated draft is shown to the admin for review/edit before publishing — **admin-authored content should always have a human review step**, since this is exactly the "content quality" gap flagged in Section 5.3 of the original audit, and it's cheap to add a review step at the one point (admin creation) where a human is already in the loop.
+- List/manage view: existing lessons filterable by track/grade-or-level/skill, with edit and delete actions (already covered by the `isAdmin()` Firestore Rule in Section 8.3).
+
+### 10.8 Illustrative imagery per lesson (Requirement 8)
+To make lesson cards and lesson content more engaging:
+- **Card thumbnails:** each grade/level card (10.5/10.6) and each lesson card should show a relevant image, not just a text label — e.g. a simple themed illustration for "Lớp 1," a UK/Australia landmark motif for higher IELTS bands, or a topic-relevant photo for a specific lesson (a rainforest photo for a B1 reading about the environment, etc.).
+- **Sourcing:** do not hotlink or scrape images directly from arbitrary web search results into production content — that carries the same copyright risk as text (Section 10.6's caveat applies equally to images) and, separately, hotlinked external images can silently break if the source site removes them. Two safe options:
+  1. Use a stock-image API with a clear free-use license for app content (e.g., **Unsplash API** or **Pexels API**, both offer free tiers with commercial-use-friendly licensing) — the admin content tool (10.7) can include an "insert image" step that searches one of these APIs by keyword and lets the admin pick a properly licensed image, storing just the returned image URL (which these services host long-term) rather than downloading/rehosting the file.
+  2. For AI-generated lesson content specifically, consider AI image generation (already referenced elsewhere in this project's tooling as an option) to create simple, on-brand illustrations instead of sourcing external photos — this avoids licensing questions entirely and can match the liquid-glass visual style, though at added Gemini/image-generation API cost per lesson.
+- Whichever path is chosen, always store `imageUrl` as a field on the lesson document (already reflected in the 10.1 schema) rather than embedding images as base64 blobs in Firestore documents, to keep documents small and fast to read.
+
+### 10.9 Leaderboard focused on time + activity, not just quiz scores (Requirement 9)
+New "Bảng xếp hạng" screen/tab, per the product owner's explicit emphasis on **time spent and activity**, not just correctness:
+- **Columns:** display name, total time online (`stats.totalOnlineSeconds`, formatted as hours/minutes), attendance (count of unique days in `stats.attendanceDates`, i.e. "điểm danh"), lessons/exercises completed (`stats.lessonsCompleted`).
+- **Ranking logic:** since the owner's stated priority is time-on-app and consistency rather than raw quiz score, default sort should be a composite (e.g., weighted by attendance streak first, then total time, then lessons completed) rather than sorting purely by XP — this avoids the common gamification failure mode where a leaderboard sorted only by "points" rewards guessing/spamming quizzes over genuine study time.
+- **Tracking `totalOnlineSeconds` client-side:** increment a counter while the tab is visible and the user is authenticated (using the Page Visibility API to pause counting when the tab is backgrounded — `document.visibilityState`), flushing the accumulated delta to Firestore periodically (e.g., every 60 seconds or on page unload via `navigator.sendBeacon`) rather than writing to Firestore every second, to avoid excessive writes/cost.
+- **Attendance:** on each session start, if today's date (`yyyy-mm-dd`) isn't already in `stats.attendanceDates`, append it — this is a simple, low-cost way to track daily check-ins without needing a separate scheduled Cloud Function.
+- **Privacy note:** confirm with the product owner whether the leaderboard shows real names or should default to first-name-only / a chosen nickname, especially relevant again for the elementary-school track's likely under-13 users (ties back to Section 5.8's data-protection note).
+
+### 10.10 Floating AI chat widget + direct line to Admin (Requirement 10)
+Two related but distinct pieces:
+
+**A. Floating AI chat widget (Gemini-powered, 24/7):**
+- A small floating button (bottom-right corner, above/beside the existing feedback FAB — don't let them overlap; consider merging both into one expandable action button with two options: "💬 Hỏi AI" and "📩 Liên hệ Admin," to avoid cluttering the corner with two separate floating buttons).
+- Expands into a compact chat panel (`.glass-panel` styled, consistent with Section 4). Auto-collapses/minimizes itself if the conversation grows long enough that it would cover meaningful content the user is actively working with — e.g., collapse to just the icon after N messages or after M minutes idle, and let the user manually re-expand it. This directly addresses the product owner's concern about the chat covering content or blocking the user from reading/completing an exercise.
+- Backend: a new lightweight serverless endpoint, e.g. `/api/ai-chat`, following the exact same secure pattern as `/api/generate-lesson` (Gemini key stays server-side, never in client JS) — do not reuse `/api/generate-lesson` itself for this, since chat and lesson-generation have different prompt shapes, response formats, and (likely) different rate-limit needs. Store chat history in `chats/{uid}/messages/` per the 10.1 schema, both so users see their own history on return and so administrators (10.10B) can review AI chat logs if a user reports a problem.
+
+**B. Direct line to Admin (human), separate from the AI:**
+- A "Liên hệ Admin V.Kha" entry point on the landing/home area — per the owner's request, this should feel distinct from the AI chat, not just another AI conversation, since the value proposition here is a real person responding.
+- Messages sent through this path write to the same `chats/{uid}/messages/` collection (or a clearly flagged `channel: "admin"` field vs. `channel: "ai"` on each message, if kept in one collection) so the admin console (10.7's console, or a new "Tin nhắn học viên" tab within it) shows an inbox of conversations, most-recently-active first, with an unread indicator (`readByAdmin: false`) per conversation.
+- Admin replies from that inbox write back to the same thread with `from: "admin"`; the learner sees it appear in their own chat panel like a normal 1-on-1 message, fulfilling the "tôi cũng sẽ phản hồi như cách nhắn tin 1-1 cho học sinh" requirement.
+- This is a natural extension of the feedback-FAB mechanism already built into the project (per the original README's existing `feedback` collection) — rather than building an entirely separate messaging system, consider whether `feedback` and this new admin-chat channel should actually be the same underlying mechanism with a `type: "quick_feedback" | "conversation"` distinction, to avoid the admin console ending up with two separate, overlapping inboxes to check.
+
+### 10.11 Suggested build order for this section
+1. Data model migration (10.1) — do this before any UI work in this section, since every screen below depends on it.
+2. Auth-first redirect + welcome/signup popups (10.2–10.4) — smallest, most self-contained change, good first win.
+3. Grade/level selection + skill cards for both tracks (10.5–10.6), including the "in progress" fallback state for unbuilt skills.
+4. Admin content tool with AI assist (10.7) — needed before real content exists to populate the cards built in step 3.
+5. Imagery sourcing (10.8) — layer onto the admin tool from step 4 and the cards from step 3.
+6. Leaderboard + activity tracking (10.9) — depends on `stats` fields being written somewhere, which only starts happening meaningfully once steps 3–4 give users something to do.
+7. AI chat + Admin inbox (10.10) — largest net-new backend surface (new endpoint, new collection, new admin inbox UI); do last within this section since it's the most independent of the others.

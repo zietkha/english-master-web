@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>English Kha Master - Nền Tảng Học & Ôn Tiếng Anh Thông Minh</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="description" content="Nền tảng học và ôn luyện tiếng Anh thông minh cho IELTS và Ôn thi Tiểu học với công nghệ AI, Flashcards 3D, Spaced Repetition và gamification.">
+  <meta property="og:title" content="English Kha Master - Nền Tảng Học & Ôn Tiếng Anh Thông Minh">
+  <meta property="og:description" content="Tự động tạo bài học, từ vựng, flashcard 3D, quizlet style từ tài liệu tiếng Anh với AI.">
+  <meta property="og:image" content="favicon.svg">
   
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -236,6 +240,74 @@
       </div>
     </div>
 
+    <!-- Section 10.5 & 10.6: Grade & Level Selector + 4-Skill Cards -->
+    <div class="level-selector-section card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+        <h3 id="levelSelectorTitle" style="font-size: 1.12rem; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-graduation-cap" style="color: var(--blue);"></i>
+          <span id="levelSelectorHeadingText">Chọn Cấp Độ Mục Tiêu (CEFR / IELTS)</span>
+        </h3>
+        <span id="selectedLevelDesc" class="mode-badge ielts" style="font-size: 0.8rem;">Đang chọn: Band B1 (IELTS 4.0 - 5.0)</span>
+      </div>
+
+      <!-- Level Cards Grid -->
+      <div id="levelCardsContainer" class="level-cards-grid">
+        <!-- Rendered dynamically based on mode -->
+      </div>
+
+      <!-- 4-Skill Cards -->
+      <div style="margin-top: 18px;">
+        <h4 style="font-size: 0.92rem; font-weight: 700; color: var(--text-2); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-layer-group" style="color: var(--blue);"></i> 4 Kỹ Năng Trọng Tâm:
+        </h4>
+        <div class="skill-cards-grid">
+          <div class="skill-card active" id="skillCardReading" onclick="selectSkill('reading')">
+            <div class="skill-icon-wrap" style="background: rgba(37,99,235,0.12); color: #2563eb;">
+              <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div class="skill-card-info">
+              <h4>Reading</h4>
+              <p>Đọc hiểu & Từ vựng</p>
+              <span class="skill-badge ready">● Sẵn sàng học</span>
+            </div>
+          </div>
+
+          <div class="skill-card" id="skillCardListening" onclick="selectSkill('listening')">
+            <div class="skill-icon-wrap" style="background: rgba(16,185,129,0.12); color: #10b981;">
+              <i class="fa-solid fa-headphones"></i>
+            </div>
+            <div class="skill-card-info">
+              <h4>Listening</h4>
+              <p>Luyện nghe & Hội thoại</p>
+              <span class="skill-badge ready">● Sẵn sàng học</span>
+            </div>
+          </div>
+
+          <div class="skill-card" id="skillCardWriting" onclick="selectSkill('writing')">
+            <div class="skill-icon-wrap" style="background: rgba(245,158,11,0.12); color: #f59e0b;">
+              <i class="fa-solid fa-pen-nib"></i>
+            </div>
+            <div class="skill-card-info">
+              <h4>Writing</h4>
+              <p>Luyện viết học thuật</p>
+              <span class="skill-badge wip">⏳ Đang phát triển</span>
+            </div>
+          </div>
+
+          <div class="skill-card" id="skillCardSpeaking" onclick="selectSkill('speaking')">
+            <div class="skill-icon-wrap" style="background: rgba(139,92,246,0.12); color: #8b5cf6;">
+              <i class="fa-solid fa-microphone"></i>
+            </div>
+            <div class="skill-card-info">
+              <h4>Speaking</h4>
+              <p>Phát âm & Nói tương tác</p>
+              <span class="skill-badge wip">⏳ Đang phát triển</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="learn-grid">
       <!-- Lesson Creator Form -->
       <section class="card">
@@ -358,7 +430,9 @@
           <tr>
             <th>Hạng</th>
             <th>Học viên</th>
-            <th>Streak</th>
+            <th>Thời gian học</th>
+            <th>Điểm danh</th>
+            <th>Bài đã học</th>
             <th>Điểm XP</th>
             <th>Huy hiệu</th>
           </tr>
@@ -541,8 +615,42 @@
     </div>
   </div>
 
-  <!-- Feedback FAB Button & Modal -->
-  <button class="fab" onclick="openFeedbackModal()"><i class="fa-solid fa-comment-dots"></i> 💬 Góp ý / Báo lỗi</button>
+  <!-- Floating Multi-Action Assistant & Contact Menu (Section 10.10) -->
+  <div class="fab-container">
+    <div id="fabMenu" class="fab-menu">
+      <button class="fab-item-btn" onclick="openAssistantChat()">
+        <span style="font-size: 1.15rem;">🤖</span>
+        <span>Hỏi trợ lý AI (Gemini)</span>
+      </button>
+      <button class="fab-item-btn" onclick="openFeedbackModal(); closeFabMenu();">
+        <span style="font-size: 1.15rem;">👨‍💻</span>
+        <span>Liên hệ Admin Nguyễn Viết Kha</span>
+      </button>
+    </div>
+    <button class="fab-main-btn" id="fabToggleBtn" onclick="toggleFabMenu()" title="Trợ lý học tập & Hỗ trợ">
+      <i class="fa-solid fa-sparkles"></i>
+    </button>
+  </div>
+
+  <!-- Floating AI Assistant Chat Window -->
+  <div id="assistantChatWindow" class="chat-window-overlay">
+    <div class="chat-header">
+      <div class="chat-header-title">
+        <i class="fa-solid fa-robot" style="color: var(--blue);"></i>
+        <span>Trợ Lý Học Tiếng Anh AI</span>
+      </div>
+      <button class="modal-close-btn" onclick="closeAssistantChat()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="assistantChatMessages" class="chat-messages">
+      <div class="chat-msg bot">
+        Xin chào! Mình là trợ lý AI của English Kha Master. Bạn có thắc mắc gì về ngữ pháp, từ vựng hay muốn giải nghĩa câu cứ gõ ở dưới nhé! ✨
+      </div>
+    </div>
+    <form class="chat-input-area" onsubmit="handleSendAssistantMsg(event)">
+      <input type="text" id="assistantChatInput" class="chat-input" placeholder="Hỏi AI bất kỳ điều gì..." autocomplete="off">
+      <button type="submit" class="chat-send-btn" title="Gửi câu hỏi"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+  </div>
 
   <div id="feedbackModal" class="modal-overlay" onclick="handleFeedbackOverlayClick(event)">
     <div class="modal-dialog" style="max-width: 420px;">
