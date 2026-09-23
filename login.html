@@ -549,61 +549,101 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
   document.getElementById('signupBtnText').textContent = 'Tạo tài khoản';
 });
 
+// SHARED SUCCESS HANDLER
+async function handleSuccessfulLogin(user) {
+  let role = (user.email === 'khasnlh@gmail.com') ? 'admin' : 'learner';
+  if (db) {
+    try {
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      if (userDoc.exists && userDoc.data().role) {
+        role = (user.email === 'khasnlh@gmail.com') ? 'admin' : userDoc.data().role;
+      } else {
+        await db.collection('users').doc(user.uid).set({
+          name: user.displayName || (user.email ? user.email.split('@')[0] : 'Học viên'),
+          email: user.email,
+          role: role,
+          xp: 100,
+          streak: 1,
+          status: 'active',
+          badges: ['first_lesson'],
+          createdAt: Date.now()
+        }, { merge: true });
+      }
+    } catch(err) {
+      console.warn('Firestore user profile sync error:', err);
+    }
+  }
+  setSecureSession({ ...user, role });
+  toast('Đăng nhập Google thành công!', 'ok');
+  setTimeout(() => {
+    window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
+  }, 600);
+}
+
+// Check if user just returned from Google Redirect
+if (auth) {
+  auth.getRedirectResult().then((result) => {
+    if (result && result.user) {
+      handleSuccessfulLogin(result.user);
+    }
+  }).catch((e) => console.warn('Redirect auth check:', e));
+}
+
 // GOOGLE AUTH
-document.getElementById('googleBtn').addEventListener('click', async () => {
+const googleBtn = document.getElementById('googleBtn');
+googleBtn.addEventListener('click', async () => {
   if (window.location.protocol === 'file:') {
     alert('Google OAuth không cho phép chạy trên giao thức file:// cục bộ.\nVui lòng mở trang qua địa chỉ: http://localhost:3000/login.html');
     window.location.href = 'http://localhost:3000/login.html';
     return;
   }
 
-  if (auth) {
+  if (!auth) {
+    toast('Dịch vụ Firebase Auth chưa sẵn sàng.', 'bad');
+    return;
+  }
+
+  const originalHtml = googleBtn.innerHTML;
+  googleBtn.disabled = true;
+  googleBtn.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin"></i> Đang mở Google...</span>';
+
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    let result;
     try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      const result = await auth.signInWithPopup(provider);
-      let role = (result.user.email === 'khasnlh@gmail.com') ? 'admin' : 'learner';
-      if (db) {
-        try {
-          const userDoc = await db.collection('users').doc(result.user.uid).get();
-          if (userDoc.exists && userDoc.data().role) {
-            role = (result.user.email === 'khasnlh@gmail.com') ? 'admin' : userDoc.data().role;
-          } else {
-            await db.collection('users').doc(result.user.uid).set({
-              name: result.user.displayName || (result.user.email ? result.user.email.split('@')[0] : 'Học viên'),
-              email: result.user.email,
-              role: role,
-              xp: 100,
-              streak: 1,
-              status: 'active',
-              badges: ['first_lesson'],
-              createdAt: Date.now()
-            }, { merge: true });
-          }
-        } catch(err) {
-          console.warn('Firestore user profile sync error:', err);
-        }
+      result = await auth.signInWithPopup(provider);
+    } catch(popupErr) {
+      console.warn('Popup attempt failed, checking fallback:', popupErr);
+      if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/cancelled-popup-request') {
+        toast('Đang chuyển hướng sang Google Sign-In...', 'ok');
+        await auth.signInWithRedirect(provider);
+        return;
       }
-      setSecureSession({ ...result.user, role });
-      toast('Đăng nhập Google thành công!', 'ok');
-      setTimeout(() => {
-        window.location.href = (role === 'admin' ? 'admin.html' : 'index.html');
-      }, 600);
-      return;
-    } catch(e) {
-      console.error('Google sign-in error:', e);
-      if (e.code === 'auth/operation-not-allowed') {
-        toast('Chưa bật Google Provider trong Firebase Console > Authentication!', 'bad');
-      } else if (e.code === 'auth/popup-closed-by-user') {
-        toast('Cửa sổ đăng nhập đã bị đóng trước khi hoàn tất.', 'bad');
-      } else if (e.code === 'auth/unauthorized-domain') {
-        toast('Tên miền này chưa được thêm vào Authorized Domains trong Firebase!', 'bad');
-      } else {
-        toast('Lỗi đăng nhập: ' + (e.message || e.code), 'bad');
-      }
-      return;
+      throw popupErr;
+    }
+
+    if (result && result.user) {
+      await handleSuccessfulLogin(result.user);
+    }
+  } catch(e) {
+    console.error('Google sign-in error:', e);
+    googleBtn.disabled = false;
+    googleBtn.innerHTML = originalHtml;
+
+    if (e.code === 'auth/operation-not-allowed') {
+      toast('Chưa bật Google Provider trong Firebase Console > Authentication!', 'bad');
+    } else if (e.code === 'auth/popup-closed-by-user') {
+      toast('Cửa sổ đăng nhập đã bị đóng trước khi chọn tài khoản.', 'bad');
+    } else if (e.code === 'auth/unauthorized-domain') {
+      toast('Tên miền này chưa được cấp phép trong Firebase Authorized domains!', 'bad');
+    } else {
+      toast('Lỗi đăng nhập: ' + (e.message || e.code), 'bad');
     }
   }
-  toast('Dịch vụ Firebase Auth chưa sẵn sàng.', 'bad');
 });
 
 // FORGOT PASSWORD
