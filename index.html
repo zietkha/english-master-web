@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>English Master - Nền Tảng Học & Ôn Tiếng Anh Thông Minh</title>
-  <meta name="description" content="Nền tảng học và ôn luyện tiếng Anh thông minh cho IELTS và Ôn thi Tiểu học với công nghệ AI, Flashcards 3D, Quizlet & Duolingo style gamification.">
+  <title>English Kha Master - Nền Tảng Học & Ôn Tiếng Anh Thông Minh</title>
+  <meta name="description" content="Nền tảng học và ôn luyện tiếng Anh thông minh cho IELTS và Ôn thi Tiểu học với công nghệ AI, Flashcards 3D, Spaced Repetition và gamification.">
   
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <link rel="stylesheet" href="styles.css">
@@ -17,12 +17,12 @@
 <body>
 
   <!-- Fullscreen Maintenance Overlay -->
-  <div id="maintenanceOverlay" class="modal-overlay" style="z-index: 999; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px);">
+  <div id="maintenanceOverlay" class="modal-overlay" style="z-index: 999; background: rgba(11, 19, 41, 0.92); backdrop-filter: blur(20px);">
     <div style="text-align: center; color: #ffffff; max-width: 500px; padding: 40px 20px;">
       <div style="font-size: 4rem; color: #ef4444; margin-bottom: 20px; animation: pulse 2s infinite;">
         <i class="fa-solid fa-screwdriver-wrench"></i>
       </div>
-      <h2 style="font-size: 2rem; font-weight: 800; margin-bottom: 12px;">Trang Web Đang Bảo Trì</h2>
+      <h2 style="font-size: 2rem; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.02em;">Trang Web Đang Bảo Trì</h2>
       <p style="font-size: 1.05rem; color: #cbd5e1; line-height: 1.6; margin-bottom: 24px;">
         Hệ thống đang được nâng cấp tính năng để phục vụ học tập tốt hơn. Rất mong bạn cảm thông và vui lòng quay lại sau ít phút nhé!
       </p>
@@ -34,11 +34,15 @@
   <header class="sticky-header">
     <div class="header-container">
       <div class="logo-area" onclick="navigateTo('landing')">
-        <div class="logo-icon">
-          <i class="fa-solid fa-graduation-cap"></i>
+        <div class="logo-icon" style="background: linear-gradient(135deg, #2563eb, #7c3aed); border-radius: 12px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; color: white;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+            <path d="M6 6h10"></path>
+            <path d="M6 10h10"></path>
+          </svg>
         </div>
         <div>
-          <h1 class="logo-title">English Master</h1>
+          <h1 class="logo-title" style="font-size: 1.25rem; font-weight: 800;">English Kha Master</h1>
         </div>
       </div>
 
@@ -59,9 +63,9 @@
         <button id="navMylessons" class="nav-link" onclick="navigateTo('mylessons')">
           <i class="fa-solid fa-bookmark"></i> Bài của tôi
         </button>
-        <button id="navAdmin" class="nav-link" style="color: var(--danger);" onclick="navigateTo('admin')">
+        <a id="navAdmin" class="nav-link" style="color: var(--danger); text-decoration: none;" href="admin.html">
           <i class="fa-solid fa-user-shield"></i> Bảng Quản trị
-        </button>
+        </a>
       </nav>
 
       <!-- Right Header Actions & User Profile -->
@@ -419,137 +423,38 @@
     </div>
   </main>
 
-  <!-- ================= VIEW 8: WEB OWNER ADMIN PORTAL ================= -->
+  <!-- ================= VIEW 8: WEB OWNER ADMIN GATEWAY ================= -->
   <main id="view-admin" class="app-view">
-    <!-- Admin Auth Box -->
-    <div id="adminPinCard" class="card" style="max-width: 440px; margin: 0 auto 24px;">
-      <div class="card-header">
-        <h2 class="card-title"><i class="fa-solid fa-lock" style="color: var(--danger);"></i> Xác thực Bảng Quản Trị</h2>
+    <div class="card glass-panel" style="max-width: 480px; margin: 40px auto; padding: 36px 24px; text-align: center;">
+      <div style="font-size: 3rem; color: var(--danger); margin-bottom: 16px;">
+        <i class="fa-solid fa-user-shield"></i>
       </div>
-      <form onsubmit="handleAdminPinSubmit(event)">
-        <div class="form-group">
-          <label class="form-label">Mã PIN Admin</label>
-          <input type="password" id="adminPinInput" class="form-input" placeholder="Mặc định: admin123" required>
-        </div>
-        <button type="submit" class="btn-primary" style="width: 100%; background: linear-gradient(135deg, #ef4444, #b91c1c);">
-          <i class="fa-solid fa-key"></i> Đăng nhập Admin
-        </button>
-      </form>
-    </div>
-
-    <!-- Admin Controls Dashboard -->
-    <div id="adminDashboardContent" style="display: none;">
-      <div class="card" style="margin-bottom: 24px; border-color: rgba(239,68,68,0.3);">
-        <div class="card-header">
-          <h2 class="card-title" style="color: var(--danger);">
-            <i class="fa-solid fa-triangle-exclamation"></i> Chế độ Bảo Trì Trang Web (Maintenance Mode)
-          </h2>
-        </div>
-        
-        <div class="switch-container">
-          <div>
-            <h3 id="maintenanceStatusTitle" style="font-size: 1.05rem; margin-bottom: 4px;">Web đang HOẠT ĐỘNG bình thường</h3>
-            <p style="font-size: 0.85rem; color: var(--text-secondary);">Gạt công tắc để đóng trang web với người dùng khi cần nâng cấp hệ thống.</p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenanceMode()">
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom: 24px;">
-        <div class="card-header">
-          <h2 class="card-title"><i class="fa-solid fa-sliders" style="color: var(--primary);"></i> Cấu hình Gemini AI Key & Firebase Firestore</h2>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Chế độ xử lý AI công khai</label>
-          <select id="aiEngineSelect" class="form-select" onchange="handleEngineChange()">
-            <option value="api">🚀 Vercel Serverless API / Gemini Backend (Tự động)</option>
-            <option value="gemini">✨ Gemini Direct API Key (Khóa AI trực tiếp)</option>
-            <option value="local">🤖 Smart Local AI Engine (Chạy offline / Không tốn chi phí API)</option>
-          </select>
-        </div>
-
-        <div id="apiKeyGroup" class="form-group" style="display: none;">
-          <label class="form-label">Gemini API Key</label>
-          <input type="password" id="apiKeyInput" class="form-input" placeholder="AIzaSy...">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Cấu hình Firebase Firestore (JSON)</label>
-          <textarea id="firebaseConfigInput" class="form-textarea" style="min-height: 80px;" placeholder='Paste firebaseConfig JSON từ Firebase Console...'></textarea>
-        </div>
-
-        <button class="btn-primary" onclick="saveAdminSettings()"><i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình hệ thống</button>
-      </div>
-
-      <!-- Feedback Inbox -->
-      <div class="card" style="margin-bottom: 24px;">
-        <div class="card-header">
-          <h2 class="card-title"><i class="fa-solid fa-comments" style="color: #059669;"></i> Hòm thư Góp ý & Báo lỗi từ Học viên</h2>
-          <button class="btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="clearFeedbackInbox()">Xoá tất cả</button>
-        </div>
-        <div id="adminFeedbackList" class="comments-list" style="max-height: 250px; overflow-y: auto;">
-          <!-- Feedback list -->
-        </div>
-      </div>
-
-      <!-- Statistics & User Moderation -->
-      <div class="learn-grid">
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title"><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Thống kê Sử dụng</h2>
-          </div>
-          <div class="features-grid" style="margin: 0; grid-template-columns: 1fr 1fr;">
-            <div class="feature-card">
-              <h3 id="statTotalUsers">0</h3>
-              <p style="font-size: 0.82rem; color: var(--text-muted);">Tổng thành viên</p>
-            </div>
-            <div class="feature-card">
-              <div class="feature-icon" style="width: 42px; height: 42px; font-size: 18px;"><i class="fa-solid fa-robot"></i></div>
-              <h3 id="statAiCalls">0</h3>
-              <p style="font-size: 0.82rem; color: var(--text-muted);">Số lượt gọi AI</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title"><i class="fa-solid fa-users-slash"></i> Quản lý Học viên</h2>
-          </div>
-          <div style="overflow-x: auto; max-height: 240px;">
-            <table class="leaderboard-table">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Họ tên</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody id="adminUserTable">
-                <!-- User moderation list -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 10px;">Bảng Quản Trị Hệ Thống</h2>
+      <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
+        Bảng Quản Trị được cách ly hoàn toàn trên cổng bảo mật riêng và yêu cầu tài khoản Admin có quyền hạn được cấp qua Firebase.
+      </p>
+      <a href="admin.html" class="btn-primary" style="display: inline-flex; text-decoration: none; padding: 12px 28px;">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Trang Quản Trị
+      </a>
     </div>
   </main>
 
   <!-- ================= MODAL: STUDY & QUIZ & FLASHCARDS ================= -->
   <div id="lessonModal" class="modal-overlay" onclick="handleModalOverlayClick(event)">
-    <div class="modal-dialog">
+    <div class="modal-dialog glass-panel">
       <div class="modal-header">
         <div>
           <h2 id="modalTitle" class="card-title">Chi tiết bài học</h2>
           <div class="lesson-card-meta" id="modalMeta"></div>
         </div>
-        <button class="modal-close-btn" onclick="closeLessonModal()">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="report-btn" onclick="handleReportLesson()" title="Báo cáo bài học có nội dung không chính xác">
+            <i class="fa-regular fa-flag"></i> Báo cáo
+          </button>
+          <button class="modal-close-btn" onclick="closeLessonModal()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
       </div>
 
       <div class="modal-body">
@@ -561,7 +466,7 @@
             <i class="fa-solid fa-font"></i> Từ vựng (<span id="modalVocabCount">0</span>)
           </button>
           <button id="viewTabFlashcard" class="view-tab" onclick="switchViewTab('flashcard')">
-            <i class="fa-solid fa-layer-group"></i> Flashcards 3D
+            <i class="fa-solid fa-layer-group"></i> Flashcards 3D (SRS)
           </button>
           <button id="viewTabQuiz" class="view-tab" onclick="switchViewTab('quiz')">
             <i class="fa-solid fa-circle-question"></i> Ôn tập Quiz (<span id="modalQuizCount">0</span>)
@@ -585,6 +490,14 @@
         </div>
 
         <div id="flashcardSection" style="display: none;">
+          <!-- Spaced Repetition (SRS) Status -->
+          <div class="srs-status-bar">
+            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
+              <i class="fa-solid fa-clock-rotate-left"></i> Trạng thái ghi nhớ:
+            </div>
+            <span id="fcSrsBadge" class="srs-badge srs-bucket-new">🐣 Mới học</span>
+          </div>
+
           <div class="flashcard-container">
             <div id="flashcard" class="flashcard" onclick="flipFlashcard()">
               <div class="flashcard-front">
@@ -600,6 +513,13 @@
             <button class="btn-secondary" onclick="prevFlashcard()"><i class="fa-solid fa-arrow-left"></i> Trước</button>
             <span id="fcIndex" style="font-weight: 700; align-self: center;">1 / 5</span>
             <button class="btn-primary" onclick="nextFlashcard()">Tiếp theo <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+
+          <!-- Spaced Repetition Bucket Buttons -->
+          <div class="srs-controls">
+            <button class="srs-btn" onclick="setWordSrs('new')">🔄 Cần ôn lại</button>
+            <button class="srs-btn" onclick="setWordSrs('learning')">⚡ Đang nhớ</button>
+            <button class="srs-btn" onclick="setWordSrs('mastered')">✅ Đã thuộc</button>
           </div>
         </div>
 
@@ -639,9 +559,14 @@
     </div>
   </div>
 
+  <!-- Footer Credit -->
+  <footer style="text-align: center; padding: 28px 16px; font-size: 0.88rem; color: var(--text-muted); border-top: 1px solid var(--card-border); margin-top: 40px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px);">
+    Phần mềm được phát triển bởi <b>Nguyễn Viết Kha</b> — Sinh viên CNTT, Trường Đại học HUTECH, TP.HCM
+  </footer>
+
   <!-- Onboarding Walkthrough Tour Modal -->
   <div id="onboardingModal" class="modal-overlay">
-    <div class="modal-dialog" style="max-width: 480px;">
+    <div class="modal-dialog glass-panel" style="max-width: 480px;">
       <div class="modal-header" style="justify-content: flex-end; border-bottom: none; padding-bottom: 0;">
         <button class="modal-close-btn" onclick="closeOnboardingModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
@@ -649,9 +574,9 @@
         <div id="onboardingIcon" class="onboarding-icon">
           <i class="fa-solid fa-rocket"></i>
         </div>
-        <h3 id="onboardingTitle" style="font-size: 1.4rem; font-weight: 800; margin-bottom: 10px;">Chào mừng đến với English Master!</h3>
+        <h3 id="onboardingTitle" style="font-size: 1.4rem; font-weight: 800; margin-bottom: 10px; letter-spacing: -0.02em;">Chào mừng đến với English Kha Master!</h3>
         <p id="onboardingText" style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6;">
-          Nền tảng giúp bạn học từ vựng IELTS & Ôn thi Tiểu học cực kỳ hiệu quả bằng công nghệ AI và Flashcard 3D.
+          Nền tảng giúp bạn học từ vựng IELTS & Ôn thi Tiểu học cực kỳ hiệu quả bằng công nghệ AI, Spaced Repetition và Flashcard 3D.
         </p>
         
         <div class="onboarding-steps-dots">

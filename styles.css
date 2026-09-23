@@ -1,12 +1,12 @@
-/* Modern UI Design System for English Learning Web App (Unified Mega Platform Edition) */
+/* Modern UI Design System for English Kha Master (Liquid Glass System) */
 :root {
-  --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --bg-color: #f4f7fe;
   --card-bg: #ffffff;
   --card-border: #dbe4f5;
   --text-primary: #152238;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #6b7794;
   
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
@@ -18,36 +18,45 @@
   --accent-tieuhoc: #059669;
   --accent-tieuhoc-bg: #ecfdf5;
   
-  --success: #10b981;
+  --success: #16a34a;
   --success-bg: #d1fae5;
   --success-border: #a7f3d0;
   
-  --danger: #ef4444;
+  --danger: #dc2626;
   --danger-bg: #fee2e2;
   --danger-border: #fca5a5;
   
   --warning: #f59e0b;
   --warning-bg: #fef3c7;
   
+  /* Liquid Glass System Tokens */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-strong: rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-blur: 24px;
+  --glass-shadow: 0 10px 35px rgba(37, 99, 235, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --glass-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 60%);
+
   --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
   --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 12px 30px rgba(37, 99, 235, 0.08);
   
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
   --radius-full: 9999px;
 
   --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
-  --bg-color: #0f172a;
-  --card-bg: #1e293b;
-  --card-border: #334155;
+  --bg-color: #0b1329;
+  --card-bg: #141f36;
+  --card-border: #24324f;
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
-  --text-muted: #64748b;
+  --text-muted: #93a1c4;
   
   --primary: #3b82f6;
   --primary-hover: #60a5fa;
@@ -59,6 +68,13 @@
   --accent-tieuhoc: #34d399;
   --accent-tieuhoc-bg: rgba(52, 211, 153, 0.15);
   
+  /* Liquid Glass Dark Tokens */
+  --glass-bg: rgba(20, 31, 54, 0.65);
+  --glass-bg-strong: rgba(20, 31, 54, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 10px 35px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --glass-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 60%);
+
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.5);
@@ -78,7 +94,47 @@ body {
   line-height: 1.6;
   transition: background-color 0.3s ease, color 0.3s ease;
   min-height: 100vh;
-  padding-bottom: 60px;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+}
+
+.num-tabular, .stat-pill, .score-ticker {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Liquid Glass Panel Recipe */
+.glass-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+@supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
+  .glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+  
+  .glass-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--glass-highlight);
+    pointer-events: none;
+    border-radius: inherit;
+  }
 }
 
 /* Sticky Header & Navigation */
@@ -86,17 +142,18 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  background-color: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--card-border);
+  background-color: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-bottom: 1px solid var(--glass-border);
   padding: 10px 24px;
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
 }
 
 [data-theme="dark"] .sticky-header {
-  background-color: rgba(30, 41, 59, 0.88);
+  background-color: rgba(14, 21, 38, 0.82);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
 .header-container {
@@ -494,7 +551,7 @@ input:checked + .slider:before { transform: translateX(28px); }
 
 .form-label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
@@ -502,9 +559,10 @@ input:checked + .slider:before { transform: translateX(28px); }
 
 .form-input, .form-textarea, .form-select {
   width: 100%;
-  padding: 10px 14px;
+  padding: 11px 14px;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 16px; /* Prevents auto-zoom on iOS Safari */
+  min-height: 44px; /* Touch target minimum */
   background-color: var(--bg-color);
   color: var(--text-primary);
   border: 1px solid var(--card-border);
@@ -523,12 +581,13 @@ input:checked + .slider:before { transform: translateX(28px); }
 /* Buttons */
 .btn-primary {
   padding: 12px 20px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  min-height: 44px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%), linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #ffffff;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: var(--radius-md);
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -541,6 +600,75 @@ input:checked + .slider:before { transform: translateX(28px); }
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+}
+
+/* Spaced Repetition (SRS) Status Badges & Controls */
+.srs-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  border: 1px solid var(--card-border);
+}
+
+.srs-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.srs-bucket-new { background: #e0f2fe; color: #0284c7; }
+.srs-bucket-learning { background: #fef3c7; color: #d97706; }
+.srs-bucket-mastered { background: #dcfce7; color: #15803d; }
+
+.srs-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.srs-btn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.srs-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Content Quality & Report Lesson Button */
+.report-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.report-btn:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
 }
 
 .btn-secondary {

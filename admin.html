@@ -2,13 +2,13 @@
 <html lang="vi" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bảng Quản Trị Chủ Web - English Master</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Bảng Quản Trị — English Kha Master</title>
 
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <link rel="stylesheet" href="styles.css">
@@ -22,11 +22,10 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
+      padding: 18px 22px;
       background: var(--bg-color);
       border: 1px solid var(--card-border);
       border-radius: var(--radius-md);
-      margin-bottom: 20px;
     }
     .toggle-switch {
       position: relative;
@@ -34,11 +33,7 @@
       width: 60px;
       height: 32px;
     }
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .slider {
       position: absolute;
       cursor: pointer;
@@ -50,20 +45,14 @@
     .slider:before {
       position: absolute;
       content: "";
-      height: 24px;
-      width: 24px;
-      left: 4px;
-      bottom: 4px;
+      height: 24px; width: 24px;
+      left: 4px; bottom: 4px;
       background-color: white;
       transition: .3s;
       border-radius: 50%;
     }
-    input:checked + .slider {
-      background-color: #ef4444;
-    }
-    input:checked + .slider:before {
-      transform: translateX(28px);
-    }
+    input:checked + .slider { background-color: #ef4444; }
+    input:checked + .slider:before { transform: translateX(28px); }
   </style>
 </head>
 <body>
@@ -71,24 +60,23 @@
   <!-- Admin Header -->
   <header class="sticky-header">
     <div class="header-container">
-      <div class="logo-area">
+      <div class="logo-area" onclick="window.location.href='index.html'">
         <div class="logo-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">
-          <i class="fa-solid fa-user-shield"></i>
+          <i class="fa-solid fa-shield-halved"></i>
         </div>
         <div>
           <h1 class="logo-title" style="background: linear-gradient(135deg, #152238, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-            Trang Quản Trị Chủ Web
+            English Kha Master
           </h1>
-          <div class="sync-status">
-            <span class="status-dot"></span>
-            <span>Bảo mật Web Owner</span>
+          <div style="font-size: 0.78rem; color: var(--danger); font-weight: 700;">
+            <i class="fa-solid fa-lock"></i> Bảng Quản Trị Hệ Thống
           </div>
         </div>
       </div>
 
       <div class="header-actions">
         <a href="index.html" class="btn-secondary" style="text-decoration: none;">
-          <i class="fa-solid fa-globe"></i> Xem trang người dùng
+          <i class="fa-solid fa-arrow-left"></i> Về trang học viên
         </a>
         <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()">
           <i class="fa-solid fa-moon"></i>
@@ -97,22 +85,23 @@
     </div>
   </header>
 
-  <!-- Login Overlay for Admin -->
-  <div id="adminLoginOverlay" class="modal-overlay active" style="z-index: 500;">
-    <div class="modal-dialog" style="max-width: 400px;">
-      <div class="modal-header">
-        <h2 class="card-title"><i class="fa-solid fa-lock" style="color: var(--danger);"></i> Xác thực Chủ Web</h2>
+  <!-- Access Denied State (Shown if not admin) -->
+  <div id="adminAccessDenied" class="admin-body" style="display: none; text-align: center; margin-top: 60px;">
+    <div class="card glass-panel" style="max-width: 480px; margin: 0 auto; padding: 40px 24px;">
+      <div style="font-size: 3.5rem; color: var(--danger); margin-bottom: 16px;">
+        <i class="fa-solid fa-shield-cat"></i>
       </div>
-      <div class="modal-body">
-        <form onsubmit="handleAdminAuth(event)">
-          <div class="form-group">
-            <label class="form-label">Mã PIN hoặc Mật khẩu Quản trị</label>
-            <input type="password" id="adminPinInput" class="form-input" placeholder="Mặc định: admin123" required>
-          </div>
-          <button type="submit" class="btn-primary" style="width: 100%; background: linear-gradient(135deg, #ef4444, #b91c1c);">
-            <i class="fa-solid fa-key"></i> Đăng nhập Admin
-          </button>
-        </form>
+      <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 12px;">Khu vực dành cho Quản trị viên</h2>
+      <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
+        Bạn cần đăng nhập tài khoản có quyền Quản trị (Admin) để truy cập trang này. Mọi thao tác được bảo mật nghiêm ngặt bằng Firebase Authentication.
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <a href="login.html" class="btn-primary" style="text-decoration: none;">
+          <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập Admin
+        </a>
+        <a href="index.html" class="btn-secondary" style="text-decoration: none;">
+          Quay lại trang chủ
+        </a>
       </div>
     </div>
   </div>
@@ -121,17 +110,17 @@
   <main id="adminMainContent" class="admin-body" style="display: none;">
 
     <!-- Card 1: Maintenance Switch -->
-    <div class="card" style="margin-bottom: 24px; border-color: rgba(239,68,68,0.3);">
+    <div class="card glass-panel" style="margin-bottom: 24px; border-color: rgba(239,68,68,0.35);">
       <div class="card-header">
         <h2 class="card-title" style="color: var(--danger);">
-          <i class="fa-solid fa-triangle-exclamation"></i> Chế độ Bảo Trì Trang Web (Maintenance Mode)
+          <i class="fa-solid fa-triangle-exclamation"></i> Chế độ Bảo Trì Hệ Thống (Maintenance Mode)
         </h2>
       </div>
       
       <div class="switch-container">
         <div>
-          <h3 id="maintenanceStatusTitle" style="font-size: 1.05rem; margin-bottom: 4px;">Web đang HOẠT ĐỘNG bình thường</h3>
-          <p style="font-size: 0.85rem; color: var(--text-secondary);">Gạt công tắc để đóng trang web với người dùng khi cần nâng cấp hoặc chỉnh sửa hệ thống.</p>
+          <h3 id="maintenanceStatusTitle" style="font-size: 1.05rem; margin-bottom: 4px; font-weight: 700;">Web đang HOẠT ĐỘNG bình thường</h3>
+          <p style="font-size: 0.88rem; color: var(--text-secondary);">Khi bật, hệ thống sẽ tạm khóa trang học viên và hiển thị thông báo bảo trì nâng cấp.</p>
         </div>
         <label class="toggle-switch">
           <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenanceMode()">
@@ -140,68 +129,38 @@
       </div>
     </div>
 
-    <!-- Card 2: AI & Firebase Settings -->
-    <div class="card" style="margin-bottom: 24px;">
+    <!-- Card 2: Feedback & Report Inbox -->
+    <div class="card glass-panel" style="margin-bottom: 24px;">
       <div class="card-header">
-        <h2 class="card-title"><i class="fa-solid fa-sliders" style="color: var(--primary);"></i> Cấu hình Gemini AI Key & Firebase Firestore</h2>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Chế độ xử lý AI công khai</label>
-        <select id="aiEngineSelect" class="form-select" onchange="handleEngineChange()">
-          <option value="api">🚀 Vercel Serverless API / Gemini Backend (Tự động - Khuyên dùng)</option>
-          <option value="gemini">✨ Gemini Direct API Key (Dùng trực tiếp key của Chủ web)</option>
-          <option value="local">🤖 Smart Local AI Engine (Chạy offline / Không tốn chi phí API)</option>
-        </select>
-      </div>
-
-      <div id="apiKeyGroup" class="form-group" style="display: none;">
-        <label class="form-label">Gemini API Key (Chỉ Chủ web thấy)</label>
-        <input type="password" id="apiKeyInput" class="form-input" placeholder="AIzaSy...">
-        <small style="color: var(--text-muted); display: block; margin-top: 4px;">Key được lưu bảo mật trong cấu hình quản trị của bạn.</small>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Cấu hình Firebase Firestore (Để đồng bộ bài học chung cho mọi người)</label>
-        <textarea id="firebaseConfigInput" class="form-textarea" style="min-height: 90px; font-family: monospace; font-size: 0.85rem;" placeholder='Paste firebaseConfig JSON từ Firebase Console vào đây...'></textarea>
-      </div>
-
-      <button class="btn-primary" onclick="saveAdminSettings()"><i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình hệ thống</button>
-    </div>
-
-    <!-- Card 3: Feedback Inbox from Users -->
-    <div class="card" style="margin-bottom: 24px;">
-      <div class="card-header">
-        <h2 class="card-title"><i class="fa-solid fa-comments" style="color: #059669;"></i> Hòm thư Góp ý & Báo lỗi từ Học viên</h2>
+        <h2 class="card-title"><i class="fa-solid fa-comments" style="color: var(--primary);"></i> Hòm thư Góp ý & Báo cáo Nội dung</h2>
         <button class="btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="clearFeedbackInbox()">Xoá tất cả</button>
       </div>
-      <div id="adminFeedbackList" class="comments-list" style="max-height: 250px; overflow-y: auto;">
+      <div id="adminFeedbackList" class="comments-list" style="max-height: 280px; overflow-y: auto;">
         <!-- Dynamic feedback inbox -->
       </div>
     </div>
 
-    <!-- Card 4: Metrics & Users Management -->
+    <!-- Card 3: Metrics & Users Management -->
     <div class="learn-grid" style="margin-bottom: 24px;">
-      <div class="card">
+      <div class="card glass-panel">
         <div class="card-header">
-          <h2 class="card-title"><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Thống kê Sử dụng</h2>
+          <h2 class="card-title"><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Thống kê Hệ thống</h2>
         </div>
         <div class="features-grid" style="margin: 0; grid-template-columns: 1fr 1fr;">
-          <div class="feature-card">
-            <h3 id="statTotalUsers">0</h3>
-            <p style="font-size: 0.82rem; color: var(--text-muted);">Tổng thành viên</p>
+          <div class="feature-card glass-panel">
+            <h3 id="statTotalUsers" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--primary);">0</h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">Tổng học viên</p>
           </div>
-          <div class="feature-card">
-            <div class="feature-icon" style="width: 42px; height: 42px; font-size: 18px;"><i class="fa-solid fa-robot"></i></div>
-            <h3 id="statAiCalls">0</h3>
-            <p style="font-size: 0.82rem; color: var(--text-muted);">Số lượt gọi AI</p>
+          <div class="feature-card glass-panel">
+            <h3 id="statAiCalls" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-ielts);">0</h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">Lượt tạo bài học AI</p>
           </div>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card glass-panel">
         <div class="card-header">
-          <h2 class="card-title"><i class="fa-solid fa-users-slash"></i> Quản lý Tài khoản Học viên</h2>
+          <h2 class="card-title"><i class="fa-solid fa-users" style="color: var(--primary);"></i> Danh sách Học viên</h2>
         </div>
         <div style="overflow-x: auto; max-height: 240px;">
           <table class="leaderboard-table">
@@ -209,8 +168,8 @@
               <tr>
                 <th>Email</th>
                 <th>Họ tên</th>
+                <th>Vai trò</th>
                 <th>Trạng thái</th>
-                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody id="adminUserTable">
@@ -228,6 +187,11 @@
     <i id="toastIcon" class="fa-solid fa-circle-check" style="color: var(--success);"></i>
     <span id="toastMessage">Thông báo</span>
   </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script src="admin.js"></script>
 </body>

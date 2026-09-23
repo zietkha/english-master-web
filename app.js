@@ -7,19 +7,15 @@ const state = {
   currentView: 'learn', // 'landing' | 'login' | 'learn' | 'explore' | 'leaderboard' | 'mylessons' | 'profile' | 'admin'
   currentMode: 'ielts', // 'ielts' | 'tieuhoc'
   theme: localStorage.getItem('english_master_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
-  aiEngine: localStorage.getItem('english_master_ai_engine') || 'api',
-  apiKey: localStorage.getItem('english_master_gemini_key') || '',
-  firebaseConfigRaw: localStorage.getItem('english_master_firebase_config') || '',
   db: null,
   maintenanceMode: localStorage.getItem('english_master_maintenance_mode') === 'true',
   
-  // Admin & Users State
-  adminAuthenticated: false,
+  // Authenticated User Session (Managed securely via Firebase Auth)
   users: JSON.parse(localStorage.getItem('english_master_users_v2') || 'null') || [
-    { id: 'u_admin', name: 'Quản trị viên', email: 'admin@gmail.com', password: '123', role: 'admin', xp: 1200, streak: 12, status: 'active', badges: ['first_lesson', 'streak_7', 'vocab_master'], bookmarks: [] },
-    { id: 'u_1', name: 'Tuấn Kiệt', email: 'kiet@gmail.com', password: '123', role: 'learner', xp: 680, streak: 7, status: 'active', badges: ['first_lesson', 'streak_7'], bookmarks: [] },
-    { id: 'u_2', name: 'Minh Anh', email: 'minhanh@gmail.com', password: '123', role: 'learner', xp: 420, streak: 5, status: 'active', badges: ['first_lesson'], bookmarks: [] },
-    { id: 'u_3', name: 'Bảo Châu', email: 'chau@gmail.com', password: '123', role: 'learner', xp: 310, streak: 3, status: 'active', badges: ['first_lesson'], bookmarks: [] }
+    { id: 'u_admin', name: 'Nguyễn Viết Kha (Chủ Web)', email: 'admin@gmail.com', role: 'admin', xp: 1200, streak: 12, status: 'active', badges: ['first_lesson', 'streak_7', 'vocab_master'], bookmarks: [] },
+    { id: 'u_1', name: 'Tuấn Kiệt', email: 'kiet@gmail.com', role: 'learner', xp: 680, streak: 7, status: 'active', badges: ['first_lesson', 'streak_7'], bookmarks: [] },
+    { id: 'u_2', name: 'Minh Anh', email: 'minhanh@gmail.com', role: 'learner', xp: 420, streak: 5, status: 'active', badges: ['first_lesson'], bookmarks: [] },
+    { id: 'u_3', name: 'Bảo Châu', email: 'chau@gmail.com', role: 'learner', xp: 310, streak: 3, status: 'active', badges: ['first_lesson'], bookmarks: [] }
   ],
   currentUser: JSON.parse(localStorage.getItem('english_master_current_user') || 'null'),
   feedback: JSON.parse(localStorage.getItem('english_master_feedback') || '[]'),
@@ -30,7 +26,7 @@ const state = {
   activeViewTab: 'summary',
   quizAnswers: {},
   
-  // Flashcards State
+  // Flashcards & Spaced Repetition (SRS) State
   fcIndex: 0,
   fcFlipped: false,
   
@@ -78,7 +74,7 @@ function navigateTo(viewName) {
   if (viewName === 'leaderboard') renderLeaderboard();
   if (viewName === 'mylessons') renderMyLessons();
   if (viewName === 'profile') renderProfilePage();
-  if (viewName === 'admin') checkAdminViewAccess();
+  if (viewName === 'admin') window.location.href = 'admin.html';
 }
 
 function checkMaintenanceMode() {
@@ -205,7 +201,6 @@ function handleGoogleSignIn() {
     id: 'u_google_' + Date.now(),
     name: 'Học viên Google',
     email: 'google_user@gmail.com',
-    password: 'google_token',
     role: 'learner',
     xp: 100,
     streak: 1,
@@ -287,17 +282,27 @@ function initFirebaseAndStorage() {
     loadSampleLessons();
   }
 
-  let firebaseConfig = null;
-  if (state.firebaseConfigRaw) {
-    try { firebaseConfig = JSON.parse(state.firebaseConfigRaw); } catch (e) {}
+  let firebaseConfig = {
+    apiKey: "AIzaSyDemoConfigKeyForEnglishKhaMaster",
+    authDomain: "english-master-app.firebaseapp.com",
+    projectId: "english-master-app",
+    storageBucket: "english-master-app.appspot.com",
+    messagingSenderId: "1234567890",
+    appId: "1:1234567890:web:abcdef123456"
+  };
+
+  const storedConfig = localStorage.getItem('english_master_firebase_config');
+  if (storedConfig) {
+    try {
+      const parsed = JSON.parse(storedConfig);
+      if (parsed && parsed.apiKey) firebaseConfig = parsed;
+    } catch(e) {}
   }
 
-  if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY') {
-    try {
-      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-      state.db = firebase.firestore();
-    } catch (err) {}
-  }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    state.db = firebase.firestore();
+  } catch (err) {}
 
   if (state.db) {
     ['ielts', 'tieuhoc'].forEach(m => {
@@ -387,19 +392,15 @@ async function handleCreateLesson(event) {
 
   try {
     let generatedLesson = null;
-    if (state.aiEngine === 'api') {
-      try {
-        const res = await fetch('/api/generate-lesson', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ material: content, mode: state.currentMode })
-        });
-        if (res.ok) generatedLesson = await res.json();
-      } catch (e) {}
-    }
-
-    if (!generatedLesson && state.apiKey) {
-      try { generatedLesson = await generateWithGemini(content, state.currentMode, customTitle); } catch (e) {}
+    try {
+      const res = await fetch('/api/generate-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ material: content, mode: state.currentMode })
+      });
+      if (res.ok) generatedLesson = await res.json();
+    } catch (e) {
+      console.warn('Backend API unavailable, using offline engine fallback:', e);
     }
 
     if (!generatedLesson) {
@@ -411,12 +412,12 @@ async function handleCreateLesson(event) {
       mode: state.currentMode,
       title: customTitle || generatedLesson.title || 'Bài đọc Tiếng Anh',
       creator: userName,
-      creatorId: state.currentUser.id,
+      creatorId: state.currentUser ? state.currentUser.id : 'u_guest',
       tag: tag,
       createdAt: new Date().toLocaleDateString('vi-VN'),
       originalContent: content,
       summary: generatedLesson.summary || '',
-      vocab: Array.isArray(generatedLesson.vocab) ? generatedLesson.vocab : [],
+      vocab: Array.isArray(generatedLesson.vocab) ? generatedLesson.vocab.map(v => ({ ...v, srsStatus: 'new' })) : [],
       quiz: Array.isArray(generatedLesson.quiz) ? generatedLesson.quiz : [],
       likes: 0,
       comments: []
@@ -447,15 +448,6 @@ function setLoadingState(isLoading) {
     btnText.style.display = isLoading ? 'none' : 'inline-flex';
     btnSpinner.style.display = isLoading ? 'inline-block' : 'none';
   }
-}
-
-async function generateWithGemini(text, mode, customTitle) {
-  const prompt = `Generate JSON: { "title": "${customTitle || 'Title'}", "summary": "Tóm tắt tiếng Việt 3-5 câu", "vocab": [{"word":"w","meaning":"m"}], "quiz": [{"question":"q","options":["A","B","C","D"],"correct":0}] } based on:\n${text}`;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.apiKey}`;
-  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-  const data = await response.json();
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  return JSON.parse(rawText.replace(/```json/gi, '').replace(/```/g, '').trim());
 }
 
 async function generateWithLocalAI(text, mode, customTitle) {
@@ -1002,6 +994,22 @@ function renderFlashcardSection() {
   document.getElementById('fcMeaning').textContent = current.meaning;
   document.getElementById('fcIndex').textContent = `${state.fcIndex + 1} / ${vocab.length}`;
 
+  // Update Spaced Repetition (SRS) Badge
+  const srsBadge = document.getElementById('fcSrsBadge');
+  if (srsBadge) {
+    const srs = current.srsStatus || 'new';
+    if (srs === 'mastered') {
+      srsBadge.className = 'srs-badge srs-bucket-mastered';
+      srsBadge.innerHTML = '✅ Đã thuộc';
+    } else if (srs === 'learning') {
+      srsBadge.className = 'srs-badge srs-bucket-learning';
+      srsBadge.innerHTML = '⚡ Đang nhớ';
+    } else {
+      srsBadge.className = 'srs-badge srs-bucket-new';
+      srsBadge.innerHTML = '🐣 Mới học';
+    }
+  }
+
   const card = document.getElementById('flashcard');
   if (card) card.classList.remove('flipped');
   state.fcFlipped = false;
@@ -1027,6 +1035,46 @@ function prevFlashcard() {
   if (vocab.length === 0) return;
   state.fcIndex = (state.fcIndex - 1 + vocab.length) % vocab.length;
   renderFlashcardSection();
+}
+
+function setWordSrs(status) {
+  if (!state.activeLesson || !state.activeLesson.vocab) return;
+  const current = state.activeLesson.vocab[state.fcIndex];
+  if (!current) return;
+
+  current.srsStatus = status;
+  saveToLocalStorage(true);
+
+  const labels = { new: 'Mới học', learning: 'Đang nhớ', mastered: 'Đã thuộc' };
+  showToast(`🎯 Đã chuyển từ "${current.word}" sang mức: ${labels[status] || status}`);
+  addXp(5);
+  renderFlashcardSection();
+}
+
+function handleReportLesson() {
+  if (!state.activeLesson) return;
+  const reason = prompt('Vui lòng nhập lỗi bạn phát hiện trong bài học này (Ví dụ: Từ vựng dịch sai, đáp án quiz nhầm...):');
+  if (!reason || !reason.trim()) return;
+
+  const reportObj = {
+    id: 'report_' + Date.now(),
+    type: 'report',
+    lessonId: state.activeLesson.id,
+    lessonTitle: state.activeLesson.title,
+    message: `[BÁO CÁO BÀI HỌC: ${state.activeLesson.title}] Nội dung lỗi: ${reason.trim()}`,
+    contact: state.currentUser ? `${state.currentUser.name} (${state.currentUser.email})` : 'Học viên ẩn danh',
+    createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN')
+  };
+
+  const existing = JSON.parse(localStorage.getItem('english_master_feedback') || '[]');
+  existing.unshift(reportObj);
+  localStorage.setItem('english_master_feedback', JSON.stringify(existing));
+
+  if (state.db) {
+    try { state.db.collection('feedback').add(reportObj); } catch(e) {}
+  }
+
+  showToast('🚩 Đã gửi báo cáo lỗi bài học tới Ban Quản Trị. Cảm ơn đóng góp của bạn!');
 }
 
 function renderQuizSection() {

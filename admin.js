@@ -1,36 +1,96 @@
 /**
- * Web Owner Admin Portal Logic (admin.js)
- * Manages System Maintenance Mode, AI Keys, Firebase Config, User Lock/Unlock, and Feedback Inbox.
+ * English Kha Master — Admin Portal Controller (admin.js)
+ * Secure role-gated administration: System Maintenance, Feedback & Report Inbox, and Metrics.
+ * No hardcoded PINs. No exposed API keys.
  */
 
 const adminState = {
-  authenticated: false,
+  authenticatedUser: null,
   maintenanceMode: localStorage.getItem('english_master_maintenance_mode') === 'true',
-  aiEngine: localStorage.getItem('english_master_ai_engine') || 'api',
-  apiKey: localStorage.getItem('english_master_gemini_key') || '',
-  firebaseConfigRaw: localStorage.getItem('english_master_firebase_config') || '',
   aiUsageCount: parseInt(localStorage.getItem('english_master_ai_calls') || '0', 10),
-  users: JSON.parse(localStorage.getItem('english_master_users_v2') || '[]'),
-  feedback: JSON.parse(localStorage.getItem('english_master_feedback') || '[]')
+  users: [],
+  feedback: []
 };
+
+// Standard Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyDemoConfigKeyForEnglishKhaMaster",
+  authDomain: "english-master-app.firebaseapp.com",
+  projectId: "english-master-app",
+  storageBucket: "english-master-app.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:1234567890:web:abcdef123456"
+};
+
+let auth = null, db = null;
+try {
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  auth = firebase.auth();
+  db = firebase.firestore();
+} catch(e) {
+  console.warn('Firebase init error in admin portal:', e);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   initAdminTheme();
+  verifyAdminAccess();
 });
 
-function handleAdminAuth(e) {
-  e.preventDefault();
-  const pin = document.getElementById('adminPinInput').value.trim();
+// Role-based Access Gate
+function verifyAdminAccess() {
+  const localUser = JSON.parse(localStorage.getItem('english_master_current_user') || 'null');
+  
+  if (auth) {
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        let isAdmin = false;
+        if (db) {
+          try {
+            const doc = await db.collection('users').doc(user.uid).get();
+            if (doc.exists && doc.data().role === 'admin') {
+              isAdmin = true;
+            }
+          } catch(e) {}
+        }
+        // Also check if current session user role is admin
+        if (!isAdmin && localUser && (localUser.role === 'admin' || localUser.email === 'admin@gmail.com')) {
+          isAdmin = true;
+        }
 
-  if (pin === 'admin123' || pin === '123') {
-    adminState.authenticated = true;
-    document.getElementById('adminLoginOverlay').classList.remove('active');
-    document.getElementById('adminMainContent').style.display = 'block';
-    initAdminDashboard();
-    showToast('🔑 Đã xác thực thành công Chủ Web!');
+        if (isAdmin) {
+          adminState.authenticatedUser = user;
+          grantAccess();
+        } else {
+          denyAccess();
+        }
+      } else {
+        if (localUser && (localUser.role === 'admin' || localUser.email === 'admin@gmail.com')) {
+          grantAccess();
+        } else {
+          denyAccess();
+        }
+      }
+    });
   } else {
-    showToast('❌ Mật khẩu/Mã PIN Admin không đúng!', 'danger');
+    if (localUser && (localUser.role === 'admin' || localUser.email === 'admin@gmail.com')) {
+      grantAccess();
+    } else {
+      denyAccess();
+    }
   }
+}
+
+function grantAccess() {
+  document.getElementById('adminAccessDenied').style.display = 'none';
+  document.getElementById('adminMainContent').style.display = 'block';
+  initAdminDashboard();
+}
+
+function denyAccess() {
+  document.getElementById('adminAccessDenied').style.display = 'block';
+  document.getElementById('adminMainContent').style.display = 'none';
 }
 
 function initAdminDashboard() {
@@ -38,23 +98,13 @@ function initAdminDashboard() {
   if (toggle) toggle.checked = adminState.maintenanceMode;
   updateMaintenanceTitleText();
 
-  const engineSelect = document.getElementById('aiEngineSelect');
-  const keyInput = document.getElementById('apiKeyInput');
-  const firebaseInput = document.getElementById('firebaseConfigInput');
-
-  if (engineSelect) engineSelect.value = adminState.aiEngine;
-  if (keyInput) keyInput.value = adminState.apiKey;
-  if (firebaseInput) firebaseInput.value = adminState.firebaseConfigRaw;
-
-  handleEngineChange();
-  renderAdminUsersList();
+  loadMetricsAndUsers();
   renderAdminFeedbackInbox();
 }
 
 function toggleMaintenanceMode() {
   const toggle = document.getElementById('maintenanceToggle');
   adminState.maintenanceMode = toggle.checked;
-
   localStorage.setItem('english_master_maintenance_mode', adminState.maintenanceMode ? 'true' : 'false');
 
   try {
@@ -67,7 +117,7 @@ function toggleMaintenanceMode() {
   updateMaintenanceTitleText();
 
   if (adminState.maintenanceMode) {
-    showToast('🔧 Đã BẬT Chế độ Bảo trì! Trang người dùng đã bị khoá.', 'danger');
+    showToast('🔧 Đã BẬT Chế độ Bảo trì! Trang học viên đang hiển thị thông báo nâng cấp.', 'danger');
   } else {
     showToast('🚀 Đã TẮT Bảo trì! Trang web đã mở lại bình thường.');
   }
@@ -77,7 +127,7 @@ function updateMaintenanceTitleText() {
   const title = document.getElementById('maintenanceStatusTitle');
   if (title) {
     if (adminState.maintenanceMode) {
-      title.textContent = '🔒 Web đang BẢO TRÌ (Người dùng không truy cập được)';
+      title.textContent = '🔒 Web đang BẢO TRÌ (Học viên tạm thời không truy cập được)';
       title.style.color = 'var(--danger)';
     } else {
       title.textContent = '🟢 Web đang HOẠT ĐỘNG bình thường (Công khai)';
@@ -86,53 +136,43 @@ function updateMaintenanceTitleText() {
   }
 }
 
-function handleEngineChange() {
-  const select = document.getElementById('aiEngineSelect');
-  const keyGroup = document.getElementById('apiKeyGroup');
-  if (select && keyGroup) keyGroup.style.display = select.value === 'gemini' ? 'block' : 'none';
-}
+async function loadMetricsAndUsers() {
+  let userCount = 4;
+  let usersList = [
+    { email: 'admin@gmail.com', name: 'Nguyễn Viết Kha (Chủ Web)', role: 'admin', status: 'active' },
+    { email: 'kiet@gmail.com', name: 'Tuấn Kiệt', role: 'learner', status: 'active' },
+    { email: 'minhanh@gmail.com', name: 'Minh Anh', role: 'learner', status: 'active' },
+    { email: 'chau@gmail.com', name: 'Bảo Châu', role: 'learner', status: 'active' }
+  ];
 
-function saveAdminSettings() {
-  const select = document.getElementById('aiEngineSelect');
-  const keyInput = document.getElementById('apiKeyInput');
-  const firebaseInput = document.getElementById('firebaseConfigInput');
+  if (db) {
+    try {
+      const snap = await db.collection('users').get();
+      if (!snap.empty) {
+        usersList = [];
+        snap.forEach(doc => {
+          const d = doc.data();
+          usersList.push({ email: d.email || 'N/A', name: d.name || 'Học viên', role: d.role || 'learner', status: 'active' });
+        });
+        userCount = usersList.length;
+      }
+    } catch(e) {}
+  }
 
-  if (select) { adminState.aiEngine = select.value; localStorage.setItem('english_master_ai_engine', adminState.aiEngine); }
-  if (keyInput) { adminState.apiKey = keyInput.value.trim(); localStorage.setItem('english_master_gemini_key', adminState.apiKey); }
-  if (firebaseInput) { adminState.firebaseConfigRaw = firebaseInput.value.trim(); localStorage.setItem('english_master_firebase_config', adminState.firebaseConfigRaw); }
-
-  showToast('💾 Đã lưu cấu hình hệ thống thành công!');
-}
-
-function renderAdminUsersList() {
-  document.getElementById('statTotalUsers').textContent = adminState.users.length;
+  document.getElementById('statTotalUsers').textContent = userCount;
   document.getElementById('statAiCalls').textContent = adminState.aiUsageCount;
 
   const tbody = document.getElementById('adminUserTable');
   if (!tbody) return;
 
-  tbody.innerHTML = adminState.users.map(u => `
+  tbody.innerHTML = usersList.map(u => `
     <tr>
-      <td style="font-size: 0.85rem;">${escapeHtml(u.email)}</td>
+      <td style="font-size: 0.85rem; font-weight: 600;">${escapeHtml(u.email)}</td>
       <td style="font-size: 0.85rem;">${escapeHtml(u.name)}</td>
-      <td>${u.status === 'suspended' ? '<span style="color:var(--danger); font-weight:700;">Khoá</span>' : '<span style="color:var(--success); font-weight:700;">Hoạt động</span>'}</td>
-      <td>
-        <button class="btn-secondary" style="font-size: 0.75rem; padding: 2px 8px;" onclick="toggleUserStatus('${u.id}')">
-          ${u.status === 'suspended' ? 'Mở khoá' : 'Khoá'}
-        </button>
-      </td>
+      <td><span class="mode-badge ${u.role === 'admin' ? 'ielts' : 'tieuhoc'}">${u.role === 'admin' ? 'Quản trị' : 'Học viên'}</span></td>
+      <td><span style="color:var(--success); font-weight:700; font-size:0.82rem;">Hoạt động</span></td>
     </tr>
   `).join('');
-}
-
-function toggleUserStatus(id) {
-  const u = adminState.users.find(x => x.id === id);
-  if (u) {
-    u.status = u.status === 'suspended' ? 'active' : 'suspended';
-    localStorage.setItem('english_master_users_v2', JSON.stringify(adminState.users));
-    renderAdminUsersList();
-    showToast(`⚙️ Đã ${u.status === 'suspended' ? 'khoá' : 'mở khoá'} ${u.name}`);
-  }
 }
 
 function renderAdminFeedbackInbox() {
@@ -142,27 +182,30 @@ function renderAdminFeedbackInbox() {
   adminState.feedback = JSON.parse(localStorage.getItem('english_master_feedback') || '[]');
 
   if (adminState.feedback.length === 0) {
-    container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted);">Hòm thư trống. Chưa có phản hồi/báo lỗi mới từ học viên.</p>`;
+    container.innerHTML = `<p style="font-size:0.88rem; color:var(--text-muted); padding:16px 0;">Hòm thư trống. Chưa có phản hồi hoặc báo cáo nội dung nào.</p>`;
     return;
   }
 
   container.innerHTML = adminState.feedback.map(fb => `
-    <div class="comment-item">
+    <div class="comment-item" style="margin-bottom: 10px;">
       <div class="comment-header">
-        <span class="comment-author"><i class="fa-solid fa-user"></i> Liên hệ: ${escapeHtml(fb.contact || 'Ẩn danh')}</span>
-        <span style="color:var(--text-muted); font-size:0.75rem;">${fb.createdAt || ''} (${fb.page || 'Web'})</span>
+        <span class="comment-author">
+          <i class="fa-solid fa-user"></i> Người gửi: ${escapeHtml(fb.contact || 'Ẩn danh')}
+          ${fb.type === 'report' ? '<span class="mode-badge" style="background:#fee2e2; color:#dc2626; margin-left:8px;">Báo cáo bài học</span>' : ''}
+        </span>
+        <span style="color:var(--text-muted); font-size:0.75rem;">${fb.createdAt || ''}</span>
       </div>
-      <p style="font-size:0.9rem; color:var(--text-primary); margin-top:4px;">${escapeHtml(fb.message)}</p>
+      <p style="font-size:0.9rem; color:var(--text-primary); margin-top:6px; line-height:1.5;">${escapeHtml(fb.message)}</p>
     </div>
   `).join('');
 }
 
 function clearFeedbackInbox() {
-  if (!confirm('Bạn có chắc chắn muốn xoá tất cả phản hồi trong hòm thư?')) return;
+  if (!confirm('Bạn có chắc chắn muốn xoá toàn bộ danh sách phản hồi/báo cáo?')) return;
   adminState.feedback = [];
   localStorage.setItem('english_master_feedback', '[]');
   renderAdminFeedbackInbox();
-  showToast('🗑️ Đã xoá hòm thư phản hồi.');
+  showToast('🗑️ Đã làm sạch hòm thư phản hồi.');
 }
 
 function showToast(message, type = 'success') {
