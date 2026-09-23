@@ -468,18 +468,13 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       } else if (err.code === 'auth/user-disabled') {
         errEl.textContent = 'Tài khoản của bạn đã bị khóa.';
       } else {
-        // Safe session token fallback if offline/demo
-        setSecureSession({ uid: 'u_' + btoa(email).slice(0, 10), email, displayName: email.split('@')[0] });
-        toast('Đăng nhập thành công!', 'ok');
-        setTimeout(() => { window.location.href = 'index.html'; }, 500);
-        return;
+        errEl.textContent = 'Lỗi đăng nhập: ' + (err.message || err.code);
       }
+    } catch(err) {
+      errEl.textContent = 'Lỗi kết nối Firebase: ' + (err.message || err);
     }
   } else {
-    setSecureSession({ uid: 'u_' + btoa(email).slice(0, 10), email, displayName: email.split('@')[0] });
-    toast('Đăng nhập thành công!', 'ok');
-    setTimeout(() => { window.location.href = 'index.html'; }, 500);
-    return;
+    errEl.textContent = 'Dịch vụ Firebase Auth chưa sẵn sàng.';
   }
 
   const card = document.querySelector('.auth-card');
@@ -560,17 +555,45 @@ document.getElementById('googleBtn').addEventListener('click', async () => {
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
       const result = await auth.signInWithPopup(provider);
-      setSecureSession(result.user);
+      let role = 'learner';
+      if (db) {
+        try {
+          const userDoc = await db.collection('users').doc(result.user.uid).get();
+          if (userDoc.exists && userDoc.data().role) {
+            role = userDoc.data().role;
+          } else {
+            await db.collection('users').doc(result.user.uid).set({
+              name: result.user.displayName || (result.user.email ? result.user.email.split('@')[0] : 'Học viên'),
+              email: result.user.email,
+              role: 'learner',
+              xp: 100,
+              streak: 1,
+              status: 'active',
+              badges: ['first_lesson'],
+              createdAt: Date.now()
+            }, { merge: true });
+          }
+        } catch(err) {
+          console.warn('Firestore user profile sync error:', err);
+        }
+      }
+      setSecureSession({ ...result.user, role });
       toast('Đăng nhập Google thành công!', 'ok');
-      setTimeout(() => { window.location.href = 'index.html'; }, 500);
+      setTimeout(() => { window.location.href = 'index.html'; }, 600);
       return;
     } catch(e) {
-      console.warn('Google popup error:', e);
+      console.error('Google sign-in error:', e);
+      if (e.code === 'auth/operation-not-allowed') {
+        toast('Chưa bật Google Provider trong Firebase Console!', 'bad');
+      } else if (e.code === 'auth/popup-closed-by-user') {
+        toast('Cửa sổ đăng nhập đã bị đóng trước khi hoàn tất.', 'bad');
+      } else {
+        toast('Lỗi đăng nhập: ' + (e.message || e.code), 'bad');
+      }
+      return;
     }
   }
-  setSecureSession({ uid: 'u_google_' + Date.now(), displayName: 'Học viên Google', email: 'learner@gmail.com' });
-  toast('Đăng nhập Google thành công!', 'ok');
-  setTimeout(() => { window.location.href = 'index.html'; }, 500);
+  toast('Dịch vụ Firebase Auth chưa sẵn sàng.', 'bad');
 });
 
 // FORGOT PASSWORD
