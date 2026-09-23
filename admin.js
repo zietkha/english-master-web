@@ -38,48 +38,38 @@ document.addEventListener('DOMContentLoaded', () => {
   verifyAdminAccess();
 });
 
-// Role-based Access Gate
+// Role-based Access Gate: Requires Firebase Auth + Firestore role === 'admin'
 function verifyAdminAccess() {
-  const localUser = JSON.parse(localStorage.getItem('english_master_current_user') || 'null');
-  
-  if (auth) {
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        let isAdmin = false;
-        if (db) {
-          try {
-            const doc = await db.collection('users').doc(user.uid).get();
-            if (doc.exists && doc.data().role === 'admin') {
-              isAdmin = true;
-            }
-          } catch(e) {}
-        }
-        // Also check if current session user role is admin
-        if (!isAdmin && localUser && (localUser.role === 'admin' || localUser.email === 'admin@gmail.com')) {
+  if (!auth) {
+    denyAccess();
+    return;
+  }
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      denyAccess();
+      return;
+    }
+
+    let isAdmin = false;
+    if (db) {
+      try {
+        const doc = await db.collection('users').doc(user.uid).get();
+        if (doc.exists && doc.data().role === 'admin') {
           isAdmin = true;
         }
-
-        if (isAdmin) {
-          adminState.authenticatedUser = user;
-          grantAccess();
-        } else {
-          denyAccess();
-        }
-      } else {
-        if (localUser && (localUser.role === 'admin' || localUser.email === 'admin@gmail.com')) {
-          grantAccess();
-        } else {
-          denyAccess();
-        }
+      } catch(e) {
+        console.warn('Firestore admin verification error:', e);
       }
-    });
-  } else {
-    if (localUser && (localUser.role === 'admin' || localUser.email === 'admin@gmail.com')) {
+    }
+
+    if (isAdmin) {
+      adminState.authenticatedUser = user;
       grantAccess();
     } else {
       denyAccess();
     }
-  }
+  });
 }
 
 function grantAccess() {

@@ -10,12 +10,12 @@ const state = {
   db: null,
   maintenanceMode: localStorage.getItem('english_master_maintenance_mode') === 'true',
   
-  // Authenticated User Session (Managed securely via Firebase Auth)
-  users: JSON.parse(localStorage.getItem('english_master_users_v2') || 'null') || [
-    { id: 'u_admin', name: 'Nguyễn Viết Kha (Chủ Web)', email: 'admin@gmail.com', role: 'admin', xp: 1200, streak: 12, status: 'active', badges: ['first_lesson', 'streak_7', 'vocab_master'], bookmarks: [] },
-    { id: 'u_1', name: 'Tuấn Kiệt', email: 'kiet@gmail.com', role: 'learner', xp: 680, streak: 7, status: 'active', badges: ['first_lesson', 'streak_7'], bookmarks: [] },
-    { id: 'u_2', name: 'Minh Anh', email: 'minhanh@gmail.com', role: 'learner', xp: 420, streak: 5, status: 'active', badges: ['first_lesson'], bookmarks: [] },
-    { id: 'u_3', name: 'Bảo Châu', email: 'chau@gmail.com', role: 'learner', xp: 310, streak: 3, status: 'active', badges: ['first_lesson'], bookmarks: [] }
+  // Public Leaderboard State (Managed securely via Firebase Auth and Firestore, no plaintext passwords)
+  users: [
+    { id: 'u_admin', name: 'Nguyễn Viết Kha (Chủ Web)', email: 'admin@gmail.com', role: 'admin', xp: 1200, streak: 12, badges: ['first_lesson', 'streak_7', 'vocab_master'], bookmarks: [] },
+    { id: 'u_1', name: 'Tuấn Kiệt', email: 'kiet@gmail.com', role: 'learner', xp: 680, streak: 7, badges: ['first_lesson', 'streak_7'], bookmarks: [] },
+    { id: 'u_2', name: 'Minh Anh', email: 'minhanh@gmail.com', role: 'learner', xp: 420, streak: 5, badges: ['first_lesson'], bookmarks: [] },
+    { id: 'u_3', name: 'Bảo Châu', email: 'chau@gmail.com', role: 'learner', xp: 310, streak: 3, badges: ['first_lesson'], bookmarks: [] }
   ],
   currentUser: JSON.parse(localStorage.getItem('english_master_current_user') || 'null'),
   feedback: JSON.parse(localStorage.getItem('english_master_feedback') || '[]'),
@@ -90,18 +90,6 @@ function checkMaintenanceMode() {
    ========================================================================== */
 
 function initAuthSession() {
-  if (state.currentUser) {
-    const updated = state.users.find(u => u.id === state.currentUser.id);
-    if (updated) {
-      if (updated.status === 'suspended') {
-        handleLogout();
-        showToast('🔒 Tài khoản của bạn đã bị khoá.', 'danger');
-        return;
-      }
-      state.currentUser = updated;
-      saveCurrentUserToStorage();
-    }
-  }
   updateAuthUi();
 }
 
@@ -139,101 +127,129 @@ function switchAuthTab(tab) {
   document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
 }
 
-function handleLoginSubmit(e) {
+async function handleLoginSubmit(e) {
   e.preventDefault();
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPassword').value.trim();
 
-  const user = state.users.find(u => u.email === email && u.password === pass);
-  if (!user) {
-    showToast('❌ Sai email hoặc mật khẩu!', 'danger');
+  if (!email || !pass) {
+    showToast('⚠️ Vui lòng nhập đầy đủ email và mật khẩu!', 'danger');
     return;
   }
 
-  if (user.status === 'suspended') {
-    showToast('🔒 Tài khoản đã bị khoá.', 'danger');
-    return;
+  if (state.auth) {
+    try {
+      await state.auth.signInWithEmailAndPassword(email, pass);
+      showToast('🎉 Đăng nhập thành công!');
+      closeModal('loginModal');
+      navigateTo('learn');
+    } catch(err) {
+      console.warn('Firebase login error:', err.code);
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        showToast('❌ Sai email hoặc mật khẩu!', 'danger');
+      } else if (err.code === 'auth/user-disabled') {
+        showToast('🔒 Tài khoản đã bị khoá.', 'danger');
+      } else {
+        showToast('❌ Đăng nhập thất bại: ' + (err.message || 'Thử lại sau'), 'danger');
+      }
+    }
+  } else {
+    showToast('❌ Dịch vụ xác thực Firebase chưa sẵn sàng.', 'danger');
   }
-
-  state.currentUser = user;
-  saveCurrentUserToStorage();
-  updateAuthUi();
-  navigateTo('learn');
-  showToast(`🎉 Chào mừng ${user.name} đã quay trở lại!`);
 }
 
-function handleRegisterSubmit(e) {
+async function handleRegisterSubmit(e) {
   e.preventDefault();
   const name = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const pass = document.getElementById('regPassword').value.trim();
 
-  if (state.users.some(u => u.email === email)) {
-    showToast('⚠️ Email này đã được đăng ký!', 'danger');
+  if (!name || !email || !pass) {
+    showToast('⚠️ Vui lòng điền đầy đủ các thông tin!', 'danger');
     return;
   }
 
-  const newUser = {
-    id: 'u_' + Date.now(),
-    name,
-    email,
-    password: pass,
-    role: 'learner',
-    xp: 50,
-    streak: 1,
-    status: 'active',
-    badges: ['first_lesson'],
-    bookmarks: []
-  };
-
-  state.users.push(newUser);
-  saveUsersToStorage();
-  state.currentUser = newUser;
-  saveCurrentUserToStorage();
-
-  updateAuthUi();
-  navigateTo('learn');
-  showToast(`🚀 Đăng ký thành công! +50 XP khởi đầu.`);
-}
-
-function handleGoogleSignIn() {
-  const googleUser = {
-    id: 'u_google_' + Date.now(),
-    name: 'Học viên Google',
-    email: 'google_user@gmail.com',
-    role: 'learner',
-    xp: 100,
-    streak: 1,
-    status: 'active',
-    badges: ['first_lesson'],
-    bookmarks: []
-  };
-
-  if (!state.users.some(u => u.email === googleUser.email)) {
-    state.users.push(googleUser);
-    saveUsersToStorage();
+  if (pass.length < 6) {
+    showToast('⚠️ Mật khẩu phải có ít nhất 6 ký tự!', 'danger');
+    return;
   }
 
-  state.currentUser = googleUser;
-  saveCurrentUserToStorage();
-  updateAuthUi();
-  navigateTo('learn');
-  showToast('🔑 Đăng nhập với Google thành công!');
+  if (state.auth) {
+    try {
+      const userCred = await state.auth.createUserWithEmailAndPassword(email, pass);
+      await userCred.user.updateProfile({ displayName: name });
+      if (state.db) {
+        await state.db.collection('users').doc(userCred.user.uid).set({
+          name,
+          email,
+          role: 'learner',
+          xp: 50,
+          streak: 1,
+          status: 'active',
+          badges: ['first_lesson'],
+          bookmarks: [],
+          createdAt: Date.now()
+        }, { merge: true });
+      }
+      showToast('🚀 Đăng ký thành công! +50 XP khởi đầu.');
+      closeModal('loginModal');
+      navigateTo('learn');
+    } catch(err) {
+      console.warn('Firebase register error:', err.code);
+      if (err.code === 'auth/email-already-in-use') {
+        showToast('⚠️ Email này đã được đăng ký!', 'danger');
+      } else {
+        showToast('❌ Đăng ký thất bại: ' + (err.message || 'Thử lại sau'), 'danger');
+      }
+    }
+  } else {
+    showToast('❌ Dịch vụ xác thực Firebase chưa sẵn sàng.', 'danger');
+  }
+}
+
+async function handleGoogleSignIn() {
+  if (state.auth) {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await state.auth.signInWithPopup(provider);
+      showToast('🔑 Đăng nhập với Google thành công!');
+      closeModal('loginModal');
+      navigateTo('learn');
+    } catch(err) {
+      console.warn('Google sign-in error:', err);
+      showToast('❌ Đăng nhập Google thất bại: ' + (err.message || 'Thử lại sau'), 'danger');
+    }
+  } else {
+    showToast('❌ Dịch vụ xác thực Google chưa sẵn sàng.', 'danger');
+  }
 }
 
 function handleForgotPassword() {
   const email = document.getElementById('loginEmail')?.value.trim();
   if (!email) { showToast('⚠️ Nhập email ở ô trên trước nhé.', 'danger'); return; }
-  showToast('📧 Đã gửi yêu cầu đặt lại mật khẩu về ' + escapeHtml(email));
+  if (state.auth) {
+    state.auth.sendPasswordResetEmail(email).then(() => {
+      showToast('📧 Đã gửi email đặt lại mật khẩu về ' + escapeHtml(email));
+    }).catch(err => {
+      showToast('❌ Lỗi gửi email: ' + err.message, 'danger');
+    });
+  } else {
+    showToast('📧 Đã gửi yêu cầu đặt lại mật khẩu về ' + escapeHtml(email));
+  }
 }
 
-function handleLogout() {
+async function handleLogout() {
+  if (state.auth) {
+    try {
+      await state.auth.signOut();
+    } catch(e) {}
+  }
   state.currentUser = null;
   localStorage.removeItem('english_master_current_user');
   updateAuthUi();
   hideUserDropdown();
   navigateTo('learn');
-  showToast('👋 Đã đăng xuất.');
+  showToast('👋 Đã đăng xuất an toàn.');
 }
 
 function toggleUserDropdown() {
@@ -247,21 +263,44 @@ function hideUserDropdown() {
 }
 
 function saveUsersToStorage() {
-  localStorage.setItem('english_master_users_v2', JSON.stringify(state.users));
+  // Legacy plaintext storage removed per Section 8 security audit
 }
 
 function saveCurrentUserToStorage() {
-  localStorage.setItem('english_master_current_user', JSON.stringify(state.currentUser));
+  if (state.currentUser) {
+    const safeUser = {
+      id: state.currentUser.id,
+      uid: state.currentUser.id,
+      name: state.currentUser.name,
+      email: state.currentUser.email,
+      role: state.currentUser.role || 'learner',
+      xp: state.currentUser.xp || 0,
+      streak: state.currentUser.streak || 1,
+      status: state.currentUser.status || 'active',
+      badges: state.currentUser.badges || ['first_lesson'],
+      bookmarks: state.currentUser.bookmarks || []
+    };
+    localStorage.setItem('english_master_current_user', JSON.stringify(safeUser));
+  } else {
+    localStorage.removeItem('english_master_current_user');
+  }
 }
 
-function addXp(amount) {
+async function addXp(amount) {
   if (!state.currentUser) return;
   state.currentUser.xp = (state.currentUser.xp || 0) + amount;
-  const uIndex = state.users.findIndex(u => u.id === state.currentUser.id);
-  if (uIndex !== -1) state.users[uIndex] = state.currentUser;
-  saveUsersToStorage();
   saveCurrentUserToStorage();
   updateAuthUi();
+
+  if (state.db && state.auth && state.auth.currentUser) {
+    try {
+      await state.db.collection('users').doc(state.auth.currentUser.uid).update({
+        xp: state.currentUser.xp
+      });
+    } catch(e) {
+      console.warn('Firestore XP update error:', e);
+    }
+  }
 }
 
 /* ==========================================================================
@@ -282,7 +321,7 @@ function initFirebaseAndStorage() {
     loadSampleLessons();
   }
 
-  let firebaseConfig = {
+  const firebaseConfig = {
     apiKey: "AIzaSyDemoConfigKeyForEnglishKhaMaster",
     authDomain: "english-master-app.firebaseapp.com",
     projectId: "english-master-app",
@@ -291,18 +330,76 @@ function initFirebaseAndStorage() {
     appId: "1:1234567890:web:abcdef123456"
   };
 
-  const storedConfig = localStorage.getItem('english_master_firebase_config');
-  if (storedConfig) {
-    try {
-      const parsed = JSON.parse(storedConfig);
-      if (parsed && parsed.apiKey) firebaseConfig = parsed;
-    } catch(e) {}
-  }
-
   try {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    state.auth = firebase.auth();
     state.db = firebase.firestore();
-  } catch (err) {}
+  } catch (err) {
+    console.warn('Firebase init error:', err);
+  }
+
+  // Setup Firebase Auth State Listener
+  if (state.auth) {
+    state.auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        let role = 'learner';
+        let xp = 100;
+        let streak = 1;
+        let badges = ['first_lesson'];
+        let bookmarks = [];
+        let name = user.displayName || (user.email ? user.email.split('@')[0] : 'Học viên');
+
+        if (state.db) {
+          try {
+            const userDocRef = state.db.collection('users').doc(user.uid);
+            const doc = await userDocRef.get();
+            if (doc.exists) {
+              const d = doc.data();
+              role = d.role || role;
+              xp = d.xp !== undefined ? d.xp : xp;
+              streak = d.streak !== undefined ? d.streak : streak;
+              badges = d.badges || badges;
+              bookmarks = d.bookmarks || bookmarks;
+              name = d.name || name;
+            } else {
+              await userDocRef.set({
+                name,
+                email: user.email,
+                role: 'learner',
+                xp,
+                streak,
+                status: 'active',
+                badges,
+                bookmarks,
+                createdAt: Date.now()
+              }, { merge: true });
+            }
+          } catch(e) {
+            console.warn('User doc Firestore sync:', e);
+          }
+        }
+
+        state.currentUser = {
+          id: user.uid,
+          uid: user.uid,
+          name,
+          email: user.email,
+          role,
+          xp,
+          streak,
+          status: 'active',
+          badges,
+          bookmarks
+        };
+        saveCurrentUserToStorage();
+        updateAuthUi();
+      } else {
+        state.currentUser = null;
+        localStorage.removeItem('english_master_current_user');
+        updateAuthUi();
+      }
+    });
+  }
 
   if (state.db) {
     ['ielts', 'tieuhoc'].forEach(m => {
@@ -687,164 +784,52 @@ function renderProfilePage() {
   }).join('');
 }
 
-function handleUpdateProfile(e) {
+async function handleUpdateProfile(e) {
   e.preventDefault();
   if (!state.currentUser) return;
 
   const newName = document.getElementById('profileNameInput').value.trim();
   const newPass = document.getElementById('profilePassInput').value.trim();
 
-  state.currentUser.name = newName;
-  if (newPass) state.currentUser.password = newPass;
+  if (newName) {
+    state.currentUser.name = newName;
+  }
 
-  const uIndex = state.users.findIndex(u => u.id === state.currentUser.id);
-  if (uIndex !== -1) state.users[uIndex] = state.currentUser;
+  if (state.auth && state.auth.currentUser) {
+    try {
+      if (newName) {
+        await state.auth.currentUser.updateProfile({ displayName: newName });
+      }
+      if (newPass) {
+        if (newPass.length < 6) {
+          showToast('⚠️ Mật khẩu mới phải có ít nhất 6 ký tự!', 'danger');
+          return;
+        }
+        await state.auth.currentUser.updatePassword(newPass);
+      }
+      if (state.db) {
+        await state.db.collection('users').doc(state.auth.currentUser.uid).update({
+          name: state.currentUser.name
+        });
+      }
+    } catch(err) {
+      console.warn('Update profile error:', err);
+      showToast('⚠️ Lỗi cập nhật: ' + err.message, 'danger');
+      return;
+    }
+  }
 
-  saveUsersToStorage();
   saveCurrentUserToStorage();
   updateAuthUi();
-  showToast('✅ Đã cập nhật thông tin cá nhân!');
+  showToast('✅ Đã cập nhật thông tin cá nhân thành công!');
 }
 
 /* ==========================================================================
-   6. Integrated Web Owner Admin Control Panel
+   6. Dedicated Admin Portal
+   All admin capabilities (maintenance toggle, metrics, feedback inbox) are
+   strictly housed in admin.html with Firebase Auth and Firestore Security Rules.
    ========================================================================== */
 
-function checkAdminViewAccess() {
-  const pinCard = document.getElementById('adminPinCard');
-  const dashContent = document.getElementById('adminDashboardContent');
-
-  if (state.adminAuthenticated) {
-    if (pinCard) pinCard.style.display = 'none';
-    if (dashContent) dashContent.style.display = 'block';
-    renderAdminDashboardData();
-  } else {
-    if (pinCard) pinCard.style.display = 'block';
-    if (dashContent) dashContent.style.display = 'none';
-  }
-}
-
-function handleAdminPinSubmit(e) {
-  e.preventDefault();
-  const pin = document.getElementById('adminPinInput').value.trim();
-
-  if (pin === 'admin123' || pin === '123') {
-    state.adminAuthenticated = true;
-    checkAdminViewAccess();
-    showToast('🔑 Đã xác thực thành công Chủ Web!');
-  } else {
-    showToast('❌ Mã PIN Admin không đúng!', 'danger');
-  }
-}
-
-function renderAdminDashboardData() {
-  const toggle = document.getElementById('maintenanceToggle');
-  if (toggle) toggle.checked = state.maintenanceMode;
-  updateMaintenanceTitleText();
-
-  const engineSelect = document.getElementById('aiEngineSelect');
-  const keyInput = document.getElementById('apiKeyInput');
-  const firebaseInput = document.getElementById('firebaseConfigInput');
-
-  if (engineSelect) engineSelect.value = state.aiEngine;
-  if (keyInput) keyInput.value = state.apiKey;
-  if (firebaseInput) firebaseInput.value = state.firebaseConfigRaw;
-
-  handleEngineChange();
-  renderAdminUsersList();
-  renderAdminFeedbackInbox();
-}
-
-function toggleMaintenanceMode() {
-  const toggle = document.getElementById('maintenanceToggle');
-  state.maintenanceMode = toggle.checked;
-
-  localStorage.setItem('english_master_maintenance_mode', state.maintenanceMode ? 'true' : 'false');
-  updateMaintenanceTitleText();
-  checkMaintenanceMode();
-
-  if (state.maintenanceMode) {
-    showToast('🔧 Đã BẬT Chế độ Bảo trì! Web người dùng đã tạm khoá.', 'danger');
-  } else {
-    showToast('🚀 Đã TẮT Bảo trì! Web đã mở lại bình thường.');
-  }
-}
-
-function updateMaintenanceTitleText() {
-  const title = document.getElementById('maintenanceStatusTitle');
-  if (title) {
-    if (state.maintenanceMode) {
-      title.textContent = '🔒 Web đang BẢO TRÌ (Người dùng không truy cập được)';
-      title.style.color = 'var(--danger)';
-    } else {
-      title.textContent = '🟢 Web đang HOẠT ĐỘNG bình thường (Công khai)';
-      title.style.color = 'var(--success)';
-    }
-  }
-}
-
-
-
-function renderAdminUsersList() {
-  document.getElementById('statTotalUsers').textContent = state.users.length;
-  document.getElementById('statAiCalls').textContent = state.aiUsageCount;
-
-  const tbody = document.getElementById('adminUserTable');
-  if (!tbody) return;
-
-  tbody.innerHTML = state.users.map(u => `
-    <tr>
-      <td style="font-size: 0.85rem;">${escapeHtml(u.email)}</td>
-      <td style="font-size: 0.85rem;">${escapeHtml(u.name)}</td>
-      <td>${u.status === 'suspended' ? '<span style="color:var(--danger); font-weight:700;">Khoá</span>' : '<span style="color:var(--success); font-weight:700;">Hoạt động</span>'}</td>
-      <td>
-        <button class="btn-secondary" style="font-size: 0.75rem; padding: 2px 8px;" onclick="toggleUserStatus('${u.id}')">
-          ${u.status === 'suspended' ? 'Mở khoá' : 'Khoá'}
-        </button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-function toggleUserStatus(id) {
-  const u = state.users.find(x => x.id === id);
-  if (u) {
-    u.status = u.status === 'suspended' ? 'active' : 'suspended';
-    saveUsersToStorage();
-    renderAdminUsersList();
-    showToast(`⚙️ Đã ${u.status === 'suspended' ? 'khoá' : 'mở khoá'} ${u.name}`);
-  }
-}
-
-function renderAdminFeedbackInbox() {
-  const container = document.getElementById('adminFeedbackList');
-  if (!container) return;
-
-  state.feedback = JSON.parse(localStorage.getItem('english_master_feedback') || '[]');
-
-  if (state.feedback.length === 0) {
-    container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted);">Hòm thư trống. Chưa có phản hồi từ học viên.</p>`;
-    return;
-  }
-
-  container.innerHTML = state.feedback.map(fb => `
-    <div class="comment-item">
-      <div class="comment-header">
-        <span class="comment-author"><i class="fa-solid fa-user"></i> Liên hệ: ${escapeHtml(fb.contact || 'Ẩn danh')}</span>
-        <span style="color:var(--text-muted); font-size:0.75rem;">${fb.createdAt || ''}</span>
-      </div>
-      <p style="font-size:0.9rem; color:var(--text-primary); margin-top:4px;">${escapeHtml(fb.message)}</p>
-    </div>
-  `).join('');
-}
-
-function clearFeedbackInbox() {
-  if (!confirm('Bạn có chắc chắn muốn xoá tất cả phản hồi trong hòm thư?')) return;
-  state.feedback = [];
-  localStorage.setItem('english_master_feedback', '[]');
-  renderAdminFeedbackInbox();
-  showToast('🗑️ Đã xoá hòm thư phản hồi.');
-}
 
 /* ==========================================================================
    7. Feedback Modal & Study Engine

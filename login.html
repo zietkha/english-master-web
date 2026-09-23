@@ -378,15 +378,6 @@ let firebaseConfig = {
   appId: "1:1234567890:web:abcdef123456"
 };
 
-// Override with stored config if provided
-const storedConfig = localStorage.getItem('english_master_firebase_config');
-if (storedConfig) {
-  try {
-    const parsed = JSON.parse(storedConfig);
-    if (parsed && parsed.apiKey) firebaseConfig = parsed;
-  } catch(e) {}
-}
-
 let auth = null, db = null;
 try {
   if (!firebase.apps.length) {

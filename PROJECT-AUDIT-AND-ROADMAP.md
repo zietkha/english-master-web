@@ -373,10 +373,12 @@ Existing local storage test data will be lost by design. This is intentional: le
 `web-engs-deploy.zip` is a portable deployment archive for drag-and-drop hosts like Netlify Drop. It must always be kept strictly in sync with git commits to prevent version drift.
 
 ### 8.8 Verification Checklist
-- [x] Firebase project created, Email/Password + Google providers enabled.
-- [x] `firestore.rules` written and saved to repository.
-- [x] First admin account manual bootstrap instructions documented (8.2).
-- [x] Zero references to `english_master_gemini_key` or plaintext `english_master_users_v2` in shipping code.
-- [x] Access to `admin.html` without admin role confirmed rejected.
-- [x] `web-engs-deploy.zip` updated with all latest fixes.
+- [x] Firebase project created, Email/Password + Google providers enabled, Firestore database created in production mode.
+- [x] `firestore.rules` written and deployed (Section 8.3), server-side rule enforcement with `isOwner()` and `isAdmin()`.
+- [x] First admin account manual bootstrap instructions documented (Section 8.2).
+- [x] `vercel dev` configured with serverless function routing in `vercel.json` (Section 8.4).
+- [x] Firestore security rules block unauthorized cross-user profile access and unauthorized admin writes.
+- [x] Attempt to open `admin.html` directly by URL while logged out or as a non-admin learner confirmed strictly rejected.
+- [x] `web-engs-deploy.zip` updated to match latest commits to prevent version drift.
+- [x] Zero references to `english_master_gemini_key`, `english_master_firebase_config`, `admin123` PIN, or plaintext `english_master_users_v2` in shipping code.
 
