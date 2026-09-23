@@ -394,17 +394,21 @@ h1, h2, h3, h4, h5 {
   position: absolute;
   top: 50px;
   right: 0;
-  width: 225px;
-  background: var(--glass-white-strong);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--glass-border-color);
+  width: 230px;
+  background: #ffffff;
+  border: 1px solid var(--border);
   border-radius: var(--r-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(37, 99, 235, 0.08);
   padding: 6px;
   display: none;
   flex-direction: column;
-  z-index: 150;
+  z-index: 1000;
+}
+
+[data-theme="dark"] .user-dropdown {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
 }
 
 .user-dropdown.show { display: flex; }
@@ -1673,7 +1677,7 @@ input:checked + .slider:before   { transform: translateX(28px); }
   }
 
   .header-container {
-    gap: 8px;
+    gap: 6px;
   }
 
   .nav-links {
@@ -1681,71 +1685,65 @@ input:checked + .slider:before   { transform: translateX(28px); }
   }
 
   .logo-area {
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
+    cursor: pointer;
   }
 
   .logo-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
-    border-radius: 10px;
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+    border-radius: 9px;
   }
 
   .logo-title {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     letter-spacing: -0.02em;
+    white-space: nowrap;
+    overflow: visible;
   }
 
   .header-actions {
-    gap: 6px;
-    flex-shrink: 1;
-    min-width: 0;
+    gap: 5px;
+    flex-shrink: 0;
+    align-items: center;
   }
 
+  /* Hide search input on mobile to grant ample room for full logo title */
   .nav-search-container {
-    max-width: 150px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .nav-search-input {
-    padding: 7px 10px 7px 30px;
-    font-size: 0.8rem;
-    height: 36px;
-    min-height: 36px;
-  }
-
-  .nav-search-icon {
-    left: 10px;
-    font-size: 0.78rem;
+    display: none !important;
   }
 
   .stat-pill {
-    padding: 4px 7px;
+    padding: 3px 6px;
     font-size: 0.72rem;
     gap: 3px;
+  }
+
+  .stat-pill .stat-pill-label {
+    display: none; /* Hide " ngày" and " XP" suffixes on mobile phones */
   }
 
   #loginBtn {
     padding: 6px 10px !important;
     font-size: 0.8rem !important;
-    min-height: 36px;
-    height: 36px;
+    min-height: 34px;
+    height: 34px;
     border-radius: var(--r-sm);
     white-space: nowrap;
   }
 
   .user-avatar {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     font-size: 0.82rem;
   }
 
   .theme-toggle-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 0.95rem;
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
     flex-shrink: 0;
   }
 
@@ -1898,7 +1896,86 @@ input:checked + .slider:before   { transform: translateX(28px); }
   }
 
   .feature-card {
-    padding: 20px 16px;
+    padding: 16px 14px;
+  }
+
+  .feature-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.25rem;
+    margin: 0 auto 10px;
+    border-radius: var(--r-sm);
+  }
+
+  .feature-card h3 {
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+  }
+
+  .feature-card p {
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  /* ── Level & Skill Cards (Mobile 768px) ── */
+  .level-cards-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 14px;
+  }
+
+  .level-card {
+    padding: 10px 4px !important;
+    border-radius: 12px !important;
+  }
+
+  .level-card .level-icon {
+    font-size: 1.35rem !important;
+    margin-bottom: 3px !important;
+  }
+
+  .level-card .level-name {
+    font-size: 0.82rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .level-card .level-sub {
+    font-size: 0.68rem !important;
+    line-height: 1.2;
+  }
+
+  .skill-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 16px;
+  }
+
+  .skill-card {
+    padding: 10px 8px !important;
+    border-radius: 14px !important;
+    gap: 8px !important;
+  }
+
+  .skill-icon-wrap {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1.05rem !important;
+    border-radius: 10px !important;
+  }
+
+  .skill-card-info h4 {
+    font-size: 0.86rem !important;
+    margin: 0 0 2px 0 !important;
+  }
+
+  .skill-card-info p {
+    font-size: 0.72rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .skill-badge {
+    font-size: 0.65rem !important;
+    padding: 1px 6px !important;
   }
 
   /* ── Flashcards 3D ── */
@@ -2074,25 +2151,15 @@ input:checked + .slider:before   { transform: translateX(28px); }
 /* ── Small Smartphones (<= 480px) ────────────────────────── */
 @media (max-width: 480px) {
   .logo-title {
-    font-size: 0.96rem;
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.94rem;
     white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
   }
 
   .nav-search-container {
-    max-width: 110px;
-  }
-
-  .nav-search-input {
-    padding-left: 26px;
-    font-size: 0.75rem;
-  }
-
-  .nav-search-icon {
-    left: 8px;
-    font-size: 0.72rem;
+    display: none !important;
   }
 
   .hero-title {
@@ -2127,11 +2194,14 @@ input:checked + .slider:before   { transform: translateX(28px); }
 /* ── Ultra-compact Phones (<= 360px) ─────────────────────── */
 @media (max-width: 360px) {
   .logo-title {
-    display: none; /* Show only logo icon on ultra-small screens */
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: visible;
+    max-width: none;
   }
 
   .nav-search-container {
-    max-width: 90px;
+    display: none !important;
   }
 
   .podium-step {

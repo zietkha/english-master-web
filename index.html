@@ -37,7 +37,7 @@
   <!-- Sticky Top Navigation -->
   <header class="sticky-header">
     <div class="header-container">
-      <div class="logo-area" onclick="navigateTo('landing')">
+      <div class="logo-area" onclick="handleLogoClick()">
         <div class="logo-icon" style="background: linear-gradient(135deg, #2563eb, #7c3aed); border-radius: 12px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; color: white;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
@@ -67,7 +67,7 @@
         <button id="navMylessons" class="nav-link" onclick="navigateTo('mylessons')">
           <i class="fa-solid fa-bookmark"></i> Bài của tôi
         </button>
-        <a id="navAdmin" class="nav-link" style="color: var(--danger); text-decoration: none;" href="admin.html">
+        <a id="navAdmin" class="nav-link" style="color: var(--danger); text-decoration: none; display: none;" href="admin.html">
           <i class="fa-solid fa-user-shield"></i> Bảng Quản trị
         </a>
       </nav>
@@ -84,10 +84,10 @@
         <!-- Streak & XP Display -->
         <div id="userStatsWidget" class="row" style="display: none; gap: 8px;">
           <span class="stat-pill streak-pill" title="Chuỗi ngày học liên tục">
-            <i class="fa-solid fa-fire"></i> <span id="headerStreakVal">0</span> ngày
+            <i class="fa-solid fa-fire"></i> <span id="headerStreakVal">0</span><span class="stat-pill-label"> ngày</span>
           </span>
           <span class="stat-pill xp-pill" title="Điểm kinh nghiệm (XP)">
-            <i class="fa-solid fa-bolt"></i> <span id="headerXpVal">0</span> XP
+            <i class="fa-solid fa-bolt"></i> <span id="headerXpVal">0</span><span class="stat-pill-label"> XP</span>
           </span>
         </div>
 
@@ -107,7 +107,7 @@
               <button class="dropdown-item" onclick="navigateTo('profile'); hideUserDropdown();">
                 <i class="fa-regular fa-id-card"></i> Hồ sơ cá nhân
               </button>
-              <button class="dropdown-item" onclick="navigateTo('admin'); hideUserDropdown();">
+              <button id="dropdownAdminBtn" class="dropdown-item" style="display: none;" onclick="navigateTo('admin'); hideUserDropdown();">
                 <i class="fa-solid fa-sliders"></i> Cấu hình & Bảng Quản trị
               </button>
               <button class="dropdown-item" style="color: var(--danger);" onclick="handleLogout()">
@@ -674,7 +674,7 @@
 
   <!-- Mobile Liquid Glass Bottom Navigation Bar -->
   <nav class="bottom-nav" aria-label="Thanh điều hướng di động">
-    <button id="bnav-landing" class="nav-item" onclick="navigateTo('landing')">
+    <button id="bnav-landing" class="nav-item" onclick="handleLogoClick()">
       <i class="fa-solid fa-house"></i>
       <span>Trang chủ</span>
     </button>

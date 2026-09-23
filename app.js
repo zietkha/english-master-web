@@ -61,7 +61,20 @@ document.addEventListener('DOMContentLoaded', () => {
    1. Navigation & Routing
    ========================================================================== */
 
+function handleLogoClick() {
+  if (state.currentUser) {
+    navigateTo('learn');
+  } else {
+    navigateTo('landing');
+  }
+}
+
 function navigateTo(viewName, updateHash = true) {
+  // If user is already authenticated/logged in, do not redirect them to guest landing hero
+  if (state.currentUser && viewName === 'landing') {
+    viewName = 'learn';
+  }
+
   state.currentView = viewName;
 
   document.querySelectorAll('.app-view').forEach(el => el.classList.remove('active'));
@@ -118,25 +131,35 @@ function updateAuthUi() {
   const userProfileWidget = document.getElementById('userProfileWidget');
   const userStatsWidget = document.getElementById('userStatsWidget');
   const userAvatar = document.getElementById('userAvatar');
+  const navAdmin = document.getElementById('navAdmin');
+  const dropdownAdminBtn = document.getElementById('dropdownAdminBtn');
 
   if (state.currentUser) {
+    const isAdmin = state.currentUser.role === 'admin';
+
     if (loginBtn) loginBtn.style.display = 'none';
     if (userProfileWidget) userProfileWidget.style.display = 'flex';
     if (userStatsWidget) userStatsWidget.style.display = 'flex';
 
     if (userAvatar) userAvatar.textContent = state.currentUser.name.charAt(0).toUpperCase();
     document.getElementById('dropdownName').textContent = state.currentUser.name;
-    document.getElementById('dropdownRole').textContent = state.currentUser.role === 'admin' ? '🛡️ Quản trị viên' : '🎓 Học viên';
+    document.getElementById('dropdownRole').textContent = isAdmin ? '🛡️ Quản trị viên' : '🎓 Học viên';
     document.getElementById('headerStreakVal').textContent = state.currentUser.streak || 0;
     document.getElementById('headerXpVal').textContent = state.currentUser.xp || 0;
 
     const authorInput = document.getElementById('userNameInput');
     if (authorInput) authorInput.value = state.currentUser.name;
 
+    // Strict Role Isolation: Learners must NEVER see admin entry points
+    if (navAdmin) navAdmin.style.display = isAdmin ? 'inline-flex' : 'none';
+    if (dropdownAdminBtn) dropdownAdminBtn.style.display = isAdmin ? 'flex' : 'none';
+
   } else {
     if (loginBtn) loginBtn.style.display = 'inline-flex';
     if (userProfileWidget) userProfileWidget.style.display = 'none';
     if (userStatsWidget) userStatsWidget.style.display = 'none';
+    if (navAdmin) navAdmin.style.display = 'none';
+    if (dropdownAdminBtn) dropdownAdminBtn.style.display = 'none';
   }
 }
 
