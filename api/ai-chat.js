@@ -53,27 +53,43 @@ export default async function handler(req, res) {
   });
 
   try {
-    const model = 'gemini-2.0-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    let geminiData = null;
+    let lastError = '';
 
-    const geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 800
+    for (const model of modelsToTry) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const geminiRes = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
+          body: JSON.stringify({
+            contents,
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 800
+            }
+          })
+        });
+
+        if (geminiRes.ok) {
+          geminiData = await geminiRes.json();
+          break;
+        } else {
+          lastError = await geminiRes.text();
         }
-      })
-    });
-
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      return res.status(502).json({ error: 'Gemini API lỗi: ' + errText.slice(0, 300) });
+      } catch (err) {
+        lastError = err.message;
+      }
     }
 
-    const geminiData = await geminiRes.json();
+    if (!geminiData) {
+      return res.status(502).json({ error: 'Gemini API lỗi: ' + lastError.slice(0, 300) });
+    }
+
     const reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này ngay lúc này.';
 
     return res.status(200).json({ reply });

@@ -1159,7 +1159,7 @@ async function handleSendAssistantMsg(e) {
   let reply = '';
 
   if (customKey) {
-    // 1. Call Google Gemini 2.0 Flash DIRECTLY from client
+    // 1. Call Google Gemini (starting with gemini-3.8-flash, falling back gracefully)
     try {
       const contents = [
         { role: 'user', parts: [{ text: `[HƯỚNG DẪN HỆ THỐNG]: ${persona} Luôn trả lời bằng tiếng Việt kết hợp tiếng Anh chuẩn xác, trình bày có gạch đầu dòng rõ ràng, súc tích. Ngữ cảnh học tập hiện tại: [Chế độ: ${state.currentMode}, Cấp độ/Lớp: ${levelLabel}].` }] },
@@ -1175,24 +1175,53 @@ async function handleSendAssistantMsg(e) {
       }
       contents.push({ role: 'user', parts: [{ text }] });
 
-      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${customKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1000
-          }
-        })
-      });
+      const modelsToTry = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      let geminiData = null;
+      let lastErrText = '';
+      let lastStatus = 0;
 
-      if (geminiRes.ok) {
-        const geminiData = await geminiRes.json();
+      for (const model of modelsToTry) {
+        try {
+          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${customKey}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': customKey
+            },
+            body: JSON.stringify({
+              contents,
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1000
+              }
+            })
+          });
+
+          lastStatus = geminiRes.status;
+          if (geminiRes.ok) {
+            geminiData = await geminiRes.json();
+            break;
+          } else {
+            lastErrText = await geminiRes.text();
+            // If authentication failed on the key, no need to try other models with the same broken key
+            if (lastStatus === 401 || lastStatus === 403) break;
+          }
+        } catch(e) {
+          lastErrText = e.message;
+        }
+      }
+
+      if (geminiData) {
         reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này ngay lúc này.';
       } else {
-        const errText = await geminiRes.text();
-        reply = `⚠️ Lỗi gọi Google Gemini API (${geminiRes.status}): ${errText.slice(0, 150)}. Vui lòng kiểm tra lại API Key bằng cách bấm nút 🔑 ở trên!`;
+        if (lastErrText.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || lastStatus === 401) {
+          reply = `⚠️ <b>Google Cloud chưa kích hoạt Generative Language API</b> cho dự án của bạn (Project: 1084095345720).<br><br>` +
+            `👉 Bạn chỉ cần mở link sau và bấm nút <b>[Enable] (Bật API)</b>:<br>` +
+            `<a href="https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com?project=1084095345720" target="_blank" style="color:var(--blue);font-weight:700;text-decoration:underline;">🔗 Bật Generative Language API tại Google Cloud ↗</a><br><br>` +
+            `<i>💡 Hoặc: Truy cập <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue);text-decoration:underline;">aistudio.google.com</a> bấm <b>"Create API key in new project"</b> để nhận key tự động kích hoạt ngay tức thì!</i>`;
+        } else {
+          reply = `⚠️ Lỗi gọi Google Gemini API (${lastStatus}): ${lastErrText.slice(0, 150)}. Vui lòng kiểm tra lại API Key bằng cách bấm nút 🔑 ở trên!`;
+        }
       }
     } catch(err) {
       reply = `⚠️ Lỗi mạng khi gọi Gemini API: ${err.message}.`;
