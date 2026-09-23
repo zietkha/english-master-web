@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Học &amp; Ôn Tiếng Anh</title>
+<style>
+:root{
+  --bg:#f4f7fe; --panel:#ffffff; --panel2:#eef3ff; --border:#dbe4f5;
+  --text:#152238; --muted:#6b7794; --accent:#2563eb; --accent-dark:#1d4ed8;
+  --ok:#16a34a; --bad:#dc2626;
+}
+*{box-sizing:border-box}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0e1526; --panel:#141c30; --panel2:#1b2740; --border:#293656; --text:#e7edfb; --muted:#93a1c4; }
+}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{padding:14px 16px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:10}
+h1{font-size:18px;margin:0 0 4px;color:var(--accent-dark)}
+.sub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.tabs{display:flex;gap:8px}
+.tab{flex:1;text-align:center;padding:9px 6px;border-radius:10px;cursor:pointer;background:var(--panel2);border:1px solid var(--border);font-size:14px;font-weight:600;color:var(--muted)}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+main{max-width:720px;margin:0 auto;padding:16px 16px 40px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(37,99,235,.05)}
+.card h2{font-size:14px;margin:0 0 8px;color:var(--accent-dark);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+textarea{width:100%;min-height:110px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;resize:vertical;font-family:inherit}
+input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:9px 10px;font-size:14px;margin-bottom:8px}
+button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer}
+button:hover{background:var(--accent-dark)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:13px}
+.badge{display:inline-block;background:var(--panel2);color:var(--accent-dark);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;margin-left:6px}
+.lesson{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer}
+.lesson h3{margin:0 0 4px;font-size:14.5px}
+.lesson .meta{font-size:12px;color:var(--muted)}
+.lesson-detail{margin-top:8px;padding-top:10px;border-top:1px solid var(--border);font-size:13.5px;line-height:1.55}
+.vocab-item{padding:6px 0;border-bottom:1px dashed var(--border)}
+.vocab-item:last-child{border-bottom:none}
+.vocab-item b{color:var(--accent-dark)}
+.q{margin-bottom:14px}
+.q p{font-weight:600;font-size:14px;margin:0 0 6px}
+.opt{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13.5px;color:var(--text);cursor:pointer}
+.opt.correct{border-color:var(--ok);background:rgba(22,163,74,.1)}
+.opt.wrong{border-color:var(--bad);background:rgba(220,38,38,.1)}
+.empty{color:var(--muted);font-size:13.5px;text-align:center;padding:20px 0}
+.small-btn{font-size:12px;padding:6px 10px;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📘 Học &amp; Ôn Tiếng Anh</h1>
+  <p class="sub" id="syncNote">Đang kết nối...</p>
+  <div class="tabs">
+    <div class="tab active" data-mode="ielts">IELTS</div>
+    <div class="tab" data-mode="tieuhoc">Ôn thi Tiểu học</div>
+  </div>
+</header>
+<main>
+  <div class="card">
+    <h2>Tạo bài học từ tài liệu</h2>
+    <p class="muted" style="margin-top:0">Dán đoạn văn tiếng Anh — Gemini sẽ tóm tắt, giải nghĩa từ vựng và tạo câu hỏi ôn tập.</p>
+    <input type="text" id="nameInput" placeholder="Tên bạn (tuỳ chọn)">
+    <input type="text" id="titleInput" placeholder="Tên bài học (tuỳ chọn)">
+    <textarea id="materialInput" placeholder="Dán nội dung tiếng Anh vào đây..."></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="genBtn">✨ Tóm tắt &amp; Tạo bài học</button>
+      <span id="genStatus" class="muted"></span>
+    </div>
+  </div>
+  <div class="card">
+    <h2 id="listTitle">Bài học đã tạo <span class="badge" id="countBadge">0</span></h2>
+    <div id="lessonList"></div>
+  </div>
+</main>
+
+<!-- Firebase (dùng để lưu thư viện bài học DÙNG CHUNG cho mọi người mở trang này) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ====== 1) DÁN CONFIG FIREBASE CỦA BẠN VÀO ĐÂY (xem README.md) ======
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+let db = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+}catch(e){ console.warn('Firebase chưa cấu hình, dùng lưu cục bộ.', e); }
+
+let mode = 'ielts';
+let lessons = { ielts: [], tieuhoc: [] };
+const statusEl = document.getElementById('syncNote');
+const nameKey = 'eng-app-username';
+document.getElementById('nameInput').value = localStorage.getItem(nameKey) || '';
+document.getElementById('nameInput').addEventListener('change', e=>localStorage.setItem(nameKey, e.target.value));
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    mode = t.dataset.mode;
+    document.getElementById('listTitle').firstChild.textContent = (mode==='ielts'?'Bài học IELTS ':'Bài học ôn thi Tiểu học ');
+    renderList();
+  });
+});
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function initStorage(){
+  if(db){
+    statusEl.textContent = 'Thư viện chung (Firebase): mọi người mở link này đều thấy cùng bài học.';
+    ['ielts','tieuhoc'].forEach(m=>{
+      db.collection('lessons_'+m).orderBy('createdAt','asc').onSnapshot(snap=>{
+        lessons[m] = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        if(mode===m) renderList();
+      }, err=>console.warn(err));
+    });
+  } else {
+    statusEl.textContent = 'Chế độ cá nhân: bài học chỉ lưu trên trình duyệt này (chưa cấu hình Firebase).';
+    try{ const raw = localStorage.getItem('eng-app-lessons'); if(raw) lessons = JSON.parse(raw); }catch(e){}
+  }
+  renderList();
+}
+function saveLocal(){ try{ localStorage.setItem('eng-app-lessons', JSON.stringify(lessons)); }catch(e){} }
+
+async function addLesson(m, lesson){
+  if(db){
+    await db.collection('lessons_'+m).add({ ...lesson, createdAt: Date.now() });
+  } else {
+    lessons[m] = lessons[m]||[]; lessons[m].push(lesson); saveLocal(); renderList();
+  }
+}
+async function deleteLesson(m, lesson, idx){
+  if(db && lesson.id){ await db.collection('lessons_'+m).doc(lesson.id).delete(); }
+  else { lessons[m].splice(idx,1); saveLocal(); renderList(); }
+}
+
+function renderList(){
+  const list = document.getElementById('lessonList');
+  const arr = lessons[mode]||[];
+  document.getElementById('countBadge').textContent = arr.length;
+  if(arr.length===0){ list.innerHTML='<div class="empty">Chưa có bài học nào.</div>'; return; }
+  list.innerHTML='';
+  arr.slice().reverse().forEach((lesson, revIdx)=>{
+    const idx = arr.length-1-revIdx;
+    const div = document.createElement('div'); div.className='lesson';
+    const byWho = lesson.author ? ` · bởi ${escapeHtml(lesson.author)}` : '';
+    div.innerHTML = `<h3>${escapeHtml(lesson.title)}</h3><div class="meta">${escapeHtml(lesson.date||'')} · ${(lesson.vocab||[]).length} từ vựng · ${(lesson.quiz||[]).length} câu hỏi${byWho}</div>`;
+    const detail = document.createElement('div'); detail.style.display='none'; div.appendChild(detail);
+    div.addEventListener('click', e=>{
+      if(e.target.closest('.opt')||e.target.closest('.del-btn')) return;
+      if(detail.style.display==='none'){ detail.style.display='block'; if(!detail.dataset.built){ buildDetail(detail, lesson, idx); detail.dataset.built='1'; } }
+      else detail.style.display='none';
+    });
+    list.appendChild(div);
+  });
+}
+function buildDetail(detail, lesson, idx){
+  detail.className='lesson-detail';
+  let html = `<p>${escapeHtml(lesson.summary||'')}</p><p style="margin-top:10px"><b>Từ vựng:</b></p>`;
+  (lesson.vocab||[]).forEach(v=>html+=`<div class="vocab-item"><b>${escapeHtml(v.word)}</b> — ${escapeHtml(v.meaning)}</div>`);
+  html += '<p style="margin-top:12px"><b>Câu hỏi ôn tập:</b></p>';
+  detail.innerHTML = html;
+  (lesson.quiz||[]).forEach((q,qi)=>{
+    const qDiv=document.createElement('div'); qDiv.className='q';
+    qDiv.innerHTML=`<p>${qi+1}. ${escapeHtml(q.question)}</p>`;
+    (q.options||[]).forEach((opt,oi)=>{
+      const b=document.createElement('button'); b.className='opt'; b.textContent=opt;
+      b.addEventListener('click', ()=>{
+        qDiv.querySelectorAll('.opt').forEach(o=>o.disabled=true);
+        if(oi===q.correct) b.classList.add('correct');
+        else { b.classList.add('wrong'); const c=qDiv.querySelectorAll('.opt')[q.correct]; if(c) c.classList.add('correct'); }
+      });
+      qDiv.appendChild(b);
+    });
+    detail.appendChild(qDiv);
+  });
+  const delBtn=document.createElement('button'); delBtn.className='ghost small-btn del-btn'; delBtn.textContent='🗑 Xoá bài học'; delBtn.style.marginTop='10px';
+  delBtn.addEventListener('click', ()=>deleteLesson(mode, lesson, idx));
+  detail.appendChild(delBtn);
+}
+
+document.getElementById('genBtn').addEventListener('click', async ()=>{
+  const material = document.getElementById('materialInput').value.trim();
+  const status = document.getElementById('genStatus');
+  const btn = document.getElementById('genBtn');
+  if(!material){ status.textContent='Vui lòng dán nội dung tiếng Anh trước.'; return; }
+  btn.disabled = true; status.textContent = 'Đang tạo bài học...';
+  try{
+    const res = await fetch('/api/generate-lesson', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ material, mode })
+    });
+    if(!res.ok) throw new Error('Server lỗi: ' + res.status);
+    const data = await res.json();
+    const lesson = {
+      title: document.getElementById('titleInput').value.trim() || data.title || 'Bài học không tên',
+      summary: data.summary || '',
+      vocab: Array.isArray(data.vocab) ? data.vocab : [],
+      quiz: Array.isArray(data.quiz) ? data.quiz.filter(q=>q.options && q.options.length>=2) : [],
+      date: new Date().toLocaleDateString('vi-VN'),
+      author: document.getElementById('nameInput').value.trim() || ''
+    };
+    await addLesson(mode, lesson);
+    document.getElementById('materialInput').value=''; document.getElementById('titleInput').value='';
+    status.textContent = 'Đã tạo bài học thành công!';
+    setTimeout(()=>status.textContent='', 3000);
+  }catch(e){
+    status.textContent = 'Lỗi: ' + e.message;
+  }finally{ btn.disabled = false; }
+});
+
+initStorage();
+</script>
+</body>
+</html>

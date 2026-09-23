@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Học &amp; Ôn Tiếng Anh — Đăng nhập</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+:root{
+  --bg:#f4f7fe; --panel:#ffffff; --panel2:#eef3ff; --border:#dbe4f5;
+  --text:#152238; --muted:#6b7794; --accent:#2563eb; --accent-dark:#1d4ed8;
+  --ok:#16a34a; --bad:#dc2626;
+}
+*{box-sizing:border-box}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0e1526; --panel:#141c30; --panel2:#1b2740; --border:#293656; --text:#e7edfb; --muted:#93a1c4; }
+}
+body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--text);overflow-x:hidden}
+
+/* ---------- animated background ---------- */
+.bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(135deg,#eaf1ff 0%,#f7faff 50%,#e6efff 100%)}
+@media (prefers-color-scheme: dark){ .bg{background:linear-gradient(135deg,#0b1120 0%,#101a30 50%,#0c1526 100%)} }
+.blob{position:fixed;border-radius:50%;filter:blur(60px);opacity:.35;z-index:-1;animation:float 14s ease-in-out infinite}
+.blob1{width:340px;height:340px;background:#3b82f6;top:-80px;left:-60px;animation-delay:0s}
+.blob2{width:280px;height:280px;background:#60a5fa;bottom:-60px;right:-40px;animation-delay:3s}
+.blob3{width:220px;height:220px;background:#93c5fd;top:40%;left:60%;animation-delay:6s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-30px) scale(1.08)}}
+
+/* ---------- layout ---------- */
+.wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:22px;opacity:0;animation:fadeDown .6s ease forwards;cursor:pointer}
+.brand .logo{font-size:30px}
+.brand h1{font-size:20px;margin:0;color:var(--accent-dark)}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:translateY(0)}}
+
+.card{
+  width:100%;max-width:400px;background:var(--panel);border:1px solid var(--border);
+  border-radius:20px;padding:26px 24px;box-shadow:0 10px 40px rgba(37,99,235,.12);
+  opacity:0;transform:translateY(20px);animation:cardIn .55s .1s cubic-bezier(.2,.8,.2,1) forwards;
+}
+@keyframes cardIn{to{opacity:1;transform:translateY(0)}}
+
+.tabs{display:flex;background:var(--panel2);border-radius:12px;padding:4px;margin-bottom:20px;position:relative}
+.tab{flex:1;text-align:center;padding:9px 0;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;border-radius:9px;z-index:1;transition:color .25s}
+.tab.active{color:#fff}
+.tab-highlight{position:absolute;top:4px;left:4px;width:calc(50% - 4px);height:calc(100% - 8px);background:var(--accent);border-radius:9px;transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:0}
+
+.field{margin-bottom:14px}
+label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:600}
+input{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:11px 12px;font-size:14px;transition:border-color .2s,box-shadow .2s}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.err{color:var(--bad);font-size:12px;margin-top:4px;min-height:14px}
+
+.btn-primary{
+  width:100%;background:var(--accent);color:#fff;border:none;border-radius:11px;padding:12px;
+  font-size:14.5px;font-weight:700;cursor:pointer;transition:background .2s,transform .1s;
+}
+.btn-primary:hover{background:var(--accent-dark)}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.55;cursor:not-allowed}
+
+.divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:12px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.btn-google{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--panel);
+  border:1px solid var(--border);border-radius:11px;padding:11px;font-size:14px;font-weight:600;
+  color:var(--text);cursor:pointer;transition:background .2s,transform .1s;
+}
+.btn-google:hover{background:var(--panel2)}
+.btn-google:active{transform:scale(.98)}
+
+.forgot{display:block;text-align:right;font-size:12.5px;color:var(--accent);margin:-6px 0 14px;cursor:pointer;text-decoration:none}
+.forgot:hover{text-decoration:underline}
+
+.panel{display:none}
+.panel.active{display:block;animation:fadeSlide .35s ease}
+@keyframes fadeSlide{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+
+.foot-credit{margin-top:26px;text-align:center;font-size:12.5px;color:var(--muted);opacity:0;animation:fadeDown .6s .3s ease forwards}
+.foot-credit b{color:var(--accent-dark)}
+
+/* toast */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);border:1px solid var(--border);
+  color:var(--text);padding:11px 18px;border-radius:12px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.12);
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:50;max-width:88vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:var(--ok)}
+#toast.bad{border-color:var(--bad)}
+
+/* feedback fab + modal */
+.fab{
+  position:fixed;bottom:20px;right:20px;background:var(--accent);color:#fff;border:none;border-radius:50px;
+  padding:12px 16px;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(37,99,235,.35);
+  display:flex;align-items:center;gap:7px;z-index:30;transition:transform .15s;
+}
+.fab:hover{transform:translateY(-2px)}
+.modal-overlay{position:fixed;inset:0;background:rgba(10,20,40,.4);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
+.modal-overlay.show{display:flex;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--panel);border-radius:16px;padding:22px;width:100%;max-width:380px;transform:scale(.95);animation:modalIn .25s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes modalIn{to{transform:scale(1)}}
+.modal h3{margin:0 0 4px;font-size:16px;color:var(--accent-dark)}
+.modal p.muted{margin:0 0 14px;font-size:12.5px;color:var(--muted)}
+textarea{width:100%;min-height:90px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:13.5px;resize:vertical;font-family:inherit}
+.modal-actions{display:flex;gap:8px;margin-top:12px}
+.btn-ghost{flex:1;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px;font-size:13.5px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+<div class="blob blob3"></div>
+
+<div class="wrap">
+  <div class="brand" onclick="window.location.href='index.html'"><span class="logo">📘</span><h1>Học &amp; Ôn Tiếng Anh</h1></div>
+
+  <div class="card">
+    <div class="tabs">
+      <div class="tab-highlight" id="tabHighlight"></div>
+      <div class="tab active" data-panel="login">Đăng nhập</div>
+      <div class="tab" data-panel="signup">Đăng ký</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="panel active" id="panel-login">
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" autocomplete="email" placeholder="ban@email.com" required>
+      </div>
+      <div class="field">
+        <label for="loginPass">Mật khẩu</label>
+        <input type="password" id="loginPass" autocomplete="current-password" placeholder="••••••••" required>
+        <div class="err" id="loginErr"></div>
+      </div>
+      <a class="forgot" id="forgotLink">Quên mật khẩu?</a>
+      <button class="btn-primary" id="loginBtn">Đăng nhập</button>
+      <div class="divider">hoặc</div>
+      <button class="btn-google" id="googleBtn">
+        <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.8 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3c-7.4 0-13.8 4.1-17.1 10.1z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.6C29.5 35.9 26.9 37 24 37c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.9 40.5 16.4 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.9-2.9 5.3-5.4 6.9l6.6 5.6C39.9 38.1 43 32.6 43 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
+        Đăng nhập với Google
+      </button>
+    </div>
+
+    <!-- SIGNUP -->
+    <div class="panel" id="panel-signup">
+      <div class="field">
+        <label for="suName">Họ tên</label>
+        <input type="text" id="suName" autocomplete="name" placeholder="Nguyễn Văn A" required>
+      </div>
+      <div class="field">
+        <label for="suEmail">Email</label>
+        <input type="email" id="suEmail" autocomplete="email" placeholder="ban@email.com" required>
+      </div>
+      <div class="field">
+        <label for="suPass">Mật khẩu</label>
+        <input type="password" id="suPass" autocomplete="new-password" placeholder="Tối thiểu 6 ký tự" required>
+      </div>
+      <div class="field">
+        <label for="suPass2">Xác nhận mật khẩu</label>
+        <input type="password" id="suPass2" autocomplete="new-password" placeholder="••••••••" required>
+        <div class="err" id="signupErr"></div>
+      </div>
+      <button class="btn-primary" id="signupBtn">Tạo tài khoản</button>
+    </div>
+  </div>
+
+  <div class="foot-credit">
+    Phần mềm được phát triển bởi <b>Nguyễn Viết Kha</b><br>
+    Sinh viên CNTT — Trường Đại học HUTECH, TP.HCM
+  </div>
+</div>
+
+<button class="fab" id="feedbackFab">💬 Góp ý / Báo lỗi</button>
+<div class="modal-overlay" id="feedbackOverlay">
+  <div class="modal">
+    <h3>Gửi phản hồi cho tác giả</h3>
+    <p class="muted">Gặp lỗi hoặc có góp ý? Nhắn trực tiếp cho Nguyễn Viết Kha tại đây — tin nhắn sẽ được gửi thẳng, không cần đăng nhập.</p>
+    <input type="text" id="fbContact" placeholder="Email/SĐT của bạn (tuỳ chọn, để phản hồi lại)">
+    <div style="height:8px"></div>
+    <textarea id="fbMessage" placeholder="Mô tả lỗi hoặc góp ý của bạn..."></textarea>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="fbCancel">Huỷ</button>
+      <button class="btn-primary" id="fbSend" style="flex:1">Gửi</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// Check for stored Firebase Config from localStorage or fallback
+let firebaseConfigRaw = localStorage.getItem('english_master_firebase_config');
+let firebaseConfig = null;
+if (firebaseConfigRaw) {
+  try { firebaseConfig = JSON.parse(firebaseConfigRaw); } catch(e){}
+}
+
+let auth = null, db = null;
+if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY') {
+  try {
+    firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+  } catch(e) { console.warn('Firebase init error:', e); }
+}
+
+// Security Helper: Escape HTML
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function toast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show ' + (type||'');
+  clearTimeout(window._tt);
+  window._tt = setTimeout(()=>{ t.className = t.className.replace('show',''); }, 3200);
+}
+
+// Tab Switching
+const tabs = document.querySelectorAll('.tab');
+const highlight = document.getElementById('tabHighlight');
+tabs.forEach((tab,i)=>{
+  tab.addEventListener('click', ()=>{
+    tabs.forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    highlight.style.transform = i===0 ? 'translateX(0)' : 'translateX(100%)';
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('panel-'+tab.dataset.panel).classList.add('active');
+  });
+});
+
+// Helper for Local Authentication Fallback
+function getLocalUsers() {
+  return JSON.parse(localStorage.getItem('english_master_users_v2') || '[]') || [
+    { id: 'u_1', name: 'Tuấn Kiệt', email: 'kiet@gmail.com', password: '123', role: 'learner', xp: 680, streak: 7, status: 'active', badges: ['first_lesson'], bookmarks: [] }
+  ];
+}
+
+function saveLocalSession(user) {
+  localStorage.setItem('english_master_current_user', JSON.stringify(user));
+  localStorage.setItem('eng-app-username', user.name);
+}
+
+// LOGIN HANDLER (Dual-Layer: Firebase + Local Fallback)
+document.getElementById('loginBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr'); errEl.textContent = '';
+
+  if (!email || !pass) { errEl.textContent = 'Vui lòng nhập đầy đủ email và mật khẩu.'; return; }
+
+  const btn = document.getElementById('loginBtn'); btn.disabled = true; btn.textContent = 'Đang đăng nhập...';
+
+  // Strategy 1: Firebase Auth if configured
+  if (auth) {
+    try {
+      const userCred = await auth.signInWithEmailAndPassword(email, pass);
+      const userObj = {
+        id: userCred.user.uid,
+        name: userCred.user.displayName || email.split('@')[0],
+        email: email,
+        role: 'learner',
+        xp: 100,
+        streak: 1,
+        status: 'active',
+        badges: ['first_lesson'],
+        bookmarks: []
+      };
+      saveLocalSession(userObj);
+      toast('Đăng nhập thành công!', 'ok');
+      setTimeout(() => { window.location.href = 'index.html'; }, 600);
+      return;
+    } catch(e) {
+      console.warn('Firebase login failed, trying local fallback:', e);
+    }
+  }
+
+  // Strategy 2: Local Storage Fallback Authentication
+  const localUsers = getLocalUsers();
+  const foundUser = localUsers.find(u => u.email === email && u.password === pass);
+
+  if (foundUser) {
+    if (foundUser.status === 'suspended') {
+      errEl.textContent = 'Tài khoản của bạn đã bị khoá.';
+      btn.disabled = false; btn.textContent = 'Đăng nhập';
+      return;
+    }
+    saveLocalSession(foundUser);
+    toast('Đăng nhập thành công!', 'ok');
+    setTimeout(() => { window.location.href = 'index.html'; }, 600);
+  } else {
+    errEl.textContent = 'Sai email hoặc mật khẩu. Vui lòng kiểm tra lại.';
+    const card = document.querySelector('.card');
+    if (card) {
+      card.classList.remove('input-shake');
+      void card.offsetWidth;
+      card.classList.add('input-shake');
+    }
+    btn.disabled = false; btn.textContent = 'Đăng nhập';
+  }
+});
+
+// SIGNUP HANDLER (Dual-Layer: Firebase + Local Fallback)
+document.getElementById('signupBtn').addEventListener('click', async ()=>{
+  const name = document.getElementById('suName').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const pass = document.getElementById('suPass').value;
+  const pass2 = document.getElementById('suPass2').value;
+  const errEl = document.getElementById('signupErr'); errEl.textContent = '';
+
+  if (!name || !email || !pass) { errEl.textContent = 'Vui lòng điền đầy đủ thông tin.'; return; }
+  if (pass.length < 6) { errEl.textContent = 'Mật khẩu tối thiểu 6 ký tự.'; return; }
+  if (pass !== pass2) { errEl.textContent = 'Mật khẩu xác nhận không khớp.'; return; }
+
+  const btn = document.getElementById('signupBtn'); btn.disabled = true; btn.textContent = 'Đang tạo tài khoản...';
+
+  const newUser = {
+    id: 'u_' + Date.now(),
+    name: name,
+    email: email,
+    password: pass,
+    role: 'learner',
+    xp: 50,
+    streak: 1,
+    status: 'active',
+    badges: ['first_lesson'],
+    bookmarks: []
+  };
+
+  // Firebase strategy
+  if (auth) {
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      await cred.user.updateProfile({ displayName: name });
+      if (db) await db.collection('users').doc(cred.user.uid).set({ name, email, role: 'learner', createdAt: Date.now() });
+    } catch(e) {
+      console.warn('Firebase signup warning:', e);
+    }
+  }
+
+  // Local storage save & session set
+  const localUsers = getLocalUsers();
+  if (!localUsers.some(u => u.email === email)) {
+    localUsers.push(newUser);
+    localStorage.setItem('english_master_users_v2', JSON.stringify(localUsers));
+  }
+
+  saveLocalSession(newUser);
+  toast('Tạo tài khoản thành công! (+50 XP)', 'ok');
+  setTimeout(() => { window.location.href = 'index.html'; }, 600);
+});
+
+// GOOGLE AUTH HANDLER
+document.getElementById('googleBtn').addEventListener('click', async ()=>{
+  const googleUser = {
+    id: 'u_google_' + Date.now(),
+    name: 'Học viên Google',
+    email: 'google_user@gmail.com',
+    password: 'google_token',
+    role: 'learner',
+    xp: 100,
+    streak: 1,
+    status: 'active',
+    badges: ['first_lesson'],
+    bookmarks: []
+  };
+
+  if (auth) {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      const result = await auth.signInWithPopup(provider);
+      googleUser.id = result.user.uid;
+      googleUser.name = result.user.displayName || googleUser.name;
+      googleUser.email = result.user.email || googleUser.email;
+    } catch(e) {}
+  }
+
+  const localUsers = getLocalUsers();
+  if (!localUsers.some(u => u.email === googleUser.email)) {
+    localUsers.push(googleUser);
+    localStorage.setItem('english_master_users_v2', JSON.stringify(localUsers));
+  }
+
+  saveLocalSession(googleUser);
+  toast('Đăng nhập với Google thành công!', 'ok');
+  setTimeout(() => { window.location.href = 'index.html'; }, 600);
+});
+
+// FORGOT PASSWORD HANDLER
+document.getElementById('forgotLink').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) { toast('Nhập email ở ô trên trước rồi bấm lại nhé.', 'bad'); return; }
+  
+  if (auth) {
+    try {
+      await auth.sendPasswordResetEmail(email);
+      toast('Đã gửi email đặt lại mật khẩu!', 'ok');
+      return;
+    } catch(e) {}
+  }
+  toast('Đã ghi nhận yêu cầu đặt lại mật khẩu cho ' + escapeHtml(email), 'ok');
+});
+
+// FEEDBACK MODAL & SAVING TO ADMIN INBOX
+const overlay = document.getElementById('feedbackOverlay');
+document.getElementById('feedbackFab').addEventListener('click', () => overlay.classList.add('show'));
+document.getElementById('fbCancel').addEventListener('click', () => overlay.classList.remove('show'));
+overlay.addEventListener('click', e => { if(e.target === overlay) overlay.classList.remove('show'); });
+
+document.getElementById('fbSend').addEventListener('click', async ()=>{
+  const msg = document.getElementById('fbMessage').value.trim();
+  const contact = document.getElementById('fbContact').value.trim();
+  if (!msg) { toast('Vui lòng nhập nội dung phản hồi.', 'bad'); return; }
+
+  const btn = document.getElementById('fbSend'); btn.disabled = true; btn.textContent = 'Đang gửi...';
+
+  const feedbackObj = {
+    id: 'fb_' + Date.now(),
+    message: msg,
+    contact: contact || 'Ẩn danh',
+    page: 'login.html',
+    createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN')
+  };
+
+  // 1. Firebase Firestore save
+  if (db) {
+    try { await db.collection('feedback').add(feedbackObj); } catch(e){}
+  }
+
+  // 2. Local Storage save for Admin Inbox
+  const existingFeedback = JSON.parse(localStorage.getItem('english_master_feedback') || '[]');
+  existingFeedback.unshift(feedbackObj);
+  localStorage.setItem('english_master_feedback', JSON.stringify(existingFeedback));
+
+  toast('Cảm ơn bạn! Phản hồi đã được gửi cho tác giả.', 'ok');
+  document.getElementById('fbMessage').value = '';
+  document.getElementById('fbContact').value = '';
+  overlay.classList.remove('show');
+  btn.disabled = false; btn.textContent = 'Gửi';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>English Master - Nền Tảng Học & Ôn Tiếng Anh Thông Minh</title>
+  <meta name="description" content="Nền tảng học và ôn luyện tiếng Anh thông minh cho IELTS và Ôn thi Tiểu học với công nghệ AI, Flashcards 3D, Quizlet & Duolingo style gamification.">
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Fullscreen Maintenance Overlay -->
+  <div id="maintenanceOverlay" class="modal-overlay" style="z-index: 999; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px);">
+    <div style="text-align: center; color: #ffffff; max-width: 500px; padding: 40px 20px;">
+      <div style="font-size: 4rem; color: #ef4444; margin-bottom: 20px; animation: pulse 2s infinite;">
+        <i class="fa-solid fa-screwdriver-wrench"></i>
+      </div>
+      <h2 style="font-size: 2rem; font-weight: 800; margin-bottom: 12px;">Trang Web Đang Bảo Trì</h2>
+      <p style="font-size: 1.05rem; color: #cbd5e1; line-height: 1.6; margin-bottom: 24px;">
+        Hệ thống đang được nâng cấp tính năng để phục vụ học tập tốt hơn. Rất mong bạn cảm thông và vui lòng quay lại sau ít phút nhé!
+      </p>
+      <span class="mode-badge tieuhoc" style="font-size: 0.9rem; padding: 8px 16px;">✨ Đang nâng cấp hệ thống</span>
+    </div>
+  </div>
+
+  <!-- Sticky Top Navigation -->
+  <header class="sticky-header">
+    <div class="header-container">
+      <div class="logo-area" onclick="navigateTo('landing')">
+        <div class="logo-icon">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div>
+          <h1 class="logo-title">English Master</h1>
+        </div>
+      </div>
+
+      <!-- Main App Navigation Links -->
+      <nav class="nav-links">
+        <button id="navLanding" class="nav-link" onclick="navigateTo('landing')">
+          <i class="fa-solid fa-house"></i> Trang chủ
+        </button>
+        <button id="navLearn" class="nav-link active" onclick="navigateTo('learn')">
+          <i class="fa-solid fa-book-open-reader"></i> Học bài
+        </button>
+        <button id="navExplore" class="nav-link" onclick="navigateTo('explore')">
+          <i class="fa-solid fa-compass"></i> Khám phá
+        </button>
+        <button id="navLeaderboard" class="nav-link" onclick="navigateTo('leaderboard')">
+          <i class="fa-solid fa-trophy"></i> Xếp hạng
+        </button>
+        <button id="navMylessons" class="nav-link" onclick="navigateTo('mylessons')">
+          <i class="fa-solid fa-bookmark"></i> Bài của tôi
+        </button>
+        <button id="navAdmin" class="nav-link" style="color: var(--danger);" onclick="navigateTo('admin')">
+          <i class="fa-solid fa-user-shield"></i> Bảng Quản trị
+        </button>
+      </nav>
+
+      <!-- Right Header Actions & User Profile -->
+      <div class="header-actions">
+        <!-- Autocomplete Search Bar -->
+        <div class="nav-search-container">
+          <i class="fa-solid fa-magnifying-glass nav-search-icon"></i>
+          <input type="text" id="globalSearchInput" class="nav-search-input" placeholder="Tìm bài học, từ vựng..." oninput="handleGlobalSearch(event)" onfocus="handleGlobalSearch(event)" autocomplete="off">
+          <div id="searchDropdown" class="search-autocomplete-dropdown"></div>
+        </div>
+
+        <!-- Streak & XP Display -->
+        <div id="userStatsWidget" class="row" style="display: none; gap: 8px;">
+          <span class="stat-pill streak-pill" title="Chuỗi ngày học liên tục">
+            <i class="fa-solid fa-fire"></i> <span id="headerStreakVal">0</span> ngày
+          </span>
+          <span class="stat-pill xp-pill" title="Điểm kinh nghiệm (XP)">
+            <i class="fa-solid fa-bolt"></i> <span id="headerXpVal">0</span> XP
+          </span>
+        </div>
+
+        <!-- Auth Button / Avatar Widget -->
+        <div id="authArea">
+          <button id="loginBtn" class="btn-primary" style="padding: 8px 16px; font-size: 0.88rem;" onclick="navigateTo('login')">
+            <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
+          </button>
+
+          <div id="userProfileWidget" class="user-widget" style="display: none;">
+            <div id="userAvatar" class="user-avatar" onclick="toggleUserDropdown()">A</div>
+            <div id="userDropdown" class="user-dropdown">
+              <div style="padding: 10px 14px; border-bottom: 1px solid var(--card-border);">
+                <div id="dropdownName" style="font-weight: 700; font-size: 0.95rem;">Học viên</div>
+                <div id="dropdownRole" style="font-size: 0.75rem; color: var(--primary); font-weight: 600;">Học viên</div>
+              </div>
+              <button class="dropdown-item" onclick="navigateTo('profile'); hideUserDropdown();">
+                <i class="fa-regular fa-id-card"></i> Hồ sơ cá nhân
+              </button>
+              <button class="dropdown-item" onclick="navigateTo('admin'); hideUserDropdown();">
+                <i class="fa-solid fa-sliders"></i> Cấu hình & Bảng Quản trị
+              </button>
+              <button class="dropdown-item" style="color: var(--danger);" onclick="handleLogout()">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button id="themeToggleBtn" class="theme-toggle-btn" title="Chuyển chế độ Sáng/Tối" onclick="toggleTheme()">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= VIEW 1: LANDING PAGE ================= -->
+  <main id="view-landing" class="app-view">
+    <section class="hero-section">
+      <h2 class="hero-title">Nền tảng Học & Ôn Tiếng Anh Thông Minh bằng AI</h2>
+      <p class="hero-subtitle">
+        Tự động tạo tóm tắt, từ vựng học thuật IELTS & Tiểu học, Flashcard tương tác và bộ câu hỏi Quizlet & Duolingo style ngay từ đoạn văn tiếng Anh của bạn.
+      </p>
+      <div class="hero-actions">
+        <button class="btn-primary" style="padding: 14px 28px; font-size: 1.05rem;" onclick="navigateTo('login')">
+          <i class="fa-solid fa-rocket"></i> Đăng ký học miễn phí
+        </button>
+        <button class="btn-secondary" style="padding: 14px 28px; font-size: 1.05rem;" onclick="navigateTo('learn')">
+          <i class="fa-solid fa-play"></i> Thử nghiệm ngay
+        </button>
+      </div>
+    </section>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        <h3 style="font-size: 1.15rem; margin-bottom: 8px;">Tạo bài học AI tự động</h3>
+        <p style="font-size: 0.9rem; color: var(--text-secondary);">Chỉ cần dán bài đọc tiếng Anh, AI tự tóm tắt tiếng Việt, trích 6-10 từ vựng và tạo 5 câu trắc nghiệm.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fa-solid fa-layer-group"></i></div>
+        <h3 style="font-size: 1.15rem; margin-bottom: 8px;">Flashcard 3D & Lập lịch ôn</h3>
+        <p style="font-size: 0.9rem; color: var(--text-secondary);">Lật thẻ học từ vựng trực quan, lặp lại ngắt quãng (Spaced Repetition) giúp nhớ từ vựng lâu gấp 3 lần.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fa-solid fa-fire"></i></div>
+        <h3 style="font-size: 1.15rem; margin-bottom: 8px;">Gamification & Ranking</h3>
+        <p style="font-size: 0.9rem; color: var(--text-secondary);">Tích luỹ Streak ngày học, thu thập Huy hiệu thành tích và cạnh tranh trên Bảng xếp hạng thành viên.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fa-solid fa-users-gear"></i></div>
+        <h3 style="font-size: 1.15rem; margin-bottom: 8px;">Thư viện dùng chung</h3>
+        <p style="font-size: 0.9rem; color: var(--text-secondary);">Đồng bộ dữ liệu cho cả gia đình & bạn bè cùng học tập và trao đổi bình luận thời gian thực.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= VIEW 2: LOGIN & REGISTER VIEW ================= -->
+  <main id="view-login" class="app-view">
+    <div class="auth-panel-container">
+      <div class="blob blob1"></div>
+      <div class="blob blob2"></div>
+
+      <div class="card" style="position: relative; z-index: 1;">
+        <div class="view-tabs" style="margin-bottom: 20px;">
+          <button id="authTabLogin" class="view-tab active" onclick="switchAuthTab('login')">Đăng nhập</button>
+          <button id="authTabRegister" class="view-tab" onclick="switchAuthTab('register')">Đăng ký</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" class="form-input" autocomplete="email" required placeholder="ban@email.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Mật khẩu</label>
+            <input type="password" id="loginPassword" class="form-input" autocomplete="current-password" required placeholder="••••••••">
+          </div>
+          <div style="text-align: right; margin-bottom: 14px;">
+            <a style="font-size: 0.85rem; color: var(--primary); cursor: pointer;" onclick="handleForgotPassword()">Quên mật khẩu?</a>
+          </div>
+          <button type="submit" class="btn-primary" style="width: 100%; margin-bottom: 14px;">Đăng nhập</button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="registerForm" style="display: none;" onsubmit="handleRegisterSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" for="regName">Họ và tên</label>
+            <input type="text" id="regName" class="form-input" autocomplete="name" required placeholder="Nguyễn Văn A">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regEmail">Email</label>
+            <input type="email" id="regEmail" class="form-input" autocomplete="email" required placeholder="ban@email.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regPassword">Mật khẩu</label>
+            <input type="password" id="regPassword" class="form-input" autocomplete="new-password" required placeholder="Tối thiểu 6 ký tự">
+          </div>
+          <button type="submit" class="btn-primary" style="width: 100%; margin-bottom: 14px;">Tạo tài khoản</button>
+        </form>
+
+        <div class="divider">hoặc</div>
+
+        <button class="btn-google" onclick="handleGoogleSignIn()">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.8 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3c-7.4 0-13.8 4.1-17.1 10.1z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.6C29.5 35.9 26.9 37 24 37c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.9 40.5 16.4 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.9-2.9 5.3-5.4 6.9l6.6 5.6C39.9 38.1 43 32.6 43 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
+          Đăng nhập với Google
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= VIEW 3: LEARN & PRACTICE VIEW ================= -->
+  <main id="view-learn" class="app-view active">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+      <nav class="nav-tabs" aria-label="Chế độ học">
+        <button id="tabIelts" class="tab-btn active" onclick="switchMode('ielts')">
+          <i class="fa-solid fa-award"></i> IELTS Academic
+        </button>
+        <button id="tabTieuhoc" class="tab-btn" onclick="switchMode('tieuhoc')">
+          <i class="fa-solid fa-child-reaching"></i> Ôn thi Tiểu học
+        </button>
+      </nav>
+      
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button class="btn-primary" style="padding: 8px 16px; font-size: 0.88rem; background: linear-gradient(135deg, #f59e0b, #d97706);" onclick="startQuickStudySession()">
+          <i class="fa-solid fa-bolt"></i> ⚡ Học nhanh 5 phút
+        </button>
+        <span id="currentModeBadge" class="mode-badge ielts">IELTS Academic</span>
+      </div>
+    </div>
+
+    <div class="learn-grid">
+      <!-- Lesson Creator Form -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary);"></i>
+            Tạo bài học từ tài liệu
+          </h2>
+        </div>
+
+        <form id="lessonForm" onsubmit="handleCreateLesson(event)">
+          <div class="form-group">
+            <label class="form-label" for="userNameInput"><i class="fa-regular fa-user"></i> Tên tác giả</label>
+            <input type="text" id="userNameInput" class="form-input" placeholder="Tên bạn...">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="lessonTitleInput"><i class="fa-regular fa-bookmark"></i> Tên bài học (Tùy chọn)</label>
+            <input type="text" id="lessonTitleInput" class="form-input" placeholder="Ví dụ: Reading Passages & Science...">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="lessonTagInput"><i class="fa-solid fa-tag"></i> Chủ đề (Tag)</label>
+            <select id="lessonTagInput" class="form-select">
+              <option value="Chung">Chung / Đa dạng</option>
+              <option value="Môi trường">Môi trường & Khoa học</option>
+              <option value="Gia đình">Gia đình & Cuộc sống</option>
+              <option value="Công nghệ">Công nghệ & Tương lai</option>
+              <option value="Giáo dục">Giáo dục & Học tập</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="englishContentInput"><i class="fa-regular fa-file-lines"></i> Nội dung tiếng Anh *</label>
+            <textarea id="englishContentInput" class="form-textarea" required placeholder="Dán bài đọc tiếng Anh vào đây (AI sẽ tóm tắt, giải nghĩa từ vựng và tạo câu hỏi quiz)..."></textarea>
+          </div>
+
+          <button type="submit" id="generateBtn" class="btn-primary" style="width: 100%;">
+            <span id="btnText"><i class="fa-solid fa-sparkles"></i> ✨ Tóm tắt & Tạo bài học</span>
+            <div id="btnSpinner" class="spinner" style="display: none;"></div>
+          </button>
+        </form>
+      </section>
+
+      <!-- Saved Lessons List -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <i class="fa-solid fa-book-open" style="color: var(--primary);"></i>
+            Bài học đã tạo
+          </h2>
+          <span id="lessonsCountBadge" class="mode-badge ielts">0 bài học</span>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <input type="text" id="searchInput" class="form-input" placeholder="🔍 Tìm kiếm bài học hoặc từ khoá..." oninput="renderLessonsList()">
+        </div>
+
+        <div id="lessonsList" class="lessons-list">
+          <!-- Dynamically Rendered Lessons -->
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ================= VIEW 4: EXPLORE & COMMUNITY ================= -->
+  <main id="view-explore" class="app-view">
+    <div class="card" style="margin-bottom: 24px;">
+      <h2 class="card-title" style="margin-bottom: 16px;"><i class="fa-solid fa-compass" style="color: var(--primary);"></i> Khám phá Thư viện Cộng đồng</h2>
+      <div class="row" style="gap: 10px; flex-wrap: wrap;">
+        <button class="btn-secondary" onclick="filterExploreTag('All')">Tất cả</button>
+        <button class="btn-secondary" onclick="filterExploreTag('Môi trường')">🌱 Môi trường</button>
+        <button class="btn-secondary" onclick="filterExploreTag('Gia đình')">🏡 Gia đình</button>
+        <button class="btn-secondary" onclick="filterExploreTag('Công nghệ')">💻 Công nghệ</button>
+        <button class="btn-secondary" onclick="filterExploreTag('Giáo dục')">🎓 Giáo dục</button>
+      </div>
+    </div>
+
+    <div id="exploreGrid" class="learn-grid">
+      <!-- Popular Community Lessons -->
+    </div>
+  </main>
+
+  <!-- ================= VIEW 5: LEADERBOARD & RANKINGS ================= -->
+  <main id="view-leaderboard" class="app-view">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title"><i class="fa-solid fa-trophy" style="color: #f59e0b;"></i> Bảng Xếp Hạng Học Viên Tích Cực</h2>
+        <span class="mode-badge ielts">Tuần này</span>
+      </div>
+
+      <div class="podium-container">
+        <div class="podium-step podium-2">
+          <div class="podium-avatar">🥈</div>
+          <div class="podium-pillar">
+            <span id="podium2Name">Minh Anh</span>
+            <span id="podium2Xp" style="font-size: 0.85rem; opacity: 0.9;">420 XP</span>
+          </div>
+        </div>
+
+        <div class="podium-step podium-1">
+          <div class="podium-avatar" style="border-color: #f59e0b;">👑</div>
+          <div class="podium-pillar">
+            <span id="podium1Name">Tuấn Kiệt</span>
+            <span id="podium1Xp" style="font-size: 0.85rem; opacity: 0.9;">680 XP</span>
+          </div>
+        </div>
+
+        <div class="podium-step podium-3">
+          <div class="podium-avatar">🥉</div>
+          <div class="podium-pillar">
+            <span id="podium3Name">Bảo Châu</span>
+            <span id="podium3Xp" style="font-size: 0.85rem; opacity: 0.9;">310 XP</span>
+          </div>
+        </div>
+      </div>
+
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Hạng</th>
+            <th>Học viên</th>
+            <th>Streak</th>
+            <th>Điểm XP</th>
+            <th>Huy hiệu</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardTbody">
+          <!-- Dynamically filled -->
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- ================= VIEW 6: MY LESSONS & BOOKMARKS ================= -->
+  <main id="view-mylessons" class="app-view">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title"><i class="fa-solid fa-bookmark" style="color: var(--primary);"></i> Bài học của tôi & Đã lưu</h2>
+      </div>
+
+      <div class="view-tabs" style="margin-bottom: 20px;">
+        <button id="myTabCreated" class="view-tab active" onclick="switchMyLessonsTab('created')">Bài học tôi đã tạo</button>
+        <button id="myTabSaved" class="view-tab" onclick="switchMyLessonsTab('saved')">Bài học yêu thích (Bookmark)</button>
+      </div>
+
+      <div id="myLessonsGrid" class="lessons-list">
+        <!-- Rendered list -->
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= VIEW 7: USER PROFILE & BADGES ================= -->
+  <main id="view-profile" class="app-view">
+    <div class="learn-grid">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title"><i class="fa-regular fa-id-card"></i> Thông tin cá nhân</h2>
+        </div>
+        <form onsubmit="handleUpdateProfile(event)">
+          <div class="form-group">
+            <label class="form-label">Họ và tên</label>
+            <input type="text" id="profileNameInput" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" id="profileEmailInput" class="form-input" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mật khẩu mới (Bỏ trống nếu không đổi)</label>
+            <input type="password" id="profilePassInput" class="form-input">
+          </div>
+          <button type="submit" class="btn-primary">Lưu thay đổi</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title"><i class="fa-solid fa-award" style="color: #8b5cf6;"></i> Bộ sưu tập Huy hiệu</h2>
+        </div>
+        <div id="badgesGrid" class="badges-grid">
+          <!-- Rendered badges -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= VIEW 8: WEB OWNER ADMIN PORTAL ================= -->
+  <main id="view-admin" class="app-view">
+    <!-- Admin Auth Box -->
+    <div id="adminPinCard" class="card" style="max-width: 440px; margin: 0 auto 24px;">
+      <div class="card-header">
+        <h2 class="card-title"><i class="fa-solid fa-lock" style="color: var(--danger);"></i> Xác thực Bảng Quản Trị</h2>
+      </div>
+      <form onsubmit="handleAdminPinSubmit(event)">
+        <div class="form-group">
+          <label class="form-label">Mã PIN Admin</label>
+          <input type="password" id="adminPinInput" class="form-input" placeholder="Mặc định: admin123" required>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; background: linear-gradient(135deg, #ef4444, #b91c1c);">
+          <i class="fa-solid fa-key"></i> Đăng nhập Admin
+        </button>
+      </form>
+    </div>
+
+    <!-- Admin Controls Dashboard -->
+    <div id="adminDashboardContent" style="display: none;">
+      <div class="card" style="margin-bottom: 24px; border-color: rgba(239,68,68,0.3);">
+        <div class="card-header">
+          <h2 class="card-title" style="color: var(--danger);">
+            <i class="fa-solid fa-triangle-exclamation"></i> Chế độ Bảo Trì Trang Web (Maintenance Mode)
+          </h2>
+        </div>
+        
+        <div class="switch-container">
+          <div>
+            <h3 id="maintenanceStatusTitle" style="font-size: 1.05rem; margin-bottom: 4px;">Web đang HOẠT ĐỘNG bình thường</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Gạt công tắc để đóng trang web với người dùng khi cần nâng cấp hệ thống.</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenanceMode()">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+          <h2 class="card-title"><i class="fa-solid fa-sliders" style="color: var(--primary);"></i> Cấu hình Gemini AI Key & Firebase Firestore</h2>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Chế độ xử lý AI công khai</label>
+          <select id="aiEngineSelect" class="form-select" onchange="handleEngineChange()">
+            <option value="api">🚀 Vercel Serverless API / Gemini Backend (Tự động)</option>
+            <option value="gemini">✨ Gemini Direct API Key (Khóa AI trực tiếp)</option>
+            <option value="local">🤖 Smart Local AI Engine (Chạy offline / Không tốn chi phí API)</option>
+          </select>
+        </div>
+
+        <div id="apiKeyGroup" class="form-group" style="display: none;">
+          <label class="form-label">Gemini API Key</label>
+          <input type="password" id="apiKeyInput" class="form-input" placeholder="AIzaSy...">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Cấu hình Firebase Firestore (JSON)</label>
+          <textarea id="firebaseConfigInput" class="form-textarea" style="min-height: 80px;" placeholder='Paste firebaseConfig JSON từ Firebase Console...'></textarea>
+        </div>
+
+        <button class="btn-primary" onclick="saveAdminSettings()"><i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình hệ thống</button>
+      </div>
+
+      <!-- Feedback Inbox -->
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+          <h2 class="card-title"><i class="fa-solid fa-comments" style="color: #059669;"></i> Hòm thư Góp ý & Báo lỗi từ Học viên</h2>
+          <button class="btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="clearFeedbackInbox()">Xoá tất cả</button>
+        </div>
+        <div id="adminFeedbackList" class="comments-list" style="max-height: 250px; overflow-y: auto;">
+          <!-- Feedback list -->
+        </div>
+      </div>
+
+      <!-- Statistics & User Moderation -->
+      <div class="learn-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Thống kê Sử dụng</h2>
+          </div>
+          <div class="features-grid" style="margin: 0; grid-template-columns: 1fr 1fr;">
+            <div class="feature-card">
+              <h3 id="statTotalUsers">0</h3>
+              <p style="font-size: 0.82rem; color: var(--text-muted);">Tổng thành viên</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon" style="width: 42px; height: 42px; font-size: 18px;"><i class="fa-solid fa-robot"></i></div>
+              <h3 id="statAiCalls">0</h3>
+              <p style="font-size: 0.82rem; color: var(--text-muted);">Số lượt gọi AI</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><i class="fa-solid fa-users-slash"></i> Quản lý Học viên</h2>
+          </div>
+          <div style="overflow-x: auto; max-height: 240px;">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Họ tên</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="adminUserTable">
+                <!-- User moderation list -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= MODAL: STUDY & QUIZ & FLASHCARDS ================= -->
+  <div id="lessonModal" class="modal-overlay" onclick="handleModalOverlayClick(event)">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalTitle" class="card-title">Chi tiết bài học</h2>
+          <div class="lesson-card-meta" id="modalMeta"></div>
+        </div>
+        <button class="modal-close-btn" onclick="closeLessonModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="view-tabs">
+          <button id="viewTabSummary" class="view-tab active" onclick="switchViewTab('summary')">
+            <i class="fa-solid fa-align-left"></i> Tóm tắt
+          </button>
+          <button id="viewTabVocab" class="view-tab" onclick="switchViewTab('vocab')">
+            <i class="fa-solid fa-font"></i> Từ vựng (<span id="modalVocabCount">0</span>)
+          </button>
+          <button id="viewTabFlashcard" class="view-tab" onclick="switchViewTab('flashcard')">
+            <i class="fa-solid fa-layer-group"></i> Flashcards 3D
+          </button>
+          <button id="viewTabQuiz" class="view-tab" onclick="switchViewTab('quiz')">
+            <i class="fa-solid fa-circle-question"></i> Ôn tập Quiz (<span id="modalQuizCount">0</span>)
+          </button>
+        </div>
+
+        <div id="summarySection">
+          <h3 style="font-size: 1.05rem; margin-bottom: 12px; color: var(--primary);">
+            <i class="fa-solid fa-lightbulb"></i> Tóm tắt tiếng Việt:
+          </h3>
+          <div id="modalSummary" class="summary-box"></div>
+          
+          <h3 style="font-size: 1.05rem; margin-top: 20px; margin-bottom: 12px; color: var(--text-secondary);">
+            <i class="fa-solid fa-file-text"></i> Đoạn văn gốc (Tiếng Anh):
+          </h3>
+          <div id="modalOriginalContent" style="background: var(--bg-color); padding: 14px; border-radius: var(--radius-md); font-size: 0.9rem; color: var(--text-secondary); max-height: 180px; overflow-y: auto; border: 1px solid var(--card-border);"></div>
+        </div>
+
+        <div id="vocabSection" style="display: none;">
+          <div id="modalVocabGrid" class="vocab-grid"></div>
+        </div>
+
+        <div id="flashcardSection" style="display: none;">
+          <div class="flashcard-container">
+            <div id="flashcard" class="flashcard" onclick="flipFlashcard()">
+              <div class="flashcard-front">
+                <span id="fcWord" class="flashcard-word">Word</span>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">(Chạm để lật mặt sau)</span>
+              </div>
+              <div class="flashcard-back">
+                <span id="fcMeaning" class="flashcard-meaning">Nghĩa tiếng Việt</span>
+              </div>
+            </div>
+          </div>
+          <div class="flashcard-controls">
+            <button class="btn-secondary" onclick="prevFlashcard()"><i class="fa-solid fa-arrow-left"></i> Trước</button>
+            <span id="fcIndex" style="font-weight: 700; align-self: center;">1 / 5</span>
+            <button class="btn-primary" onclick="nextFlashcard()">Tiếp theo <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </div>
+
+        <div id="quizSection" style="display: none;">
+          <div id="modalQuizContainer" class="quiz-container"></div>
+        </div>
+
+        <div class="comments-section">
+          <h4 style="font-size: 1rem; margin-bottom: 12px;"><i class="fa-solid fa-comments"></i> Bình luận & Thảo luận</h4>
+          <div class="comment-input-box">
+            <input type="text" id="commentInput" class="form-input" placeholder="Viết bình luận của bạn...">
+            <button class="btn-primary" onclick="handleAddComment()"><i class="fa-solid fa-paper-plane"></i> Gửi</button>
+          </div>
+          <div id="commentsList" class="comments-list">
+            <!-- Dynamic comments -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feedback FAB Button & Modal -->
+  <button class="fab" onclick="openFeedbackModal()"><i class="fa-solid fa-comment-dots"></i> 💬 Góp ý / Báo lỗi</button>
+
+  <div id="feedbackModal" class="modal-overlay" onclick="handleFeedbackOverlayClick(event)">
+    <div class="modal-dialog" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3 class="card-title">Gửi phản hồi cho tác giả</h3>
+        <button class="modal-close-btn" onclick="closeFeedbackModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.88rem; color: var(--text-secondary);">Gặp lỗi hoặc có góp ý? Tin nhắn sẽ được gửi trực tiếp tới Bảng Quản trị Chủ Web.</p>
+        <input type="text" id="fbContact" class="form-input" placeholder="Email / SĐT liên hệ (Tuỳ chọn)">
+        <textarea id="fbMessage" class="form-textarea" placeholder="Mô tả góp ý hoặc báo lỗi của bạn..."></textarea>
+        <button class="btn-primary" onclick="handleSendFeedback()"><i class="fa-solid fa-paper-plane"></i> Gửi góp ý</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding Walkthrough Tour Modal -->
+  <div id="onboardingModal" class="modal-overlay">
+    <div class="modal-dialog" style="max-width: 480px;">
+      <div class="modal-header" style="justify-content: flex-end; border-bottom: none; padding-bottom: 0;">
+        <button class="modal-close-btn" onclick="closeOnboardingModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body onboarding-card">
+        <div id="onboardingIcon" class="onboarding-icon">
+          <i class="fa-solid fa-rocket"></i>
+        </div>
+        <h3 id="onboardingTitle" style="font-size: 1.4rem; font-weight: 800; margin-bottom: 10px;">Chào mừng đến với English Master!</h3>
+        <p id="onboardingText" style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6;">
+          Nền tảng giúp bạn học từ vựng IELTS & Ôn thi Tiểu học cực kỳ hiệu quả bằng công nghệ AI và Flashcard 3D.
+        </p>
+        
+        <div class="onboarding-steps-dots">
+          <span id="dot1" class="step-dot active"></span>
+          <span id="dot2" class="step-dot"></span>
+          <span id="dot3" class="step-dot"></span>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: space-between; margin-top: 10px;">
+          <button class="btn-secondary" onclick="closeOnboardingModal()">Bỏ qua</button>
+          <button id="onboardingNextBtn" class="btn-primary" onclick="nextOnboardingStep()">Tiếp tục <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas Overlay -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <i id="toastIcon" class="fa-solid fa-circle-check" style="color: var(--success);"></i>
+    <span id="toastMessage">Thông báo</span>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script src="app.js"></script>
+</body>
+</html>
