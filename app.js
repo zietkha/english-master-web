@@ -64,18 +64,22 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================================== */
 
 function handleLogoClick() {
-  if (state.currentUser) {
-    navigateTo('learn');
-  } else {
-    navigateTo('landing');
+  // Landing is now the About/Welcome page — accessible for both guests and logged-in users
+  navigateTo('landing');
+}
+
+function updateLandingWelcome() {
+  const badge = document.getElementById('landingWelcomeBadge');
+  if (!badge) return;
+  const name = (state.currentUser && state.currentUser.name)
+    ? state.currentUser.name.split(' ')[0]
+    : null;
+  if (name) {
+    badge.innerHTML = `<i class="fa-solid fa-star"></i> Xin chao, ${name}! Chao mung den voi English Kha Master`;
   }
 }
 
 function navigateTo(viewName, updateHash = true) {
-  // If user is already authenticated/logged in, do not redirect them to guest landing hero
-  if (state.currentUser && viewName === 'landing') {
-    viewName = 'learn';
-  }
 
   state.currentView = viewName;
 
@@ -98,6 +102,7 @@ function navigateTo(viewName, updateHash = true) {
   if (viewName === 'mylessons') renderMyLessons();
   if (viewName === 'profile') renderProfilePage();
   if (viewName === 'admin') window.location.href = 'admin.html';
+  if (viewName === 'landing') updateLandingWelcome();
   
   if (updateHash && viewName !== 'learn') {
     updateHashRoute(`#/${viewName}`);
