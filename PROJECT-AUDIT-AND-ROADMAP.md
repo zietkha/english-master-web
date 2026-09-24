@@ -578,3 +578,51 @@ Two related but distinct pieces:
 5. Imagery sourcing (10.8) — layer onto the admin tool from step 4 and the cards from step 3.
 6. Leaderboard + activity tracking (10.9) — depends on `stats` fields being written somewhere, which only starts happening meaningfully once steps 3–4 give users something to do.
 7. AI chat + Admin inbox (10.10) — largest net-new backend surface (new endpoint, new collection, new admin inbox UI); do last within this section since it's the most independent of the others.
+
+---
+
+## 11. Single-Page URL Routing Engine & Asynchronous Deep-Linking
+Deep-linking and client-side history navigation allows users to share direct links to any lesson, CEFR level, elementary grade, or learning subtab.
+
+### 11.1 URL Structure & Route Table
+| Route Format | Behavior |
+|---|---|
+| `#/lesson/:id` | Opens the target lesson modal immediately |
+| `#/lesson/:id/:tab` | Opens the lesson modal and switches directly to `:tab` (`summary`, `vocab`, `flashcard`, `quiz`) |
+| `#/ielts/:band` | Selects IELTS track, sets CEFR level (`A1`–`C2`), and updates skill grid |
+| `#/ielts/:band/:skill` | Selects IELTS level and filters lesson list to the specified skill (`reading`, `listening`, etc.) |
+| `#/tieuhoc/lop:grade` | Selects Elementary track, sets Grade 1–5, and loads that grade's curriculum |
+| `#/tieuhoc/lop:grade/:skill` | Filters Elementary track to the specific grade and skill |
+| `#/chat` | Expands the floating AI Assistant chat window |
+| `#/leaderboard`, `#/explore`, `#/profile`, `#/mylessons` | Switches to the corresponding SPA app-view |
+
+### 11.2 Asynchronous Pending Queue
+Because Firestore loads lesson collections asynchronously, incoming links with `#/lesson/:id` may execute before the lessons array is populated.
+- An internal `pendingRoute` queue retains the target route.
+- As soon as the first Firestore `onSnapshot` returns data, the queued modal is dispatched and opened automatically without error.
+
+### 11.3 1-Click Share Button
+- A prominent "Chia sẻ bài học" button inside `#lessonModal` copies the canonical deep link (`window.location.origin + window.location.pathname + '#/lesson/' + id`) to the clipboard via the Clipboard API with fallback prompts.
+
+---
+
+## 12. Password Security, Live Strength Meter & Force Password Reset Flow
+Fulfills the security standards outlined in Section 2.5, 3.2, and 5.7 regarding credential protection and user account security.
+
+### 12.1 Live Password Strength Meter (Section 5.7)
+Evaluates credentials in real time across four distinct tiers:
+1. **Weak (Đỏ):** Less than 6 characters or single-character class.
+2. **Fair (Cam):** 6+ characters with alphanumeric combination.
+3. **Good (Xanh dương):** 8+ characters combining uppercase, lowercase, and numbers.
+4. **Strong (Xanh lá):** 8+ characters with uppercase, lowercase, numbers, and special symbols.
+Visible dynamically in both `#forcePasswordModal` and `#view-profile`.
+
+### 12.2 Force Password Change Modal (Lockout Gate)
+When an administrator generates a temporary password or sets `forcePasswordChange: true` in Firestore:
+- The UI presents a modal with a heavy backdrop filter (`backdrop-filter: blur(16px)`) that prevents closing or dismissal until the password is changed.
+- Validates password length, confirmation equality, and minimum strength threshold before committing to Firebase Authentication (`updatePassword`) and resetting `forcePasswordChange: false` in Firestore.
+
+### 12.3 Self-Service Profile Security Settings
+Inside the Learner Profile view:
+- Displays account authentication provider badge (Google OAuth vs. Email/Password).
+- Allows voluntary password updates with real-time confirmation matching and strength scoring.
