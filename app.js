@@ -192,6 +192,7 @@ async function handleLoginSubmit(e) {
       showToast('🎉 Đăng nhập thành công!');
       closeModal('loginModal');
       navigateTo('learn');
+      setTimeout(openWelcomeHubModal, 400);
     } catch(err) {
       console.warn('Firebase login error:', err.code);
       if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
@@ -243,6 +244,7 @@ async function handleRegisterSubmit(e) {
       showToast('🚀 Đăng ký thành công! +50 XP khởi đầu.');
       closeModal('loginModal');
       navigateTo('learn');
+      setTimeout(openWelcomeHubModal, 400);
     } catch(err) {
       console.warn('Firebase register error:', err.code);
       if (err.code === 'auth/email-already-in-use') {
@@ -264,6 +266,7 @@ async function handleGoogleSignIn() {
       showToast('🔑 Đăng nhập với Google thành công!');
       closeModal('loginModal');
       navigateTo('learn');
+      setTimeout(openWelcomeHubModal, 400);
     } catch(err) {
       console.warn('Google sign-in error:', err);
       showToast('❌ Đăng nhập Google thất bại: ' + (err.message || 'Thử lại sau'), 'danger');
@@ -2218,24 +2221,101 @@ const onboardingSteps = [
   }
 ];
 
+/* ── Welcome & Discovery Hub Showcase Layer (Lớp giới thiệu học trực tuyến & thẻ lớp học) ── */
 function checkOnboardingStatus() {
-  const hasSeen = localStorage.getItem('english_master_has_seen_onboarding');
-  if (!hasSeen) {
-    openOnboardingModal();
+  const urlParams = new URLSearchParams(window.location.search);
+  const isFromWelcomeRedirect = urlParams.get('welcome') === '1';
+
+  if (isFromWelcomeRedirect) {
+    // Clear URL query param gracefully without reload
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+    setTimeout(openWelcomeHubModal, 350);
+    return;
+  }
+
+  const isHideWelcome = localStorage.getItem('english_master_hide_welcome_hub') === 'true';
+  const hasSeenInSession = sessionStorage.getItem('english_master_welcomed_session') === 'true';
+
+  if (!isHideWelcome && !hasSeenInSession && state.currentUser) {
+    setTimeout(openWelcomeHubModal, 600);
   }
 }
 
-function openOnboardingModal() {
-  onboardingStep = 1;
-  renderOnboardingStep();
-  const modal = document.getElementById('onboardingModal');
-  if (modal) modal.classList.add('active');
+function openWelcomeHubModal() {
+  const modal = document.getElementById('welcomeHubModal');
+  if (!modal) return;
+
+  sessionStorage.setItem('english_master_welcomed_session', 'true');
+
+  const titleEl = document.getElementById('welcomeHubTitle');
+  if (titleEl) {
+    if (state.currentUser && state.currentUser.name) {
+      titleEl.textContent = `Chào mừng ${state.currentUser.name} đến với English Kha Master!`;
+    } else {
+      titleEl.textContent = 'Chào mừng bạn đến với English Kha Master!';
+    }
+  }
+
+  const cb = document.getElementById('welcomeHubDontShowAgain');
+  if (cb) {
+    cb.checked = localStorage.getItem('english_master_hide_welcome_hub') === 'true';
+  }
+
+  modal.classList.add('active');
 }
 
-function closeOnboardingModal() {
-  const modal = document.getElementById('onboardingModal');
+function closeWelcomeHubModal() {
+  const modal = document.getElementById('welcomeHubModal');
   if (modal) modal.classList.remove('active');
-  localStorage.setItem('english_master_has_seen_onboarding', 'true');
+}
+
+function handleWelcomeHubOverlayClick(e) {
+  if (e.target && e.target.id === 'welcomeHubModal') {
+    closeWelcomeHubModal();
+  }
+}
+
+function handleWelcomeDontShowToggle(e) {
+  if (e.target.checked) {
+    localStorage.setItem('english_master_hide_welcome_hub', 'true');
+    showToast('Đã lưu: Sẽ không tự động hiện lại khi đăng nhập.');
+  } else {
+    localStorage.removeItem('english_master_hide_welcome_hub');
+  }
+}
+
+function selectCourseFromHub(courseType) {
+  closeWelcomeHubModal();
+
+  if (courseType === 'ielts') {
+    switchMode('ielts');
+    navigateTo('learn');
+    showToast('🎯 Đã vào lớp Luyện Thi IELTS Cấp Tốc! Chúc bạn bứt phá band điểm.', 'success');
+  } else if (courseType === 'tieuhoc') {
+    switchMode('tieuhoc');
+    navigateTo('learn');
+    showToast('🎈 Đã vào lớp Tiếng Anh Tiểu Học - Nền Tảng Vàng! Chúc bạn học vui.', 'success');
+  } else if (courseType === 'speaking') {
+    openAssistantChat();
+    showToast('✨ Trợ lý AI Voice đã sẵn sàng đàm thoại phản xạ 1-1 cùng bạn!', 'success');
+  } else if (courseType === 'flashcard') {
+    navigateTo('learn');
+    const currentList = state.lessons[state.currentMode] || [];
+    if (currentList.length > 0) {
+      openLessonModal(currentList[0].id);
+      switchLessonTab('flashcards');
+      showToast('🧠 Đã mở Lò Luyện Từ Vựng Flashcard 3D!', 'success');
+    } else {
+      showToast('🧠 Khám phá kho từ vựng Spaced Repetition thông minh!', 'success');
+    }
+  }
+}
+
+function startLearningFromHub() {
+  triggerConfetti();
+  closeWelcomeHubModal();
+  navigateTo('learn');
+  showToast('🚀 Bắt đầu buổi học hôm nay! Chúc bạn học tập hiệu quả và giữ vững Streak.', 'success');
 }
 
 function renderOnboardingStep() {

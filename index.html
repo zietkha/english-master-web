@@ -74,6 +74,12 @@
 
       <!-- Right Header Actions & User Profile -->
       <div class="header-actions">
+        <!-- Discover Classes Button -->
+        <button id="headerWelcomeHubBtn" class="btn-subtle welcome-hub-launcher-btn" onclick="openWelcomeHubModal()" title="Xem các lớp học trực tuyến & giới thiệu tính năng">
+          <i class="fa-solid fa-sparkles" style="color: var(--blue);"></i>
+          <span class="hub-btn-label">Lớp học nổi bật</span>
+        </button>
+
         <!-- Autocomplete Search Bar -->
         <div class="nav-search-container">
           <i class="fa-solid fa-magnifying-glass nav-search-icon"></i>
@@ -730,6 +736,202 @@
       <span>Bài của tôi</span>
     </button>
   </nav>
+
+  <!-- Welcome & Discovery Hub Modal (Lớp giới thiệu học trực tuyến & thẻ lớp học siêu bắt mắt giữ chân học viên) -->
+  <div id="welcomeHubModal" class="modal-overlay" onclick="handleWelcomeHubOverlayClick(event)">
+    <div class="modal-dialog welcome-hub-dialog">
+      <!-- Header Banner -->
+      <div class="welcome-hub-header">
+        <button class="welcome-hub-close-btn" onclick="closeWelcomeHubModal()" title="Đóng">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="welcome-hub-badge">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>HỌC TIẾNG ANH 4.0 VỚI AI • HIỆU QUẢ VƯỢT TRỘI</span>
+        </div>
+        <h2 id="welcomeHubTitle" class="welcome-hub-title">Chào mừng bạn đến với English Kha Master!</h2>
+        <p class="welcome-hub-subtitle">
+          Nền tảng học trực tuyến thông minh, bám sát thực tế với công nghệ AI kèm 1-1 và phương pháp ghi nhớ Spaced Repetition độc quyền.
+        </p>
+
+        <!-- 3 Feature Highlight Pills -->
+        <div class="welcome-hub-highlights">
+          <div class="welcome-hub-pill">
+            <div class="pill-icon" style="background: rgba(37,99,235,0.15); color: #2563eb;">
+              <i class="fa-solid fa-bolt-lightning"></i>
+            </div>
+            <div>
+              <div class="pill-title">Học Siêu Tốc & Tinh Gọn</div>
+              <div class="pill-desc">Rút ngắn 50% thời gian với lộ trình thực chiến</div>
+            </div>
+          </div>
+
+          <div class="welcome-hub-pill">
+            <div class="pill-icon" style="background: rgba(139,92,246,0.15); color: #8b5cf6;">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div>
+              <div class="pill-title">Gia Sư AI Bản Xứ 24/7</div>
+              <div class="pill-desc">Luyện nói phản xạ & sửa phát âm IPA chuẩn xác</div>
+            </div>
+          </div>
+
+          <div class="welcome-hub-pill">
+            <div class="pill-icon" style="background: rgba(16,185,129,0.15); color: #10b981;">
+              <i class="fa-solid fa-fire"></i>
+            </div>
+            <div>
+              <div class="pill-title">Động Lực Học Mỗi Ngày</div>
+              <div class="pill-desc">Tích lũy Streak, kiếm XP và leo Bảng Xếp Hạng</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Course & Class Showcase Body -->
+      <div class="welcome-hub-body">
+        <div class="welcome-hub-section-head">
+          <div class="section-title-wrap">
+            <span class="hub-section-badge">KHÁM PHÁ NGAY</span>
+            <h3 class="hub-section-heading"><i class="fa-solid fa-chalkboard-user" style="color: var(--blue);"></i> Các Lớp Học & Chuyên Đề Trực Tuyến Nổi Bật</h3>
+          </div>
+          <span class="hub-active-count"><i class="fa-solid fa-users" style="color: #10b981;"></i> <strong>3,400+</strong> học viên đang online</span>
+        </div>
+
+        <div class="welcome-hub-grid">
+          <!-- Class Card 1: IELTS Fast-Track -->
+          <div class="welcome-course-card card-ielts">
+            <div class="course-ribbon ribbon-red">🔥 HOT NHẤT</div>
+            <div class="course-card-top">
+              <div class="course-icon-wrap icon-ielts">
+                <i class="fa-solid fa-graduation-cap"></i>
+              </div>
+              <div>
+                <h4 class="course-card-title">Luyện Thi IELTS Cấp Tốc (6.5 - 7.5+)</h4>
+                <div class="course-tags">
+                  <span class="c-tag">Academic</span>
+                  <span class="c-tag">General</span>
+                  <span class="c-tag">AI chấm điểm</span>
+                </div>
+              </div>
+            </div>
+            <p class="course-card-desc">
+              Bứt phá điểm Reading, Writing & Speaking với kho 1,200+ từ vựng học thuật trọng tâm và phân tích lỗi sai chi tiết.
+            </p>
+            <div class="course-card-stats">
+              <span><i class="fa-solid fa-book-open"></i> 48 bài học</span>
+              <span><i class="fa-solid fa-user-graduate"></i> 980+ bạn học</span>
+              <span class="rating"><i class="fa-solid fa-star"></i> 4.9</span>
+            </div>
+            <button class="course-action-btn btn-ielts" onclick="selectCourseFromHub('ielts')">
+              <span>Vào lớp IELTS ngay</span> <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+
+          <!-- Class Card 2: AI Voice Speaking & Communication -->
+          <div class="welcome-course-card card-speaking">
+            <div class="course-ribbon ribbon-blue">✨ AI VOICE 1-1</div>
+            <div class="course-card-top">
+              <div class="course-icon-wrap icon-speaking">
+                <i class="fa-solid fa-comments"></i>
+              </div>
+              <div>
+                <h4 class="course-card-title">Giao Tiếp Phản Xạ Thực Chiến 30 Ngày</h4>
+                <div class="course-tags">
+                  <span class="c-tag">Hội thoại thực tế</span>
+                  <span class="c-tag">Chuẩn IPA</span>
+                  <span class="c-tag">Phản xạ tức thì</span>
+                </div>
+              </div>
+            </div>
+            <p class="course-card-desc">
+              Xóa tan rào cản sợ nói tiếng Anh. Tự do đàm thoại 1-1 với trợ lý AI giọng bản xứ US/UK trong mọi tình huống đời sống & công việc.
+            </p>
+            <div class="course-card-stats">
+              <span><i class="fa-solid fa-microphone"></i> 36 chủ đề</span>
+              <span><i class="fa-solid fa-user-graduate"></i> 1,450+ bạn học</span>
+              <span class="rating"><i class="fa-solid fa-star"></i> 5.0</span>
+            </div>
+            <button class="course-action-btn btn-speaking" onclick="selectCourseFromHub('speaking')">
+              <span>Luyện nói với AI ngay</span> <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+
+          <!-- Class Card 3: Primary English -->
+          <div class="welcome-course-card card-primary">
+            <div class="course-ribbon ribbon-green">⭐ CHUẨN BỘ GD</div>
+            <div class="course-card-top">
+              <div class="course-icon-wrap icon-primary">
+                <i class="fa-solid fa-shapes"></i>
+              </div>
+              <div>
+                <h4 class="course-card-title">Tiếng Anh Tiểu Học - Nền Tảng Vàng (Lớp 1 - 5)</h4>
+                <div class="course-tags">
+                  <span class="c-tag">Dễ hiểu</span>
+                  <span class="c-tag">Hình hoạt họa</span>
+                  <span class="c-tag">Mini Game</span>
+                </div>
+              </div>
+            </div>
+            <p class="course-card-desc">
+              Bám sát sách giáo khoa mới. Bé học từ vựng và mẫu câu qua hình ảnh sinh động, lật thẻ 3D và câu đố vui nhộn không gây áp lực.
+            </p>
+            <div class="course-card-stats">
+              <span><i class="fa-solid fa-puzzle-piece"></i> 24 bài học</span>
+              <span><i class="fa-solid fa-user-graduate"></i> 860+ bé học</span>
+              <span class="rating"><i class="fa-solid fa-star"></i> 4.8</span>
+            </div>
+            <button class="course-action-btn btn-primary-course" onclick="selectCourseFromHub('tieuhoc')">
+              <span>Vào lớp Tiểu Học</span> <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+
+          <!-- Class Card 4: Smart SRS Flashcards -->
+          <div class="welcome-course-card card-vocab">
+            <div class="course-ribbon ribbon-purple">💡 NHỚ LÂU X3</div>
+            <div class="course-card-top">
+              <div class="course-icon-wrap icon-vocab">
+                <i class="fa-solid fa-brain"></i>
+              </div>
+              <div>
+                <h4 class="course-card-title">Lò Luyện Từ Vựng Hack Não (Flashcard 3D)</h4>
+                <div class="course-tags">
+                  <span class="c-tag">Spaced Repetition</span>
+                  <span class="c-tag">Lật thẻ 3D</span>
+                  <span class="c-tag">Quiz Game</span>
+                </div>
+              </div>
+            </div>
+            <p class="course-card-desc">
+              Phương pháp lặp lại ngắt quãng thông minh giúp ghi nhớ 30+ từ mới mỗi ngày vào trí nhớ dài hạn mà không lo học trước quên sau.
+            </p>
+            <div class="course-card-stats">
+              <span><i class="fa-solid fa-layer-group"></i> 1,500+ thẻ từ</span>
+              <span><i class="fa-solid fa-bolt"></i> Miễn phí 100%</span>
+              <span class="rating"><i class="fa-solid fa-star"></i> 4.9</span>
+            </div>
+            <button class="course-action-btn btn-vocab" onclick="selectCourseFromHub('flashcard')">
+              <span>Mở Flashcard 3D</span> <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Bar with Quick Dismiss & Primary Action -->
+      <div class="welcome-hub-footer">
+        <label class="welcome-hub-checkbox-wrap">
+          <input type="checkbox" id="welcomeHubDontShowAgain" onchange="handleWelcomeDontShowToggle(event)">
+          <span>Không tự động hiển thị lại khi đăng nhập</span>
+        </label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn-secondary" style="padding: 10px 18px;" onclick="closeWelcomeHubModal()">Để sau</button>
+          <button class="btn-primary welcome-hub-cta-btn" onclick="startLearningFromHub()">
+            <span>Bắt Đầu Hành Trình Ngay 🚀</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Onboarding Walkthrough Tour Modal -->
   <div id="onboardingModal" class="modal-overlay">

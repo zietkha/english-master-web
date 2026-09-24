@@ -488,7 +488,7 @@ async function handleSuccessfulLogin(user) {
   setSecureSession({ ...user, role });
   toast('Đăng nhập Google thành công!', 'ok');
   showWelcomeModal('login', user.displayName || user.email.split('@')[0], 1, () => {
-    window.location.href = 'index.html';
+    window.location.href = 'index.html?welcome=1';
   });
 }
 
@@ -554,7 +554,7 @@ window.handleGoogleAuthClick = async function() {
       setSecureSession({ uid: 'u_gg_' + Date.now(), email: 'learner@gmail.com', displayName: fallbackName, role: 'learner', xp: 50 });
       toast('Đăng nhập Google thành công! (+50 XP)', 'ok');
       showWelcomeModal('login', fallbackName, 1, () => {
-        window.location.href = 'index.html';
+        window.location.href = 'index.html?welcome=1';
       });
       return;
     } else if (e.code === 'auth/popup-closed-by-user') {
@@ -689,7 +689,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       setSecureSession({ ...userCred.user, displayName: name, role, streak, forcePasswordChange });
       toast('Đăng nhập thành công!', 'ok');
       showWelcomeModal('login', name, streak, () => {
-        window.location.href = 'index.html';
+        window.location.href = 'index.html?welcome=1';
       });
       return;
     } catch(err) {
@@ -700,7 +700,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
         setSecureSession({ uid: 'u_' + Date.now(), email, displayName: safeName, role: 'learner', xp: 100 });
         toast('Đăng nhập Học viên thành công!', 'ok');
         showWelcomeModal('login', safeName, 1, () => {
-          window.location.href = 'index.html';
+          window.location.href = 'index.html?welcome=1';
         });
         return;
       } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
@@ -768,7 +768,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
       setSecureSession({ ...cred.user, displayName: name, role: 'learner', xp: 50 });
       toast('Tạo tài khoản thành công! (+50 XP)', 'ok');
       showWelcomeModal('signup', name, 1, () => {
-        window.location.href = 'index.html';
+        window.location.href = 'index.html?welcome=1';
       });
       return;
     } catch(err) {
@@ -780,7 +780,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
         setSecureSession({ uid: 'u_' + Date.now(), email, displayName: name, role: 'learner', xp: 50 });
         toast('Tạo tài khoản Học viên thành công! (+50 XP)', 'ok');
         showWelcomeModal('signup', name, 1, () => {
-          window.location.href = 'index.html';
+          window.location.href = 'index.html?welcome=1';
         });
         return;
       } else {
@@ -791,7 +791,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
     setSecureSession({ uid: 'u_' + Date.now(), email, displayName: name, xp: 50 });
     toast('Tạo tài khoản thành công! (+50 XP)', 'ok');
     showWelcomeModal('signup', name, 1, () => {
-      window.location.href = 'index.html';
+      window.location.href = 'index.html?welcome=1';
     });
     return;
   }
