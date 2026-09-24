@@ -176,114 +176,7 @@
   <!-- Admin Main Dashboard -->
   <main id="adminMainContent" class="admin-body" style="display: none;">
 
-    <!-- Card 1: Maintenance Switch -->
-    <div class="card glass-panel" style="margin-bottom: 24px; border-color: rgba(239,68,68,0.35);">
-      <div class="card-header">
-        <h2 class="card-title" style="color: var(--danger);">
-          <i class="fa-solid fa-triangle-exclamation"></i> Chế độ Bảo Trì Hệ Thống (Maintenance Mode)
-        </h2>
-      </div>
-      
-      <div class="switch-container">
-        <div>
-          <h3 id="maintenanceStatusTitle" style="font-size: 1.05rem; margin-bottom: 4px; font-weight: 700;">Web đang HOẠT ĐỘNG bình thường</h3>
-          <p style="font-size: 0.88rem; color: var(--text-secondary);">Khi bật, hệ thống sẽ tạm khóa trang học viên và hiển thị thông báo bảo trì nâng cấp.</p>
-        </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenanceMode()">
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Card 2: Feedback & Report Inbox -->
-    <div class="card glass-panel" style="margin-bottom: 24px;">
-      <div class="card-header">
-        <h2 class="card-title"><i class="fa-solid fa-comments" style="color: var(--primary);"></i> Hòm thư Góp ý & Báo cáo Nội dung</h2>
-        <button class="btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="clearFeedbackInbox()">Xoá tất cả</button>
-      </div>
-      <div id="adminFeedbackList" class="comments-list" style="max-height: 280px; overflow-y: auto;">
-        <!-- Dynamic feedback inbox -->
-      </div>
-    </div>
-
-    <!-- Metrics Overview Cards -->
-    <div class="features-grid" style="margin: 0 0 24px 0; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Tổng Học Viên</span>
-          <i class="fa-solid fa-users" style="color: var(--primary); font-size: 1.2rem;"></i>
-        </div>
-        <h3 id="statTotalUsers" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--primary); margin: 0;">0</h3>
-        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Đã đăng ký hệ thống</p>
-      </div>
-
-      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Lượt Tạo Bài Học AI</span>
-          <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-ielts); font-size: 1.2rem;"></i>
-        </div>
-        <h3 id="statAiCalls" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-ielts); margin: 0;">0</h3>
-        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Tự động qua Gemini 2.5</p>
-      </div>
-
-      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Học Viên Đang Khóa</span>
-          <i class="fa-solid fa-user-lock" style="color: var(--danger); font-size: 1.2rem;"></i>
-        </div>
-        <h3 id="statSuspendedUsers" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--danger); margin: 0;">0</h3>
-        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Bị tạm dừng quyền truy cập</p>
-      </div>
-    </div>
-
-    <!-- Card 3: User Management & Credential Recovery (Mục 2.5, 3.2 & 8.4) -->
-    <div class="card glass-panel" style="margin-bottom: 24px;">
-      <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h2 class="card-title" style="color: var(--primary);">
-            <i class="fa-solid fa-users-gear"></i> Quản Lý Thành Viên & Khôi Phục Mật Khẩu (Mục 3.2)
-          </h2>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-            Xem danh sách học viên, cấp mật khẩu tạm thời, gửi link đặt lại mật khẩu hoặc khóa tài khoản vi phạm.
-          </p>
-        </div>
-        
-        <div class="row" style="gap: 8px; flex-wrap: wrap;">
-          <div style="position: relative;">
-            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 11px; font-size: 0.8rem; color: var(--text-muted);"></i>
-            <input type="text" id="adminUserSearchInput" class="input-field" placeholder="Tìm tên, email..." style="padding-left: 28px; width: 190px; font-size: 0.82rem;" oninput="handleAdminUserSearch(event)">
-          </div>
-          <select id="adminUserStatusFilter" class="input-field" style="padding: 6px 12px; font-size: 0.82rem;" onchange="handleAdminUserStatusFilter(event)">
-            <option value="all">Tất cả trạng thái</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="suspended">Bị tạm khóa</option>
-          </select>
-          <button class="btn-secondary" style="font-size: 0.82rem; padding: 6px 12px;" onclick="loadMetricsAndUsers()">
-            <i class="fa-solid fa-rotate"></i> Làm mới
-          </button>
-        </div>
-      </div>
-
-      <div style="overflow-x: auto; max-height: 380px;">
-        <table class="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Họ tên & Email</th>
-              <th>Vai trò</th>
-              <th>Trạng thái</th>
-              <th>Hoạt động / Điểm</th>
-              <th style="text-align: right;">Thao tác quản trị</th>
-            </tr>
-          </thead>
-          <tbody id="adminUserTable">
-            <!-- Dynamic users list -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Card: Cấu hình Thông tin Nhà Sáng Lập / CEO & Ảnh đại diện -->
+<!-- Card: Cấu hình Thông tin Nhà Sáng Lập / CEO & Ảnh đại diện -->
     <div class="card glass-panel" style="margin-bottom: 24px;">
       <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
         <div>
@@ -415,6 +308,115 @@
           </button>
         </div>
       </form>
+    </div>
+
+
+
+    <!-- Card 1: Maintenance Switch -->
+    <div class="card glass-panel" style="margin-bottom: 24px; border-color: rgba(239,68,68,0.35);">
+      <div class="card-header">
+        <h2 class="card-title" style="color: var(--danger);">
+          <i class="fa-solid fa-triangle-exclamation"></i> Chế độ Bảo Trì Hệ Thống (Maintenance Mode)
+        </h2>
+      </div>
+      
+      <div class="switch-container">
+        <div>
+          <h3 id="maintenanceStatusTitle" style="font-size: 1.05rem; margin-bottom: 4px; font-weight: 700;">Web đang HOẠT ĐỘNG bình thường</h3>
+          <p style="font-size: 0.88rem; color: var(--text-secondary);">Khi bật, hệ thống sẽ tạm khóa trang học viên và hiển thị thông báo bảo trì nâng cấp.</p>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenanceMode()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Card 2: Feedback & Report Inbox -->
+    <div class="card glass-panel" style="margin-bottom: 24px;">
+      <div class="card-header">
+        <h2 class="card-title"><i class="fa-solid fa-comments" style="color: var(--primary);"></i> Hòm thư Góp ý & Báo cáo Nội dung</h2>
+        <button class="btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="clearFeedbackInbox()">Xoá tất cả</button>
+      </div>
+      <div id="adminFeedbackList" class="comments-list" style="max-height: 280px; overflow-y: auto;">
+        <!-- Dynamic feedback inbox -->
+      </div>
+    </div>
+
+    <!-- Metrics Overview Cards -->
+    <div class="features-grid" style="margin: 0 0 24px 0; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Tổng Học Viên</span>
+          <i class="fa-solid fa-users" style="color: var(--primary); font-size: 1.2rem;"></i>
+        </div>
+        <h3 id="statTotalUsers" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--primary); margin: 0;">0</h3>
+        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Đã đăng ký hệ thống</p>
+      </div>
+
+      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Lượt Tạo Bài Học AI</span>
+          <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-ielts); font-size: 1.2rem;"></i>
+        </div>
+        <h3 id="statAiCalls" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--accent-ielts); margin: 0;">0</h3>
+        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Tự động qua Gemini 2.5</p>
+      </div>
+
+      <div class="feature-card glass-panel" style="text-align: left; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Học Viên Đang Khóa</span>
+          <i class="fa-solid fa-user-lock" style="color: var(--danger); font-size: 1.2rem;"></i>
+        </div>
+        <h3 id="statSuspendedUsers" class="num-tabular" style="font-size: 2.2rem; font-weight: 800; color: var(--danger); margin: 0;">0</h3>
+        <p style="font-size: 0.78rem; color: var(--text-3); margin-top: 4px;">Bị tạm dừng quyền truy cập</p>
+      </div>
+    </div>
+
+    <!-- Card 3: User Management & Credential Recovery (Mục 2.5, 3.2 & 8.4) -->
+    <div class="card glass-panel" style="margin-bottom: 24px;">
+      <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 class="card-title" style="color: var(--primary);">
+            <i class="fa-solid fa-users-gear"></i> Quản Lý Thành Viên & Khôi Phục Mật Khẩu (Mục 3.2)
+          </h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+            Xem danh sách học viên, cấp mật khẩu tạm thời, gửi link đặt lại mật khẩu hoặc khóa tài khoản vi phạm.
+          </p>
+        </div>
+        
+        <div class="row" style="gap: 8px; flex-wrap: wrap;">
+          <div style="position: relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 11px; font-size: 0.8rem; color: var(--text-muted);"></i>
+            <input type="text" id="adminUserSearchInput" class="input-field" placeholder="Tìm tên, email..." style="padding-left: 28px; width: 190px; font-size: 0.82rem;" oninput="handleAdminUserSearch(event)">
+          </div>
+          <select id="adminUserStatusFilter" class="input-field" style="padding: 6px 12px; font-size: 0.82rem;" onchange="handleAdminUserStatusFilter(event)">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="suspended">Bị tạm khóa</option>
+          </select>
+          <button class="btn-secondary" style="font-size: 0.82rem; padding: 6px 12px;" onclick="loadMetricsAndUsers()">
+            <i class="fa-solid fa-rotate"></i> Làm mới
+          </button>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto; max-height: 380px;">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Họ tên & Email</th>
+              <th>Vai trò</th>
+              <th>Trạng thái</th>
+              <th>Hoạt động / Điểm</th>
+              <th style="text-align: right;">Thao tác quản trị</th>
+            </tr>
+          </thead>
+          <tbody id="adminUserTable">
+            <!-- Dynamic users list -->
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Card 4: Section 10.7 — Admin Content Tool With AI Assist -->
