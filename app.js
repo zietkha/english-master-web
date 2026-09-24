@@ -893,11 +893,24 @@ function renderLeaderboard() {
   const tbody = document.getElementById('leaderboardTbody');
   if (!tbody) return;
 
+  const currentUid = state.currentUser ? state.currentUser.id : null;
+
+  // Sync current user's live study time into state.users if present
+  if (state.currentUser) {
+    const me = state.users.find(u => u.id === state.currentUser.id || (state.currentUser.email && u.email === state.currentUser.email));
+    if (me) {
+      me.xp = state.currentUser.xp || me.xp;
+      me.stats = state.currentUser.stats || me.stats;
+    }
+  }
+
   const sortedUsers = [...state.users].sort((a, b) => {
     const aDays = a.stats?.attendanceDates?.length || (a.streak || 1);
     const bDays = b.stats?.attendanceDates?.length || (b.streak || 1);
-    if (bDays !== aDays) return bDays - aDays;
-    return (b.xp || 0) - (a.xp || 0);
+    const aXp = a.xp || 0;
+    const bXp = b.xp || 0;
+    if (bXp !== aXp) return bXp - aXp;
+    return bDays - aDays;
   });
 
   if (sortedUsers[0]) {
@@ -917,21 +930,40 @@ function renderLeaderboard() {
     const onlineSecs = u.stats?.totalOnlineSeconds || (idx === 0 ? 14200 : idx === 1 ? 8400 : 3600);
     const attendanceCount = u.stats?.attendanceDates?.length || u.streak || 1;
     const completedCount = u.stats?.lessonsCompleted || Math.max(1, Math.floor((u.xp || 50) / 45));
+    const isMe = currentUid && (u.id === currentUid || (state.currentUser?.email && u.email === state.currentUser.email));
+
+    let rankBadge = `<span class="rank-num">#${idx + 1}</span>`;
+    if (idx === 0) rankBadge = `<span class="rank-badge gold">🥇 #1</span>`;
+    else if (idx === 1) rankBadge = `<span class="rank-badge silver">🥈 #2</span>`;
+    else if (idx === 2) rankBadge = `<span class="rank-badge bronze">🥉 #3</span>`;
 
     return `
-      <tr>
-        <td><strong>#${idx + 1}</strong></td>
-        <td>
-          <div class="row" style="gap: 8px;">
-            <div class="user-avatar" style="width: 28px; height: 28px; font-size: 0.8rem;">${escapeHtml(u.name.charAt(0))}</div>
-            <span>${escapeHtml(u.name)}</span>
+      <tr class="${isMe ? 'leaderboard-row-me' : ''}">
+        <td style="text-align: center;">${rankBadge}</td>
+        <td style="text-align: left;">
+          <div class="leaderboard-user-cell">
+            <div class="leaderboard-avatar">${escapeHtml(u.name.charAt(0).toUpperCase())}</div>
+            <div class="leaderboard-user-meta">
+              <span class="leaderboard-user-name">${escapeHtml(u.name)}</span>
+              ${isMe ? '<span class="badge-you">Bạn</span>' : ''}
+            </div>
           </div>
         </td>
-        <td><span class="stat-pill" style="background: rgba(37,99,235,0.08); color: #2563eb; font-weight: 600;"><i class="fa-regular fa-clock"></i> ${formatOnlineTime(onlineSecs)}</span></td>
-        <td><span class="stat-pill streak-pill"><i class="fa-solid fa-calendar-check"></i> ${attendanceCount} ngày</span></td>
-        <td><strong>${completedCount}</strong> bài</td>
-        <td><span class="stat-pill xp-pill"><i class="fa-solid fa-bolt"></i> ${u.xp || 0} XP</span></td>
-        <td>${(u.badges || []).length} huy hiệu</td>
+        <td style="text-align: center;">
+          <span class="stat-pill time-pill"><i class="fa-regular fa-clock"></i> ${formatOnlineTime(onlineSecs)}</span>
+        </td>
+        <td style="text-align: center;">
+          <span class="stat-pill streak-pill"><i class="fa-solid fa-calendar-check"></i> ${attendanceCount} ngày</span>
+        </td>
+        <td style="text-align: center;">
+          <span class="lessons-count-badge"><strong>${completedCount}</strong> bài</span>
+        </td>
+        <td style="text-align: center;">
+          <span class="stat-pill xp-pill"><i class="fa-solid fa-bolt"></i> ${u.xp || 0} XP</span>
+        </td>
+        <td style="text-align: center;">
+          <span class="badge-count-pill"><i class="fa-solid fa-award"></i> ${(u.badges || []).length} huy hiệu</span>
+        </td>
       </tr>
     `;
   }).join('');
@@ -1035,47 +1067,110 @@ function selectSkill(skillName, updateHash = true) {
   }
 }
 
-/* ── Section 10.9: Activity & Time Online Tracker ── */
+/* ── Section 10.9: Activity & Real-Time Study Clock Tracker ── */
+let liveStudyTimerInterval = null;
+let lastUserInteractionTime = Date.now();
+
+function updateHeaderStudyClock(seconds) {
+  const el = document.getElementById('headerStudyTimeVal');
+  if (!el) return;
+  if (seconds < 60) {
+    el.textContent = `00:${String(seconds).padStart(2, '0')}`;
+  } else if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    el.textContent = `${m}m ${String(s).padStart(2, '0')}s`;
+  } else {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    el.textContent = `${h}h ${m}m`;
+  }
+}
+
 function initActivityTracker() {
   const today = new Date().toISOString().split('T')[0];
-  if (state.currentUser) {
-    state.currentUser.stats = state.currentUser.stats || {
-      totalOnlineSeconds: 0,
-      attendanceDates: [],
-      lessonsCompleted: 0
-    };
-    if (!state.currentUser.stats.attendanceDates.includes(today)) {
-      state.currentUser.stats.attendanceDates.push(today);
-      addXp(10);
-      showToast('📅 Điểm danh ngày mới thành công! (+10 XP)');
-    }
-  }
+  const todayKey = 'english_master_today_study_sec_' + today;
+  let todaySeconds = parseInt(localStorage.getItem(todayKey) || '0', 10);
 
-  // Count active time using Page Visibility API
-  setInterval(() => {
-    if (!document.hidden && state.currentUser) {
-      state.currentUser.stats = state.currentUser.stats || {
-        totalOnlineSeconds: 0,
-        attendanceDates: [today],
-        lessonsCompleted: 0
-      };
-      state.currentUser.stats.totalOnlineSeconds = (state.currentUser.stats.totalOnlineSeconds || 0) + 10;
-      if (state.currentUser.stats.totalOnlineSeconds % 60 === 0) {
-        saveCurrentUserToStorage();
-        if (state.db && state.auth && state.auth.currentUser) {
-          state.db.collection('users').doc(state.auth.currentUser.uid).update({
-            stats: state.currentUser.stats
-          }).catch(() => {});
+  // Track active user interactions (typing, clicking, mouse, touch, scroll)
+  const registerActivity = () => {
+    lastUserInteractionTime = Date.now();
+  };
+  ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'input'].forEach(evt => {
+    window.addEventListener(evt, registerActivity, { passive: true });
+  });
+
+  // Initial clock display
+  updateHeaderStudyClock(todaySeconds);
+
+  if (liveStudyTimerInterval) clearInterval(liveStudyTimerInterval);
+
+  let hasAwardedDailyAttendance = localStorage.getItem('english_master_checkedin_' + today) === 'true';
+
+  liveStudyTimerInterval = setInterval(() => {
+    // Check if user is actively engaged: page visible & interacted within last 2 minutes
+    const isEngaged = !document.hidden && (Date.now() - lastUserInteractionTime < 120000);
+
+    if (isEngaged) {
+      todaySeconds++;
+      localStorage.setItem(todayKey, todaySeconds);
+      updateHeaderStudyClock(todaySeconds);
+
+      // LEGITIMATE ATTENDANCE: Earn daily check-in streak only after at least 60s of active study!
+      if (todaySeconds >= 60 && !hasAwardedDailyAttendance) {
+        hasAwardedDailyAttendance = true;
+        localStorage.setItem('english_master_checkedin_' + today, 'true');
+
+        if (state.currentUser) {
+          state.currentUser.stats = state.currentUser.stats || { attendanceDates: [], totalOnlineSeconds: 0 };
+          if (!state.currentUser.stats.attendanceDates.includes(today)) {
+            state.currentUser.stats.attendanceDates.push(today);
+            state.currentUser.streak = (state.currentUser.streak || 0) + 1;
+            const streakEl = document.getElementById('headerStreakVal');
+            if (streakEl) streakEl.textContent = state.currentUser.streak;
+            addXp(15);
+            showToast('🎉 Chúc mừng! Bạn đã học tập 1 phút thực tế và điểm danh ngày thành công! (+15 XP, +1 ngày streak)', 'success');
+            saveCurrentUserToStorage();
+          }
+        }
+      }
+
+      // Sync to user profile state & leaderboard
+      if (state.currentUser) {
+        state.currentUser.stats = state.currentUser.stats || { attendanceDates: [today], totalOnlineSeconds: 0 };
+        state.currentUser.stats.totalOnlineSeconds = (state.currentUser.stats.totalOnlineSeconds || 0) + 1;
+        state.currentUser.stats.todayStudySeconds = todaySeconds;
+
+        // Auto-save session every 10 seconds
+        if (todaySeconds % 10 === 0) {
+          saveCurrentUserToStorage();
+          if (state.db && state.auth && state.auth.currentUser) {
+            state.db.collection('users').doc(state.auth.currentUser.uid).update({
+              stats: state.currentUser.stats
+            }).catch(() => {});
+          }
+
+          // If leaderboard is currently open, live update the user's row time
+          if (state.currentView === 'leaderboard') {
+            const myRow = document.querySelector('.leaderboard-row-me .time-pill');
+            if (myRow) {
+              myRow.innerHTML = `<i class="fa-regular fa-clock"></i> ${formatOnlineTime(state.currentUser.stats.totalOnlineSeconds)}`;
+            }
+          }
         }
       }
     }
-  }, 10000);
+  }, 1000);
 }
 
 function formatOnlineTime(seconds) {
-  if (!seconds || seconds < 60) return '< 1 phút';
+  if (!seconds || seconds <= 0) return '0 phút';
+  if (seconds < 60) return `${seconds}s`;
   const mins = Math.floor(seconds / 60);
-  if (mins < 60) return `${mins} phút`;
+  if (mins < 60) {
+    const s = seconds % 60;
+    return s > 0 ? `${mins}m ${s}s` : `${mins} phút`;
+  }
   const hours = Math.floor(mins / 60);
   const remMins = mins % 60;
   return `${hours}h ${remMins}m`;

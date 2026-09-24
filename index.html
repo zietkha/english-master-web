@@ -81,9 +81,12 @@
           <div id="searchDropdown" class="search-autocomplete-dropdown"></div>
         </div>
 
-        <!-- Streak & XP Display -->
-        <div id="userStatsWidget" class="row" style="display: none; gap: 8px;">
-          <span class="stat-pill streak-pill" title="Chuỗi ngày học liên tục">
+        <!-- Real-time Study Clock, Streak & XP Display -->
+        <div id="userStatsWidget" class="row" style="display: none; gap: 8px; align-items: center;">
+          <span class="stat-pill time-pill" id="headerStudyTimePill" title="Thời gian học thực tế hôm nay (đang đếm giây/phút)">
+            <i class="fa-solid fa-clock" style="color: var(--blue);"></i> <span id="headerStudyTimeVal">00:00</span>
+          </span>
+          <span class="stat-pill streak-pill" id="headerStreakPill" title="Chuỗi điểm danh chuyên cần (cần học thực tế tối thiểu 1 phút mỗi ngày)">
             <i class="fa-solid fa-fire"></i> <span id="headerStreakVal">0</span><span class="stat-pill-label"> ngày</span>
           </span>
           <span class="stat-pill xp-pill" title="Điểm kinh nghiệm (XP)">
@@ -403,44 +406,46 @@
         <div class="podium-step podium-2">
           <div class="podium-avatar">🥈</div>
           <div class="podium-pillar">
-            <span id="podium2Name">Minh Anh</span>
-            <span id="podium2Xp" style="font-size: 0.85rem; opacity: 0.9;">420 XP</span>
+            <span id="podium2Name" class="podium-name">Minh Anh</span>
+            <span id="podium2Xp" class="podium-xp">420 XP</span>
           </div>
         </div>
 
         <div class="podium-step podium-1">
           <div class="podium-avatar" style="border-color: #f59e0b;">👑</div>
           <div class="podium-pillar">
-            <span id="podium1Name">Tuấn Kiệt</span>
-            <span id="podium1Xp" style="font-size: 0.85rem; opacity: 0.9;">680 XP</span>
+            <span id="podium1Name" class="podium-name">Tuấn Kiệt</span>
+            <span id="podium1Xp" class="podium-xp">680 XP</span>
           </div>
         </div>
 
         <div class="podium-step podium-3">
           <div class="podium-avatar">🥉</div>
           <div class="podium-pillar">
-            <span id="podium3Name">Bảo Châu</span>
-            <span id="podium3Xp" style="font-size: 0.85rem; opacity: 0.9;">310 XP</span>
+            <span id="podium3Name" class="podium-name">Bảo Châu</span>
+            <span id="podium3Xp" class="podium-xp">310 XP</span>
           </div>
         </div>
       </div>
 
-      <table class="leaderboard-table">
-        <thead>
-          <tr>
-            <th>Hạng</th>
-            <th>Học viên</th>
-            <th>Thời gian học</th>
-            <th>Điểm danh</th>
-            <th>Bài đã học</th>
-            <th>Điểm XP</th>
-            <th>Huy hiệu</th>
-          </tr>
-        </thead>
-        <tbody id="leaderboardTbody">
-          <!-- Dynamically filled -->
-        </tbody>
-      </table>
+      <div class="leaderboard-table-wrapper">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th style="width: 80px; text-align: center;">Hạng</th>
+              <th style="min-width: 220px; text-align: left;">Học viên</th>
+              <th style="width: 150px; text-align: center;">Thời gian học</th>
+              <th style="width: 130px; text-align: center;">Điểm danh</th>
+              <th style="width: 110px; text-align: center;">Bài đã học</th>
+              <th style="width: 130px; text-align: center;">Điểm XP</th>
+              <th style="width: 120px; text-align: center;">Huy hiệu</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardTbody">
+            <!-- Dynamically filled -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </main>
 
