@@ -626,3 +626,23 @@ When an administrator generates a temporary password or sets `forcePasswordChang
 Inside the Learner Profile view:
 - Displays account authentication provider badge (Google OAuth vs. Email/Password).
 - Allows voluntary password updates with real-time confirmation matching and strength scoring.
+
+---
+
+## 13. Interactive Speaking & Pronunciation Practice Engine (Web Speech API)
+Implements live pronunciation practice using browser-native Web Speech recognition (`webkitSpeechRecognition` / `SpeechRecognition`) and speech synthesis.
+
+### 13.1 Speech Recognition Flow & Permission Architecture
+1. **Explicit Microphone Permission:** Prompts for mic access via `navigator.mediaDevices.getUserMedia({ audio: true })` with user-friendly error guidance if blocked.
+2. **Recognition Configuration:** Uses `en-US` locale with continuous listening disabled and interim results disabled for crisp phrase evaluation.
+3. **Brave Browser Shielding Helper:** Provides in-app detection and instructions for Brave users to enable speech services under `brave://settings/system`.
+
+### 13.2 Scoring & Similarity Algorithm
+- Evaluates the user's spoken transcript against the target word/phrase using Levenshtein distance and token similarity (`calculateWordSimilarity`).
+- Accuracy Thresholds:
+  - **80% – 100%:** Xuất sắc (+15 XP reward, celebration confetti, and green achievement badge).
+  - **< 80%:** Cần cải thiện (displays recognized transcript and percentage match for self-correction).
+
+### 13.3 Native Audio Pronunciation & Multi-Surface Entry Points
+- **Native Audio Playback:** Learners can click the speaker icon (`speakWord`) to listen to native pronunciation rendered via `window.speechSynthesis`.
+- **Universal Entry Points:** Accessible from both the **Vocabulary List** in every lesson and directly within the **Flashcard 3D** practice view.

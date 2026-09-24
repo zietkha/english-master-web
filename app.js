@@ -1873,6 +1873,24 @@ function prevFlashcard() {
   renderFlashcardSection();
 }
 
+function speakCurrentFlashcard() {
+  const vocab = state.activeLesson?.vocab || [];
+  if (vocab.length === 0) return;
+  const current = vocab[state.fcIndex];
+  if (current && current.word) {
+    speakWord(current.word);
+  }
+}
+
+function practiceCurrentFlashcardSpeaking() {
+  const vocab = state.activeLesson?.vocab || [];
+  if (vocab.length === 0) return;
+  const current = vocab[state.fcIndex];
+  if (current && current.word) {
+    startVoicePractice(current.word, current.meaning);
+  }
+}
+
 function setWordSrs(status) {
   if (!state.activeLesson || !state.activeLesson.vocab) return;
   const current = state.activeLesson.vocab[state.fcIndex];

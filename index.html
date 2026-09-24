@@ -632,7 +632,11 @@
           </div>
           <div class="flashcard-controls">
             <button class="btn-secondary" onclick="prevFlashcard()"><i class="fa-solid fa-arrow-left"></i> Trước</button>
-            <span id="fcIndex" style="font-weight: 700; align-self: center;">1 / 5</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button class="audio-btn" onclick="speakCurrentFlashcard()" title="Nghe máy đọc phát âm mẫu"><i class="fa-solid fa-volume-high"></i></button>
+              <span id="fcIndex" style="font-weight: 700;">1 / 5</span>
+              <button class="voice-practice-btn" onclick="practiceCurrentFlashcardSpeaking()" title="Luyện nói & chấm điểm từ này"><i class="fa-solid fa-microphone"></i></button>
+            </div>
             <button class="btn-primary" onclick="nextFlashcard()">Tiếp theo <i class="fa-solid fa-arrow-right"></i></button>
           </div>
 
