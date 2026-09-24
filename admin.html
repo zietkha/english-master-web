@@ -243,6 +243,140 @@
       </div>
     </div>
 
+    <!-- Card: Cấu hình Thông tin Nhà Sáng Lập / CEO & Ảnh đại diện -->
+    <div class="card glass-panel" style="margin-bottom: 24px;">
+      <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 class="card-title" style="color: var(--primary);">
+            <i class="fa-solid fa-crown" style="color: #f59e0b;"></i> Cấu Hình Thông Tin Nhà Sáng Lập / CEO &amp; Ảnh Đại Diện
+          </h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+            Tùy chỉnh ảnh chân dung, chức danh, tiểu sử, thông số và lời trích dẫn của Người Sáng Lập hiển thị trên trang chủ cho toàn bộ học viên.
+          </p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-secondary" style="font-size: 0.82rem;" type="button" onclick="resetFounderConfig()">
+            <i class="fa-solid fa-rotate-left"></i> Khôi phục mặc định
+          </button>
+          <button class="btn-primary" style="font-size: 0.82rem;" type="button" onclick="saveFounderConfig()">
+            <i class="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi
+          </button>
+        </div>
+      </div>
+
+      <form id="adminFounderForm" onsubmit="event.preventDefault(); saveFounderConfig();" style="display: flex; flex-direction: column; gap: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <!-- Row 1: Photo Uploader & Preview -->
+        <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center; background: rgba(37,99,235,0.04); padding: 18px; border-radius: 12px; border: 1px dashed var(--primary);">
+          <div style="text-align: center; min-width: 140px;">
+            <div style="width: 120px; height: 120px; border-radius: 50%; overflow: hidden; margin: 0 auto 10px; border: 3px solid var(--primary); box-shadow: 0 4px 14px rgba(37,99,235,0.25); position: relative; background: #1e293b;">
+              <img id="adminFounderPhotoPreview" src="founder.jpg" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=Nguyen+Viet+Kha&size=300&background=2563eb&color=fff&bold=true'">
+            </div>
+            <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Xem trước ảnh</span>
+          </div>
+          <div style="flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 10px;">
+            <label style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">
+              <i class="fa-solid fa-camera"></i> Đổi Ảnh Chân Dung / Avatar:
+            </label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <label class="btn-primary" style="font-size: 0.82rem; cursor: pointer; padding: 8px 16px; margin: 0; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-upload"></i> Chọn file ảnh từ máy
+                <input type="file" id="adminFounderFileInput" accept="image/*" style="display: none;" onchange="handleAdminFounderFileSelect(event)">
+              </label>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">hoặc dán liên kết (URL) ảnh:</span>
+            </div>
+            <input type="url" id="adminFounderPhotoUrlInput" class="input-field" placeholder="https://example.com/anh-cua-ban.jpg" style="width: 100%; font-size: 0.85rem;" oninput="handleAdminFounderUrlInput(event)">
+            <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0;">
+              💡 <em>Hỗ trợ ảnh JPG, PNG, WebP từ máy tính (tự động tối ưu hóa) hoặc link ảnh trực tiếp từ Imgur, Cloudinary, Facebook, Google Drive...</em>
+            </p>
+          </div>
+        </div>
+
+        <!-- Row 2: Name, Role, Subtitle -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+          <div>
+            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">Họ và Tên:</label>
+            <input type="text" id="adminFounderName" class="input-field" value="Nguyễn Viết Kha" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">Chức danh / Huy hiệu:</label>
+            <input type="text" id="adminFounderRoleBadge" class="input-field" value="Nhà Sáng Lập &amp; Chủ Tịch CEO" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">Đơn vị / Trường học:</label>
+            <input type="text" id="adminFounderTitle" class="input-field" value="Sinh viên CNTT · Trường Đại học HUTECH, TP.HCM" style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- Row 3: Bio & Quote -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+          <div>
+            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">Tiểu sử ngắn (Bio):</label>
+            <textarea id="adminFounderBio" class="input-field" rows="3" style="width: 100%; resize: vertical;">Xuất phát từ niềm đam mê công nghệ và mong muốn giúp người Việt học tiếng Anh hiệu quả hơn, tôi đã tự thiết kế và xây dựng English Kha Master — một nền tảng học tập hoàn toàn miễn phí, tích hợp trí tuệ nhân tạo AI hiện đại nhất dành cho mọi lứa tuổi.</textarea>
+          </div>
+          <div>
+            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 6px;">Lời trích dẫn truyền cảm hứng (Quote):</label>
+            <textarea id="adminFounderQuoteText" class="input-field" rows="3" style="width: 100%; resize: vertical;">Tôi tin rằng công nghệ và trí tuệ nhân tạo có thể giúp bất kỳ ai — dù ở bất kỳ đâu, điều kiện nào — cũng có thể học tiếng Anh đạt chuẩn quốc tế một cách dễ dàng và hiệu quả nhất. Đó là lý do English Kha Master ra đời.</textarea>
+          </div>
+        </div>
+
+        <!-- Row 4: 6 Key Metrics Grid -->
+        <div>
+          <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 10px;">
+            <i class="fa-solid fa-list-check"></i> 6 Thông số chi tiết hiển thị trên thẻ:
+          </label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+            <div>
+              <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">1. Ngày thành lập:</label>
+              <input type="text" id="adminFounderEstablished" class="input-field" value="2024 · TP. Hồ Chí Minh" style="width: 100%; font-size: 0.82rem;">
+            </div>
+            <div>
+              <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">2. Sáng tạo từ:</label>
+              <input type="text" id="adminFounderCreatedFrom" class="input-field" value="Cá nhân — Khởi nguồn đam mê" style="width: 100%; font-size: 0.82rem;">
+            </div>
+            <div>
+              <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">3. Mục đích:</label>
+              <input type="text" id="adminFounderPurpose" class="input-field" value="Học tiếng Anh chuẩn &amp; miễn phí cho mọi người" style="width: 100%; font-size: 0.82rem;">
+            </div>
+            <div>
+              <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">4. Kỳ vọng:</label>
+              <input type="text" id="adminFounderVision" class="input-field" value="Trở thành nền tảng EdTech AI hàng đầu Việt Nam" style="width: 100%; font-size: 0.82rem;">
+            </div>
+            <div>
+              <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">5. Công nghệ:</label>
+              <input type="text" id="adminFounderTech" class="input-field" value="Gemini AI · Firebase · Netlify · Speech AI" style="width: 100%; font-size: 0.82rem;">
+            </div>
+            <div>
+              <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">6. Sứ mệnh:</label>
+              <input type="text" id="adminFounderMission" class="input-field" value="&ldquo;Mọi người Việt đều xứng đáng có cơ hội học tập tốt nhất&rdquo;" style="width: 100%; font-size: 0.82rem;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 5: Social Links -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+          <div>
+            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;"><i class="fa-brands fa-github"></i> GitHub URL:</label>
+            <input type="url" id="adminFounderGithub" class="input-field" value="https://github.com/zietkha" style="width: 100%; font-size: 0.82rem;">
+          </div>
+          <div>
+            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;"><i class="fa-brands fa-facebook"></i> Facebook URL:</label>
+            <input type="url" id="adminFounderFacebook" class="input-field" placeholder="https://facebook.com/..." style="width: 100%; font-size: 0.82rem;">
+          </div>
+          <div>
+            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;"><i class="fa-brands fa-linkedin"></i> LinkedIn URL:</label>
+            <input type="url" id="adminFounderLinkedin" class="input-field" placeholder="https://linkedin.com/in/..." style="width: 100%; font-size: 0.82rem;">
+          </div>
+        </div>
+
+        <!-- Submit Button Row -->
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+          <button class="btn-primary" type="button" onclick="saveFounderConfig()" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px;">
+            <i class="fa-solid fa-floppy-disk"></i> Lưu &amp; Cập Nhật Toàn Hệ Thống
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- Card 4: Section 10.7 — Admin Content Tool With AI Assist -->
     <div class="card glass-panel" style="margin-bottom: 30px;">
       <div class="card-header" style="flex-wrap: wrap; gap: 12px;">

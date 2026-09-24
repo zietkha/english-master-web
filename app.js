@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initUiListeners();
   initLevelAndSkillEngine();
   initActivityTracker();
+  initFounderDynamicSync();
   navigateTo('landing', false);
   initRouter();
   setTimeout(checkOnboardingStatus, 800);
@@ -77,6 +78,64 @@ function updateLandingWelcome() {
   if (name) {
     badge.innerHTML = `<i class="fa-solid fa-star"></i> Xin chào, ${name}! Chào mừng bạn đến với English Kha Master`;
   }
+}
+
+function initFounderDynamicSync() {
+  // 1. Load cached config from localStorage
+  const cached = localStorage.getItem('english_master_founder_config');
+  if (cached) {
+    try { applyFounderConfig(JSON.parse(cached)); } catch(e) {}
+  }
+
+  // 2. Realtime listener from Firestore
+  if (state.db) {
+    try {
+      state.db.collection('settings').doc('founder_info').onSnapshot(doc => {
+        if (doc && doc.exists) {
+          const data = doc.data();
+          localStorage.setItem('english_master_founder_config', JSON.stringify(data));
+          applyFounderConfig(data);
+        }
+      }, err => console.warn('Founder info snapshot error:', err));
+    } catch(e) {}
+  }
+}
+
+function applyFounderConfig(data) {
+  if (!data) return;
+  const imgEl = document.getElementById('landingFounderImg');
+  const roleEl = document.getElementById('landingFounderRoleBadge');
+  const nameEl = document.getElementById('landingFounderName');
+  const titleEl = document.getElementById('landingFounderTitle');
+  const bioEl = document.getElementById('landingFounderBio');
+  const quoteEl = document.getElementById('landingFounderQuoteText');
+  const quoteAuthorEl = document.getElementById('landingFounderQuoteAuthor');
+  const estEl = document.getElementById('landingFounderEstablished');
+  const createdEl = document.getElementById('landingFounderCreatedFrom');
+  const purpEl = document.getElementById('landingFounderPurpose');
+  const visEl = document.getElementById('landingFounderVision');
+  const techEl = document.getElementById('landingFounderTech');
+  const misEl = document.getElementById('landingFounderMission');
+  const ghEl = document.getElementById('landingFounderGithub');
+  const fbEl = document.getElementById('landingFounderFacebook');
+  const liEl = document.getElementById('landingFounderLinkedin');
+
+  if (imgEl && data.photoUrl) imgEl.src = data.photoUrl;
+  if (roleEl && data.roleBadge) roleEl.innerHTML = `<i class="fa-solid fa-crown"></i> ${escapeHtml(data.roleBadge)}`;
+  if (nameEl && data.name) nameEl.textContent = data.name;
+  if (titleEl && data.title) titleEl.textContent = data.title;
+  if (bioEl && data.bio) bioEl.textContent = data.bio;
+  if (quoteEl && data.quote) quoteEl.textContent = data.quote;
+  if (quoteAuthorEl && data.quoteAuthor) quoteAuthorEl.textContent = data.quoteAuthor;
+  if (estEl && data.established) estEl.textContent = data.established;
+  if (createdEl && data.createdFrom) createdEl.textContent = data.createdFrom;
+  if (purpEl && data.purpose) purpEl.textContent = data.purpose;
+  if (visEl && data.vision) visEl.textContent = data.vision;
+  if (techEl && data.techStack) techEl.textContent = data.techStack;
+  if (misEl && data.mission) misEl.textContent = data.mission;
+  if (ghEl && data.githubUrl) ghEl.href = data.githubUrl;
+  if (fbEl && data.facebookUrl) fbEl.href = data.facebookUrl;
+  if (liEl && data.linkedinUrl) liEl.href = data.linkedinUrl;
 }
 
 function navigateTo(viewName, updateHash = true) {
@@ -525,6 +584,8 @@ function initFirebaseAndStorage() {
           state.lessons = event.data.lessons;
           saveToLocalStorage(false);
           if (state.currentView === 'learn') renderLessonsList();
+        } else if (event.data?.type === 'FOUNDER_CONFIG_UPDATED') {
+          applyFounderConfig(event.data.data);
         }
       };
     }

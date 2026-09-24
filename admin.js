@@ -145,6 +145,7 @@ function initAdminDashboard() {
   loadMetricsAndUsers();
   renderAdminFeedbackInbox();
   initAdminLessonTool();
+  loadFounderConfig();
 }
 
 function toggleMaintenanceMode() {
@@ -826,4 +827,216 @@ function escapeHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
+
+/* ==========================================================================
+   Founder / CEO Information & Avatar Customizer Controller
+   ========================================================================== */
+
+const DEFAULT_FOUNDER_CONFIG = {
+  photoUrl: 'founder.jpg',
+  name: 'Nguyễn Viết Kha',
+  roleBadge: 'Nhà Sáng Lập & Chủ Tịch CEO',
+  title: 'Sinh viên CNTT · Trường Đại học HUTECH, TP.HCM',
+  bio: 'Xuất phát từ niềm đam mê công nghệ và mong muốn giúp người Việt học tiếng Anh hiệu quả hơn, tôi đã tự thiết kế và xây dựng English Kha Master — một nền tảng học tập hoàn toàn miễn phí, tích hợp trí tuệ nhân tạo AI hiện đại nhất dành cho mọi lứa tuổi.',
+  quote: 'Tôi tin rằng công nghệ và trí tuệ nhân tạo có thể giúp bất kỳ ai — dù ở bất kỳ đâu, điều kiện nào — cũng có thể học tiếng Anh đạt chuẩn quốc tế một cách dễ dàng và hiệu quả nhất. Đó là lý do English Kha Master ra đời.',
+  quoteAuthor: '— Nguyễn Viết Kha, Nhà Sáng Lập & Chủ Tịch CEO',
+  established: '2024 · TP. Hồ Chí Minh',
+  createdFrom: 'Cá nhân — Khởi nguồn đam mê',
+  purpose: 'Học tiếng Anh chuẩn & miễn phí cho mọi người',
+  vision: 'Trở thành nền tảng EdTech AI hàng đầu Việt Nam',
+  techStack: 'Gemini AI · Firebase · Netlify · Speech AI',
+  mission: '“Mọi người Việt đều xứng đáng có cơ hội học tập tốt nhất”',
+  githubUrl: 'https://github.com/zietkha',
+  facebookUrl: '',
+  linkedinUrl: ''
+};
+
+let currentFounderPhotoBase64 = null;
+
+async function loadFounderConfig() {
+  let config = { ...DEFAULT_FOUNDER_CONFIG };
+  const cached = localStorage.getItem('english_master_founder_config');
+  if (cached) {
+    try { config = { ...config, ...JSON.parse(cached) }; } catch(e) {}
+  }
+
+  if (db) {
+    try {
+      const doc = await db.collection('settings').doc('founder_info').get();
+      if (doc.exists) {
+        config = { ...config, ...doc.data() };
+        localStorage.setItem('english_master_founder_config', JSON.stringify(config));
+      }
+    } catch(e) {
+      console.warn('Firestore load founder config error:', e);
+    }
+  }
+
+  populateFounderForm(config);
+}
+
+function populateFounderForm(config) {
+  const photoPreview = document.getElementById('adminFounderPhotoPreview');
+  const photoUrlInput = document.getElementById('adminFounderPhotoUrlInput');
+  const nameInput = document.getElementById('adminFounderName');
+  const roleInput = document.getElementById('adminFounderRoleBadge');
+  const titleInput = document.getElementById('adminFounderTitle');
+  const bioInput = document.getElementById('adminFounderBio');
+  const quoteInput = document.getElementById('adminFounderQuoteText');
+  const estInput = document.getElementById('adminFounderEstablished');
+  const createdInput = document.getElementById('adminFounderCreatedFrom');
+  const purpInput = document.getElementById('adminFounderPurpose');
+  const visInput = document.getElementById('adminFounderVision');
+  const techInput = document.getElementById('adminFounderTech');
+  const misInput = document.getElementById('adminFounderMission');
+  const ghInput = document.getElementById('adminFounderGithub');
+  const fbInput = document.getElementById('adminFounderFacebook');
+  const liInput = document.getElementById('adminFounderLinkedin');
+
+  if (photoPreview) photoPreview.src = config.photoUrl || 'founder.jpg';
+  if (photoUrlInput) photoUrlInput.value = (config.photoUrl && !config.photoUrl.startsWith('data:')) ? config.photoUrl : '';
+  if (nameInput) nameInput.value = config.name || '';
+  if (roleInput) roleInput.value = config.roleBadge || '';
+  if (titleInput) titleInput.value = config.title || '';
+  if (bioInput) bioInput.value = config.bio || '';
+  if (quoteInput) quoteInput.value = config.quote || '';
+  if (estInput) estInput.value = config.established || '';
+  if (createdInput) createdInput.value = config.createdFrom || '';
+  if (purpInput) purpInput.value = config.purpose || '';
+  if (visInput) visInput.value = config.vision || '';
+  if (techInput) techInput.value = config.techStack || '';
+  if (misInput) misInput.value = config.mission || '';
+  if (ghInput) ghInput.value = config.githubUrl || '';
+  if (fbInput) fbInput.value = config.facebookUrl || '';
+  if (liInput) liInput.value = config.linkedinUrl || '';
+
+  if (config.photoUrl && config.photoUrl.startsWith('data:')) {
+    currentFounderPhotoBase64 = config.photoUrl;
+  }
+}
+
+function handleAdminFounderFileSelect(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      // Compress/resize image to maximum 500x500 to keep performance ultra fast
+      const canvas = document.createElement('canvas');
+      const maxDim = 500;
+      let width = img.width;
+      let height = img.height;
+      if (width > height) {
+        if (width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        }
+      } else {
+        if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      currentFounderPhotoBase64 = compressedDataUrl;
+      
+      const photoPreview = document.getElementById('adminFounderPhotoPreview');
+      if (photoPreview) photoPreview.src = compressedDataUrl;
+      
+      const photoUrlInput = document.getElementById('adminFounderPhotoUrlInput');
+      if (photoUrlInput) photoUrlInput.value = '';
+      
+      showToast('📸 Đã tải ảnh lên thành công! Hãy nhấn "Lưu Thay Đổi" để áp dụng.');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleAdminFounderUrlInput(event) {
+  const url = event.target.value.trim();
+  const photoPreview = document.getElementById('adminFounderPhotoPreview');
+  if (url) {
+    currentFounderPhotoBase64 = null;
+    if (photoPreview) photoPreview.src = url;
+  } else {
+    if (photoPreview) photoPreview.src = currentFounderPhotoBase64 || 'founder.jpg';
+  }
+}
+
+async function saveFounderConfig() {
+  const photoUrlInput = document.getElementById('adminFounderPhotoUrlInput');
+  const customUrl = photoUrlInput ? photoUrlInput.value.trim() : '';
+  const finalPhoto = customUrl || currentFounderPhotoBase64 || 'founder.jpg';
+
+  const name = (document.getElementById('adminFounderName')?.value || 'Nguyễn Viết Kha').trim();
+  const roleBadge = (document.getElementById('adminFounderRoleBadge')?.value || 'Nhà Sáng Lập & Chủ Tịch CEO').trim();
+  const title = (document.getElementById('adminFounderTitle')?.value || '').trim();
+  const bio = (document.getElementById('adminFounderBio')?.value || '').trim();
+  const quote = (document.getElementById('adminFounderQuoteText')?.value || '').trim();
+  const established = (document.getElementById('adminFounderEstablished')?.value || '').trim();
+  const createdFrom = (document.getElementById('adminFounderCreatedFrom')?.value || '').trim();
+  const purpose = (document.getElementById('adminFounderPurpose')?.value || '').trim();
+  const vision = (document.getElementById('adminFounderVision')?.value || '').trim();
+  const techStack = (document.getElementById('adminFounderTech')?.value || '').trim();
+  const mission = (document.getElementById('adminFounderMission')?.value || '').trim();
+  const githubUrl = (document.getElementById('adminFounderGithub')?.value || '').trim();
+  const facebookUrl = (document.getElementById('adminFounderFacebook')?.value || '').trim();
+  const linkedinUrl = (document.getElementById('adminFounderLinkedin')?.value || '').trim();
+
+  const configData = {
+    photoUrl: finalPhoto,
+    name,
+    roleBadge,
+    title,
+    bio,
+    quote,
+    quoteAuthor: `— ${name}, ${roleBadge}`,
+    established,
+    createdFrom,
+    purpose,
+    vision,
+    techStack,
+    mission,
+    githubUrl,
+    facebookUrl,
+    linkedinUrl,
+    updatedAt: Date.now()
+  };
+
+  localStorage.setItem('english_master_founder_config', JSON.stringify(configData));
+
+  if (db) {
+    try {
+      await db.collection('settings').doc('founder_info').set(configData, { merge: true });
+    } catch(e) {
+      console.warn('Firestore save founder config error:', e);
+    }
+  }
+
+  try {
+    if ('BroadcastChannel' in window) {
+      const channel = new BroadcastChannel('english_master_realtime_sync');
+      channel.postMessage({ type: 'FOUNDER_CONFIG_UPDATED', data: configData });
+    }
+  } catch(e) {}
+
+  showToast('🎉 Đã lưu thông tin & ảnh Nhà Sáng Lập thành công lên toàn hệ thống!');
+}
+
+async function resetFounderConfig() {
+  if (!confirm('Bạn có chắc chắn muốn khôi phục toàn bộ thông tin Nhà Sáng Lập về mặc định?')) return;
+  currentFounderPhotoBase64 = null;
+  populateFounderForm(DEFAULT_FOUNDER_CONFIG);
+  await saveFounderConfig();
+  showToast('🔄 Đã khôi phục cài đặt mặc định!');
+}
+
 
