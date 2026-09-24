@@ -136,7 +136,7 @@
   <!-- ================= VIEW 1: LANDING PAGE (POST-LOGIN ABOUT & WELCOME) ================= -->
   <main id="view-landing" class="app-view">
 
-    <!-- WELCOME HERO BANNER -->
+    <!-- 1. WELCOME HERO BANNER -->
     <section class="about-hero-banner">
       <div class="about-hero-blobs">
         <div class="about-blob ab1"></div>
@@ -145,143 +145,42 @@
       </div>
       <div class="about-hero-content">
         <div class="about-welcome-badge" id="landingWelcomeBadge">
-          <i class="fa-solid fa-star"></i> Chao mung den voi English Kha Master
+          <i class="fa-solid fa-star"></i> Chào mừng bạn đến với English Kha Master
         </div>
-        <h1 class="about-hero-title">Nen Tang Hoc Tieng Anh<br><span class="about-gradient-text">Thong Minh — Bang AI</span></h1>
-        <p class="about-hero-sub">Tu sinh vien CNTT den nen tang giao duc hien dai — chung toi giup ban hoc <strong>IELTS &amp; Tieng Anh Tieu hoc</strong> nhanh hon, hieu qua hon voi suc manh cua Gemini AI.</p>
+        <h1 class="about-hero-title">Nền Tảng Học Tiếng Anh<br><span class="about-gradient-text">Thông Minh — Bằng AI</span></h1>
+        <p class="about-hero-sub">Từ sinh viên CNTT đến nền tảng giáo dục hiện đại — chúng tôi giúp bạn học <strong>IELTS &amp; Tiếng Anh Tiểu học</strong> nhanh hơn, hiệu quả hơn với sức mạnh của Gemini AI.</p>
         <div class="about-hero-actions">
           <button class="btn-primary about-cta-btn" onclick="navigateTo('learn')">
-            <i class="fa-solid fa-rocket"></i> Bat dau hoc ngay
+            <i class="fa-solid fa-rocket"></i> Bắt đầu học ngay
           </button>
           <button class="btn-secondary about-cta-btn" onclick="navigateTo('explore')">
-            <i class="fa-solid fa-compass"></i> Kham pha bai hoc
+            <i class="fa-solid fa-compass"></i> Khám phá bài học
           </button>
         </div>
         <div class="about-stats-row">
-          <div class="about-stat-chip"><i class="fa-solid fa-users"></i><span>1,000+ hoc vien</span></div>
-          <div class="about-stat-chip"><i class="fa-solid fa-book-open"></i><span>500+ bai hoc AI</span></div>
-          <div class="about-stat-chip"><i class="fa-solid fa-award"></i><span>IELTS &amp; Tieu hoc</span></div>
+          <div class="about-stat-chip"><i class="fa-solid fa-users"></i><span>1,000+ Học viên</span></div>
+          <div class="about-stat-chip"><i class="fa-solid fa-book-open"></i><span>500+ Bài học AI</span></div>
+          <div class="about-stat-chip"><i class="fa-solid fa-award"></i><span>IELTS &amp; Tiểu học</span></div>
         </div>
       </div>
     </section>
 
-    <!-- WHAT YOU LEARN -->
-    <section class="about-section">
-      <div class="about-section-header">
-        <div class="about-section-tag"><i class="fa-solid fa-graduation-cap"></i> Noi dung hoc tap</div>
-        <h2 class="about-section-title">Ban Se Hoc Duoc Gi?</h2>
-        <p class="about-section-desc">Hai lo trinh hoc duoc thiet ke rieng — phu hop voi moi do tuoi va muc tieu</p>
-      </div>
-      <div class="about-courses-grid">
-        <div class="about-course-card about-course-ielts">
-          <div class="about-course-header">
-            <div class="about-course-icon-wrap ielts-icon"><i class="fa-solid fa-chart-line"></i></div>
-            <div>
-              <div class="about-course-badge">Luyen thi</div>
-              <h3 class="about-course-name">IELTS Academic</h3>
-            </div>
-          </div>
-          <p class="about-course-desc">He thong bai hoc theo 6 cap do CEFR (A1 den C2), bao gom day du 4 ky nang Reading, Listening, Writing va Speaking.</p>
-          <ul class="about-course-features">
-            <li><i class="fa-solid fa-check"></i> A1 – C2 theo chuan CEFR quoc te</li>
-            <li><i class="fa-solid fa-check"></i> Reading &amp; Listening tu van ban thuc te</li>
-            <li><i class="fa-solid fa-check"></i> Tu vung hoc thuat IELTS Band 4–9</li>
-            <li><i class="fa-solid fa-check"></i> Quiz 5 cau + Flashcard SRS moi bai</li>
-            <li><i class="fa-solid fa-check"></i> Luyen phat am Speaking bang AI mic</li>
-          </ul>
-          <div class="about-course-levels">
-            <span class="level-chip a1">A1</span><span class="level-chip a2">A2</span>
-            <span class="level-chip b1">B1</span><span class="level-chip b2">B2</span>
-            <span class="level-chip c1">C1</span><span class="level-chip c2">C2</span>
-          </div>
-          <button class="about-course-btn ielts-btn" onclick="navigateTo('learn');setTimeout(()=>switchMode('ielts'),100)">
-            <i class="fa-solid fa-arrow-right"></i> Vao hoc IELTS
-          </button>
-        </div>
-        <div class="about-course-card about-course-tieuhoc">
-          <div class="about-course-header">
-            <div class="about-course-icon-wrap tieuhoc-icon"><i class="fa-solid fa-child"></i></div>
-            <div>
-              <div class="about-course-badge tieuhoc-badge">Tieu hoc</div>
-              <h3 class="about-course-name">Tieng Anh Tieu Hoc</h3>
-            </div>
-          </div>
-          <p class="about-course-desc">Chuong trinh hoc theo tung lop tu Lop 1 den Lop 5, giup cac em nam vung tu vung, ngu phap co ban theo dung trinh do lop hoc.</p>
-          <ul class="about-course-features">
-            <li><i class="fa-solid fa-check"></i> Lop 1 den Lop 5 theo chuong trinh Bo GD&amp;DT</li>
-            <li><i class="fa-solid fa-check"></i> Bai hoc hinh anh sinh dong, de hieu</li>
-            <li><i class="fa-solid fa-check"></i> Tu vung: gia dinh, dong vat, mau sac...</li>
-            <li><i class="fa-solid fa-check"></i> Game hoa: XP, Huy hieu, Streak hang ngay</li>
-            <li><i class="fa-solid fa-check"></i> Phu huynh theo doi tien do hoc tap</li>
-          </ul>
-          <div class="about-course-levels">
-            <span class="level-chip lop">Lop 1</span><span class="level-chip lop">Lop 2</span>
-            <span class="level-chip lop">Lop 3</span><span class="level-chip lop">Lop 4</span>
-            <span class="level-chip lop">Lop 5</span>
-          </div>
-          <button class="about-course-btn tieuhoc-btn" onclick="navigateTo('learn');setTimeout(()=>switchMode('tieuhoc'),100)">
-            <i class="fa-solid fa-arrow-right"></i> Vao hoc Tieu Hoc
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- PLATFORM FEATURES -->
-    <section class="about-section about-section-alt">
-      <div class="about-section-header">
-        <div class="about-section-tag"><i class="fa-solid fa-sparkles"></i> Tinh nang noi bat</div>
-        <h2 class="about-section-title">Nen Tang Co Nhung Gi?</h2>
-        <p class="about-section-desc">Duoc xay dung voi cong nghe AI tien tien nhat, mang lai trai nghiem hoc tap vuot troi</p>
-      </div>
-      <div class="about-features-grid">
-        <div class="about-feature-card">
-          <div class="about-feature-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-          <h4>AI Tao Bai Hoc</h4>
-          <p>Dan bat ky doan van tieng Anh — Gemini AI lap tuc tao ra bai hoc hoan chinh voi tom tat, tu vung va quiz trong vai giay.</p>
-        </div>
-        <div class="about-feature-card">
-          <div class="about-feature-icon" style="background:linear-gradient(135deg,#0ea5e9,#2563eb)"><i class="fa-solid fa-layer-group"></i></div>
-          <h4>Flashcard 3D &amp; SRS</h4>
-          <p>The hoc tu vung lat 3D muot ma, ket hop he thong Spaced Repetition tu dong nhac dung luc ban sap quen.</p>
-        </div>
-        <div class="about-feature-card">
-          <div class="about-feature-icon" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"><i class="fa-solid fa-fire"></i></div>
-          <h4>Gamification</h4>
-          <p>Streak ngay hoc, diem XP, Huy hieu thanh tich va Bang xep hang toan cong dong — hoc ma nhu choi game.</p>
-        </div>
-        <div class="about-feature-card">
-          <div class="about-feature-icon" style="background:linear-gradient(135deg,#10b981,#059669)"><i class="fa-solid fa-microphone"></i></div>
-          <h4>Luyen Phat Am AI</h4>
-          <p>Web Speech API cham diem phat am theo thoi gian thuc. Noi — nhan diem — cai thien. Khong can giao vien.</p>
-        </div>
-        <div class="about-feature-card">
-          <div class="about-feature-icon" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)"><i class="fa-solid fa-comments"></i></div>
-          <h4>AI Chat 24/7</h4>
-          <p>Tro ly AI san sang giai thich ngu phap, dich nghia, goi y cach dung tu moi luc — khong can cho thay co.</p>
-        </div>
-        <div class="about-feature-card">
-          <div class="about-feature-icon" style="background:linear-gradient(135deg,#f97316,#fb923c)"><i class="fa-solid fa-trophy"></i></div>
-          <h4>Bang Xep Hang</h4>
-          <p>So sanh thoi gian hoc, bai hoan thanh va diem danh voi cong dong — dong luc hoc tap moi ngay khong bao gio tat.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- FOUNDER / CEO SECTION -->
+    <!-- 2. FOUNDER / CEO SECTION (ĐƯA LÊN ĐẦU TIÊN) -->
     <section class="about-section about-founder-section">
       <div class="about-section-header">
-        <div class="about-section-tag"><i class="fa-solid fa-crown"></i> Nha sang lap</div>
-        <h2 class="about-section-title">Chu So Huu &amp; CEO</h2>
+        <div class="about-section-tag"><i class="fa-solid fa-crown"></i> Ban Lãnh Đạo &amp; Nhà Sáng Lập</div>
+        <h2 class="about-section-title">Chủ Sở Hữu &amp; Chủ Tịch CEO</h2>
+        <p class="about-section-desc">Người trực tiếp sáng tạo, lập trình và phát triển nền tảng English Kha Master</p>
       </div>
       <div class="about-founder-card">
         <!-- LEFT: Photo -->
         <div class="about-founder-photo-col">
           <div class="about-founder-photo-wrap">
-            <img src="founder.jpg" alt="Nguyen Viet Kha CEO Founder" class="about-founder-img" onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=Nguyen+Viet+Kha&size=300&background=2563eb&color=fff&bold=true'">
+            <img src="founder.jpg" alt="Nguyễn Viết Kha CEO Founder" class="about-founder-img" onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=Nguyen+Viet+Kha&size=300&background=2563eb&color=fff&bold=true'">
             <div class="about-founder-glow"></div>
           </div>
           <div class="about-founder-role-badge">
-            <i class="fa-solid fa-crown"></i> Nha Sang Lap &amp; CEO
+            <i class="fa-solid fa-crown"></i> Nhà Sáng Lập &amp; Chủ Tịch CEO
           </div>
           <div class="about-founder-socials">
             <a href="https://github.com/zietkha" target="_blank" class="founder-social-btn" title="GitHub"><i class="fa-brands fa-github"></i></a>
@@ -292,76 +191,178 @@
         <!-- RIGHT: Info -->
         <div class="about-founder-info-col">
           <div class="about-founder-name-row">
-            <h3 class="about-founder-name">Nguyen Viet Kha</h3>
+            <h3 class="about-founder-name">Nguyễn Viết Kha</h3>
             <span class="about-founder-verified"><i class="fa-solid fa-circle-check"></i></span>
           </div>
-          <p class="about-founder-title-text">Sinh vien CNTT &middot; Truong Dai hoc HUTECH, TP.HCM</p>
-          <p class="about-founder-bio">Xuat phat tu niem dam me cong nghe va mong muon giup nguoi Viet hoc tieng Anh hieu qua hon, toi da tu thiet ke va xay dung <strong>English Kha Master</strong> — mot nen tang hoc tap hoan toan mien phi, tich hop tri tue nhan tao, danh cho moi lua tuoi.</p>
+          <p class="about-founder-title-text">Sinh viên CNTT &middot; Trường Đại học HUTECH, TP.HCM</p>
+          <p class="about-founder-bio">Xuất phát từ niềm đam mê công nghệ và mong muốn giúp người Việt học tiếng Anh hiệu quả hơn, tôi đã tự thiết kế và xây dựng <strong>English Kha Master</strong> — một nền tảng học tập hoàn toàn miễn phí, tích hợp trí tuệ nhân tạo AI hiện đại nhất dành cho mọi lứa tuổi.</p>
           <div class="about-founder-info-grid">
             <div class="about-info-item">
               <div class="about-info-icon"><i class="fa-solid fa-calendar-days"></i></div>
               <div>
-                <div class="about-info-label">Ngay thanh lap</div>
-                <div class="about-info-value">2024 &middot; TP. Ho Chi Minh</div>
+                <div class="about-info-label">Ngày thành lập</div>
+                <div class="about-info-value">2024 &middot; TP. Hồ Chí Minh</div>
               </div>
             </div>
             <div class="about-info-item">
               <div class="about-info-icon"><i class="fa-solid fa-lightbulb"></i></div>
               <div>
-                <div class="about-info-label">Sang tao tu</div>
-                <div class="about-info-value">Ca nhan &mdash; Khong von dau tu</div>
+                <div class="about-info-label">Sáng tạo từ</div>
+                <div class="about-info-value">Cá nhân &mdash; Khởi nguồn đam mê</div>
               </div>
             </div>
             <div class="about-info-item">
               <div class="about-info-icon"><i class="fa-solid fa-bullseye"></i></div>
               <div>
-                <div class="about-info-label">Muc dich</div>
-                <div class="about-info-value">Hoc tieng Anh mien phi &amp; hieu qua cho moi nguoi</div>
+                <div class="about-info-label">Mục đích</div>
+                <div class="about-info-value">Học tiếng Anh chuẩn &amp; miễn phí cho mọi người</div>
               </div>
             </div>
             <div class="about-info-item">
               <div class="about-info-icon"><i class="fa-solid fa-star"></i></div>
               <div>
-                <div class="about-info-label">Ky vong</div>
-                <div class="about-info-value">Tro thanh nen tang EdTech hang dau Viet Nam</div>
+                <div class="about-info-label">Kỳ vọng</div>
+                <div class="about-info-value">Trở thành nền tảng EdTech AI hàng đầu Việt Nam</div>
               </div>
             </div>
             <div class="about-info-item">
               <div class="about-info-icon"><i class="fa-solid fa-code"></i></div>
               <div>
-                <div class="about-info-label">Cong nghe</div>
-                <div class="about-info-value">Gemini AI &middot; Firebase &middot; Netlify</div>
+                <div class="about-info-label">Công nghệ</div>
+                <div class="about-info-value">Gemini AI &middot; Firebase &middot; Netlify &middot; Speech AI</div>
               </div>
             </div>
             <div class="about-info-item">
               <div class="about-info-icon"><i class="fa-solid fa-heart"></i></div>
               <div>
-                <div class="about-info-label">Su menh</div>
-                <div class="about-info-value">&ldquo;Moi nguoi Viet deu xung dang co co hoi hoc tot&rdquo;</div>
+                <div class="about-info-label">Sứ mệnh</div>
+                <div class="about-info-value">&ldquo;Mọi người Việt đều xứng đáng có cơ hội học tập tốt nhất&rdquo;</div>
               </div>
             </div>
           </div>
           <blockquote class="about-founder-quote">
             <i class="fa-solid fa-quote-left"></i>
-            Toi tin rang cong nghe AI co the giup bat ky ai &mdash; du o dau, du dieu kien nao &mdash; cung co the hoc tieng Anh dat chuan quoc te. Do la ly do English Kha Master ra doi.
-            <footer>&mdash; Nguyen Viet Kha, CEO &amp; Founder</footer>
+            Tôi tin rằng công nghệ và trí tuệ nhân tạo có thể giúp bất kỳ ai &mdash; dù ở bất kỳ đâu, điều kiện nào &mdash; cũng có thể học tiếng Anh đạt chuẩn quốc tế một cách dễ dàng và hiệu quả nhất. Đó là lý do English Kha Master ra đời.
+            <footer>&mdash; Nguyễn Viết Kha, Nhà Sáng Lập &amp; Chủ Tịch CEO</footer>
           </blockquote>
         </div>
       </div>
     </section>
 
-    <!-- QUICK START CTA -->
+    <!-- 3. WHAT YOU LEARN (NỘI DUNG HỌC TẬP) -->
+    <section class="about-section">
+      <div class="about-section-header">
+        <div class="about-section-tag"><i class="fa-solid fa-graduation-cap"></i> Nội dung học tập</div>
+        <h2 class="about-section-title">Bạn Sẽ Học Được Những Gì?</h2>
+        <p class="about-section-desc">Hai lộ trình học tập được thiết kế riêng biệt — phù hợp với mọi độ tuổi và mục tiêu học tập</p>
+      </div>
+      <div class="about-courses-grid">
+        <div class="about-course-card about-course-ielts">
+          <div class="about-course-header">
+            <div class="about-course-icon-wrap ielts-icon"><i class="fa-solid fa-chart-line"></i></div>
+            <div>
+              <div class="about-course-badge">Luyện thi Quốc tế</div>
+              <h3 class="about-course-name">IELTS Academic &amp; General</h3>
+            </div>
+          </div>
+          <p class="about-course-desc">Hệ thống bài học theo 6 cấp độ CEFR (A1 đến C2), tích hợp đầy đủ 4 kỹ năng Reading, Listening, Writing và Speaking.</p>
+          <ul class="about-course-features">
+            <li><i class="fa-solid fa-check"></i> Chuẩn khung Châu Âu A1 – C2 (CEFR)</li>
+            <li><i class="fa-solid fa-check"></i> Luyện Reading &amp; Listening từ văn bản thực tế</li>
+            <li><i class="fa-solid fa-check"></i> Từ vựng học thuật chuyên sâu IELTS Band 4.0 – 9.0</li>
+            <li><i class="fa-solid fa-check"></i> Quiz 5 câu trắc nghiệm + Flashcard SRS ghi nhớ sâu</li>
+            <li><i class="fa-solid fa-check"></i> Luyện phát âm Speaking AI chấm điểm trực tiếp</li>
+          </ul>
+          <div class="about-course-levels">
+            <span class="level-chip a1">A1</span><span class="level-chip a2">A2</span>
+            <span class="level-chip b1">B1</span><span class="level-chip b2">B2</span>
+            <span class="level-chip c1">C1</span><span class="level-chip c2">C2</span>
+          </div>
+          <button class="about-course-btn ielts-btn" onclick="navigateTo('learn');setTimeout(()=>switchMode('ielts'),100)">
+            <i class="fa-solid fa-arrow-right"></i> Vào học IELTS Ngay
+          </button>
+        </div>
+        <div class="about-course-card about-course-tieuhoc">
+          <div class="about-course-header">
+            <div class="about-course-icon-wrap tieuhoc-icon"><i class="fa-solid fa-child"></i></div>
+            <div>
+              <div class="about-course-badge tieuhoc-badge">Tiểu học</div>
+              <h3 class="about-course-name">Tiếng Anh Tiểu Học (Lớp 1 – 5)</h3>
+            </div>
+          </div>
+          <p class="about-course-desc">Chương trình bám sát theo từng lớp từ Lớp 1 đến Lớp 5 của Bộ GD&amp;ĐT, giúp học sinh nắm vững từ vựng và ngữ pháp qua hình ảnh sinh động.</p>
+          <ul class="about-course-features">
+            <li><i class="fa-solid fa-check"></i> Chuẩn khung chương trình Bộ GD&amp;ĐT Lớp 1 – 5</li>
+            <li><i class="fa-solid fa-check"></i> Bài học hình ảnh minh họa sinh động, dễ tiếp thu</li>
+            <li><i class="fa-solid fa-check"></i> Từ vựng gần gũi: Gia đình, bạn bè, động vật, màu sắc...</li>
+            <li><i class="fa-solid fa-check"></i> Game hóa học tập: Tích XP, Chuỗi Streak, Nhận Huy hiệu</li>
+            <li><i class="fa-solid fa-check"></i> Báo cáo tiến độ giúp phụ huynh dễ dàng đồng hành</li>
+          </ul>
+          <div class="about-course-levels">
+            <span class="level-chip lop">Lớp 1</span><span class="level-chip lop">Lớp 2</span>
+            <span class="level-chip lop">Lớp 3</span><span class="level-chip lop">Lớp 4</span>
+            <span class="level-chip lop">Lớp 5</span>
+          </div>
+          <button class="about-course-btn tieuhoc-btn" onclick="navigateTo('learn');setTimeout(()=>switchMode('tieuhoc'),100)">
+            <i class="fa-solid fa-arrow-right"></i> Vào học Tiểu Học Ngay
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. PLATFORM FEATURES (TÍNH NĂNG NỔI BẬT) -->
+    <section class="about-section about-section-alt">
+      <div class="about-section-header">
+        <div class="about-section-tag"><i class="fa-solid fa-sparkles"></i> Tính năng vượt trội</div>
+        <h2 class="about-section-title">Nền Tảng Có Những Gì Nổi Bật?</h2>
+        <p class="about-section-desc">Được xây dựng với công nghệ AI tiên tiến nhất, mang lại trải nghiệm học tập vượt trội</p>
+      </div>
+      <div class="about-features-grid">
+        <div class="about-feature-card">
+          <div class="about-feature-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+          <h4>AI Soạn Bài Tự Động</h4>
+          <p>Dán bất kỳ đoạn văn tiếng Anh nào — Gemini AI lập tức tạo ra bài học hoàn chỉnh kèm tóm tắt, từ vựng và quiz trong vài giây.</p>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon" style="background:linear-gradient(135deg,#0ea5e9,#2563eb)"><i class="fa-solid fa-layer-group"></i></div>
+          <h4>Flashcard 3D &amp; Thuật Toán SRS</h4>
+          <p>Thẻ học từ vựng lật 3D mượt mà, kết hợp hệ thống Lặp lại ngắt quãng (Spaced Repetition) tự động nhắc bài đúng lúc bạn sắp quên.</p>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"><i class="fa-solid fa-fire"></i></div>
+          <h4>Gamification Đua Top</h4>
+          <p>Chuỗi ngày học Streak, điểm kinh nghiệm XP, Huy hiệu thành tích và Bảng xếp hạng cộng đồng — học tiếng Anh cuốn hút như chơi game.</p>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon" style="background:linear-gradient(135deg,#10b981,#059669)"><i class="fa-solid fa-microphone"></i></div>
+          <h4>Luyện Phát Âm AI</h4>
+          <p>Web Speech AI nhận diện và chấm điểm phát âm theo thời gian thực. Nói — Nhận phản hồi — Chuẩn hóa giọng đọc chuẩn bản xứ.</p>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)"><i class="fa-solid fa-comments"></i></div>
+          <h4>Trợ Lý AI Đồng Hành 24/7</h4>
+          <p>Trợ lý AI luôn sẵn sàng giải thích ngữ pháp, dịch nghĩa từ vựng, gợi ý cách dùng từ mọi lúc — học không cần chờ đợi.</p>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon" style="background:linear-gradient(135deg,#f97316,#fb923c)"><i class="fa-solid fa-trophy"></i></div>
+          <h4>Bảng Xếp Hạng Toàn Quốc</h4>
+          <p>So sánh tiến độ, số bài hoàn thành và điểm số thi đua cùng bạn bè khắp mọi nơi — giữ vững động lực học mỗi ngày.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. QUICK START CTA -->
     <section class="about-cta-section">
       <div class="about-cta-card">
         <div class="about-cta-blob"></div>
-        <h2 class="about-cta-title">San sang bat dau hanh trinh hoc tieng Anh?</h2>
-        <p class="about-cta-desc">Tham gia cung hang nghin hoc vien dang hoc moi ngay tren English Kha Master &mdash; mien phi, khong gioi han.</p>
+        <h2 class="about-cta-title">Sẵn sàng bắt đầu hành trình chinh phục Tiếng Anh?</h2>
+        <p class="about-cta-desc">Gia nhập cùng hàng nghìn học viên đang học tập mỗi ngày trên English Kha Master &mdash; Hoàn toàn miễn phí, không giới hạn.</p>
         <div class="about-cta-actions">
           <button class="btn-primary about-cta-btn" onclick="navigateTo('learn')">
-            <i class="fa-solid fa-play"></i> Hoc ngay hom nay
+            <i class="fa-solid fa-play"></i> Bắt đầu học ngay hôm nay
           </button>
           <button class="btn-secondary about-cta-btn" onclick="navigateTo('explore')">
-            <i class="fa-solid fa-compass"></i> Xem bai hoc mau
+            <i class="fa-solid fa-compass"></i> Xem bài học mẫu
           </button>
         </div>
       </div>

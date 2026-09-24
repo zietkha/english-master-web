@@ -4,7 +4,7 @@
  */
 
 const state = {
-  currentView: 'learn', // 'landing' | 'login' | 'learn' | 'explore' | 'leaderboard' | 'mylessons' | 'profile' | 'admin'
+  currentView: 'landing', // 'landing' | 'login' | 'learn' | 'explore' | 'leaderboard' | 'mylessons' | 'profile' | 'admin'
   currentMode: 'ielts', // 'ielts' | 'tieuhoc'
   theme: localStorage.getItem('english_master_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
   db: null,
@@ -35,7 +35,7 @@ const state = {
   activeExploreTag: 'All',
   myLessonsTab: 'created',
   pendingRoute: null,
-  lastNonLessonHash: '#/learn'
+  lastNonLessonHash: '#/landing'
 };
 
 const BADGES_LIST = [
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initUiListeners();
   initLevelAndSkillEngine();
   initActivityTracker();
-  navigateTo('learn', false);
+  navigateTo('landing', false);
   initRouter();
   setTimeout(checkOnboardingStatus, 800);
 });
@@ -75,7 +75,7 @@ function updateLandingWelcome() {
     ? state.currentUser.name.split(' ')[0]
     : null;
   if (name) {
-    badge.innerHTML = `<i class="fa-solid fa-star"></i> Xin chao, ${name}! Chao mung den voi English Kha Master`;
+    badge.innerHTML = `<i class="fa-solid fa-star"></i> Xin chào, ${name}! Chào mừng bạn đến với English Kha Master`;
   }
 }
 
@@ -2501,7 +2501,7 @@ function handleHashRoute() {
     }
   } else if (route === 'chat') {
     openAssistantChat();
-  } else if (['leaderboard', 'explore', 'mylessons', 'profile'].includes(route)) {
+  } else if (['landing', 'leaderboard', 'explore', 'mylessons', 'profile'].includes(route)) {
     state.lastNonLessonHash = window.location.hash;
     navigateTo(route, false);
   }
