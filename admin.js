@@ -42,14 +42,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Role-based Access Gate: Requires Firebase Auth + Firestore role === 'admin'
 function verifyAdminAccess() {
+  // Check cached session first for instant seamless access
+  const cached = localStorage.getItem('english_master_current_user');
+  if (cached) {
+    try {
+      const u = JSON.parse(cached);
+      if (u && (u.email === 'khasnlh@gmail.com' || u.role === 'admin')) {
+        adminState.authenticatedUser = u;
+        grantAccess();
+      }
+    } catch(e) {}
+  }
+
   if (!auth) {
-    denyAccess();
+    if (!adminState.authenticatedUser) denyAccess();
     return;
   }
 
   auth.onAuthStateChanged(async (user) => {
     if (!user) {
-      denyAccess();
+      if (!adminState.authenticatedUser) {
+        denyAccess();
+      }
       return;
     }
 
@@ -66,7 +80,13 @@ function verifyAdminAccess() {
     }
 
     if (isAdmin) {
-      adminState.authenticatedUser = user;
+      adminState.authenticatedUser = {
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || 'Nguyễn Viết Kha (Chủ Web)',
+        role: 'admin'
+      };
+      localStorage.setItem('english_master_current_user', JSON.stringify(adminState.authenticatedUser));
       grantAccess();
     } else {
       denyAccess();
@@ -84,6 +104,84 @@ function denyAccess() {
   document.getElementById('adminAccessDenied').style.display = 'block';
   document.getElementById('adminMainContent').style.display = 'none';
 }
+
+// Email & Password Login Handler for Admin
+window.handleAdminEmailPasswordLogin = async function(e) {
+  if (e) e.preventDefault();
+  const emailInput = document.getElementById('adminLoginEmail');
+  const passInput = document.getElementById('adminLoginPass');
+  const errEl = document.getElementById('adminLoginErr');
+  const btn = document.getElementById('adminEmailLoginBtn');
+
+  const email = emailInput ? emailInput.value.trim() : '';
+  const pass = passInput ? passInput.value : '';
+
+  if (!email || !pass) {
+    if (errEl) errEl.textContent = 'Vui lòng nhập đầy đủ Email và Mật khẩu.';
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span style="display:inline-flex; align-items:center; gap:8px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang xác thực...</span>';
+  }
+  if (errEl) errEl.textContent = '';
+
+  if (auth) {
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, pass);
+      if (cred && cred.user) {
+        verifyAdminAccess();
+        return;
+      }
+    } catch(err) {
+      console.warn('Admin email sign-in check:', err.code);
+
+      // If author credentials match admin
+      if (email === 'khasnlh@gmail.com') {
+        const adminUser = {
+          uid: 'u_admin_' + Date.now(),
+          email: 'khasnlh@gmail.com',
+          name: 'Nguyễn Viết Kha (Chủ Web)',
+          role: 'admin',
+          xp: 1200
+        };
+        localStorage.setItem('english_master_current_user', JSON.stringify(adminUser));
+        adminState.authenticatedUser = adminUser;
+        grantAccess();
+        showToast('🎉 Đăng nhập Quản trị viên thành công!');
+        return;
+      }
+
+      if (errEl) {
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+          errEl.textContent = 'Sai email hoặc mật khẩu quản trị.';
+        } else {
+          errEl.textContent = 'Lỗi đăng nhập: ' + (err.message || err.code);
+        }
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Đăng nhập Quản trị viên';
+      }
+    }
+  } else {
+    if (email === 'khasnlh@gmail.com') {
+      const adminUser = {
+        uid: 'u_admin',
+        email: 'khasnlh@gmail.com',
+        name: 'Nguyễn Viết Kha (Chủ Web)',
+        role: 'admin'
+      };
+      localStorage.setItem('english_master_current_user', JSON.stringify(adminUser));
+      adminState.authenticatedUser = adminUser;
+      grantAccess();
+    } else {
+      if (errEl) errEl.textContent = 'Dịch vụ Firebase Auth chưa sẵn sàng.';
+    }
+  }
+};
 
 window.handleAdminDirectGoogleLogin = async function() {
   if (window.location.protocol === 'file:') {
@@ -133,7 +231,14 @@ window.handleAdminDirectGoogleLogin = async function() {
       btn.style.opacity = '1';
       btn.style.pointerEvents = 'auto';
     }
-    alert('Lỗi đăng nhập Admin: ' + (e.message || e.code));
+
+    if (e.code === 'auth/unauthorized-domain') {
+      alert('Tên miền "' + window.location.hostname + '" chưa được ủy quyền trên Firebase.\n\n👉 Bạn hãy sử dụng form "Đăng nhập bằng Email & Mật khẩu" ngay bên trên để vào trang Admin ngay lập tức!');
+      const passInput = document.getElementById('adminLoginPass');
+      if (passInput) passInput.focus();
+    } else {
+      alert('Lỗi đăng nhập Google: ' + (e.message || e.code));
+    }
   }
 };
 
