@@ -481,6 +481,17 @@
           <h2 class="card-title"><i class="fa-regular fa-id-card"></i> Thông tin cá nhân</h2>
         </div>
         <form onsubmit="handleUpdateProfile(event)">
+          <!-- Account Security Status Card -->
+          <div class="account-security-card" style="display: flex; gap: 12px; align-items: center; padding: 12px 16px; background: var(--surface-2); border-radius: 12px; margin-bottom: 18px; border: 1px solid var(--border);">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(16,185,129,0.12); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+              <i class="fa-solid fa-shield-check"></i>
+            </div>
+            <div>
+              <div style="font-size: 0.88rem; font-weight: 700; color: var(--text-1);">Bảo mật tài khoản: <span style="color: #10b981;">Đã kích hoạt</span></div>
+              <div id="profileSecurityInfo" style="font-size: 0.78rem; color: var(--text-3);">Xác thực an toàn qua Firebase Auth</div>
+            </div>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Họ và tên</label>
             <input type="text" id="profileNameInput" class="form-input" required>
@@ -491,7 +502,18 @@
           </div>
           <div class="form-group">
             <label class="form-label">Mật khẩu mới (Bỏ trống nếu không đổi)</label>
-            <input type="password" id="profilePassInput" class="form-input">
+            <input type="password" id="profilePassInput" class="form-input" placeholder="••••••••" oninput="handleProfilePassInput()">
+            <div class="password-strength-wrap" id="profileStrengthWrap" style="display: none; margin-top: 6px;">
+              <div style="height: 4px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 4px;">
+                <div id="profilePassStrengthBar" style="height: 100%; width: 0%; transition: all 0.25s ease; border-radius: 999px;"></div>
+              </div>
+              <div id="profilePassStrengthText" style="font-size: 0.76rem; font-weight: 600; color: var(--text-3);">Độ mạnh mật khẩu</div>
+            </div>
+          </div>
+          <div class="form-group" id="profileConfirmPassGroup" style="display: none;">
+            <label class="form-label">Xác nhận mật khẩu mới</label>
+            <input type="password" id="profileConfirmPassInput" class="form-input" placeholder="••••••••">
+            <div id="profilePassErr" style="color: var(--danger); font-size: 0.8rem; margin-top: 4px; font-weight: 600;"></div>
           </div>
           <button type="submit" class="btn-primary">Lưu thay đổi</button>
         </form>
@@ -533,6 +555,9 @@
           <div class="lesson-card-meta" id="modalMeta"></div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn-subtle share-lesson-btn" onclick="shareCurrentLesson()" title="Sao chép liên kết bài học để chia sẻ" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(37,99,235,0.08); color: var(--blue); border: 1px solid rgba(37,99,235,0.2); font-size: 0.82rem; font-weight: 600; cursor: pointer;">
+            <i class="fa-solid fa-share-nodes"></i> <span class="hide-mobile">Chia sẻ</span>
+          </button>
           <button class="report-btn" onclick="handleReportLesson()" title="Báo cáo bài học có nội dung không chính xác">
             <i class="fa-regular fa-flag"></i> Báo cáo
           </button>
@@ -978,7 +1003,13 @@
       <form id="forcePasswordForm" onsubmit="handleForcePasswordSubmit(event)">
         <div class="form-group">
           <label class="form-label" for="forceNewPass">Mật khẩu mới (tối thiểu 6 ký tự)</label>
-          <input type="password" id="forceNewPass" class="form-input" required placeholder="••••••••" minlength="6">
+          <input type="password" id="forceNewPass" class="form-input" required placeholder="••••••••" minlength="6" oninput="updatePasswordStrengthDisplay('forceNewPass', 'forcePassStrengthBar', 'forcePassStrengthText')">
+          <div class="password-strength-wrap" style="margin-top: 6px;">
+            <div style="height: 4px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 4px;">
+              <div id="forcePassStrengthBar" style="height: 100%; width: 0%; transition: all 0.25s ease; border-radius: 999px;"></div>
+            </div>
+            <div id="forcePassStrengthText" style="font-size: 0.76rem; font-weight: 600; color: var(--text-3);">Nhập mật khẩu (tối thiểu 6 ký tự)</div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="forceConfirmPass">Xác nhận mật khẩu mới</label>

@@ -33,7 +33,9 @@ const state = {
   aiUsageCount: parseInt(localStorage.getItem('english_master_ai_calls') || '0', 10),
   syncChannel: null,
   activeExploreTag: 'All',
-  myLessonsTab: 'created'
+  myLessonsTab: 'created',
+  pendingRoute: null,
+  lastNonLessonHash: '#/learn'
 };
 
 const BADGES_LIST = [
@@ -719,6 +721,22 @@ function renderLessonsList() {
   const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
   if (!container) return;
+
+  // Section 11: Process any pending asynchronous deep link once lessons are loaded
+  if (state.pendingRoute && state.pendingRoute.route === 'lesson') {
+    const all = [...(state.lessons.ielts || []), ...(state.lessons.tieuhoc || [])];
+    const target = all.find(l => l.id && l.id.toLowerCase() === state.pendingRoute.sub1.toLowerCase());
+    if (target) {
+      const sub2 = state.pendingRoute.sub2;
+      state.pendingRoute = null;
+      setTimeout(() => {
+        openLessonModal(target.id, false);
+        if (sub2 && ['summary', 'vocab', 'flashcard', 'quiz'].includes(sub2)) {
+          switchViewTab(sub2);
+        }
+      }, 150);
+    }
+  }
 
   const activeLessons = state.lessons[state.currentMode] || [];
 
@@ -1539,6 +1557,21 @@ function renderProfilePage() {
   document.getElementById('profileNameInput').value = state.currentUser.name;
   document.getElementById('profileEmailInput').value = state.currentUser.email;
 
+  const secInfo = document.getElementById('profileSecurityInfo');
+  if (secInfo) {
+    const isGoogle = state.auth?.currentUser?.providerData?.some(p => p.providerId === 'google.com');
+    secInfo.textContent = isGoogle 
+      ? 'Đăng nhập bảo mật qua Tài khoản Google'
+      : 'Bảo mật tài khoản bằng Email & Mật khẩu mã hóa';
+  }
+
+  // Reset password inputs
+  const pInput = document.getElementById('profilePassInput');
+  const cInput = document.getElementById('profileConfirmPassInput');
+  if (pInput) pInput.value = '';
+  if (cInput) cInput.value = '';
+  handleProfilePassInput();
+
   const badgesGrid = document.getElementById('badgesGrid');
   if (!badgesGrid) return;
 
@@ -1561,7 +1594,23 @@ async function handleUpdateProfile(e) {
   if (!state.currentUser) return;
 
   const newName = document.getElementById('profileNameInput').value.trim();
-  const newPass = document.getElementById('profilePassInput').value.trim();
+  const newPass = document.getElementById('profilePassInput')?.value.trim() || '';
+  const confirmPass = document.getElementById('profileConfirmPassInput')?.value.trim() || '';
+  const errEl = document.getElementById('profilePassErr');
+  if (errEl) errEl.textContent = '';
+
+  if (newPass) {
+    if (newPass.length < 6) {
+      showToast('⚠️ Mật khẩu mới phải có ít nhất 6 ký tự!', 'danger');
+      if (errEl) errEl.textContent = 'Mật khẩu phải từ 6 ký tự trở lên.';
+      return;
+    }
+    if (newPass !== confirmPass) {
+      showToast('⚠️ Mật khẩu xác nhận không khớp!', 'danger');
+      if (errEl) errEl.textContent = 'Mật khẩu xác nhận không khớp.';
+      return;
+    }
+  }
 
   if (newName) {
     state.currentUser.name = newName;
@@ -1573,10 +1622,6 @@ async function handleUpdateProfile(e) {
         await state.auth.currentUser.updateProfile({ displayName: newName });
       }
       if (newPass) {
-        if (newPass.length < 6) {
-          showToast('⚠️ Mật khẩu mới phải có ít nhất 6 ký tự!', 'danger');
-          return;
-        }
         await state.auth.currentUser.updatePassword(newPass);
       }
       if (state.db) {
@@ -1593,7 +1638,15 @@ async function handleUpdateProfile(e) {
 
   saveCurrentUserToStorage();
   updateAuthUi();
-  showToast('✅ Đã cập nhật thông tin cá nhân thành công!');
+
+  // Reset inputs
+  const pInput = document.getElementById('profilePassInput');
+  const cInput = document.getElementById('profileConfirmPassInput');
+  if (pInput) pInput.value = '';
+  if (cInput) cInput.value = '';
+  handleProfilePassInput();
+
+  showToast('✅ Đã cập nhật hồ sơ và bảo mật thành công!');
 }
 
 /* ==========================================================================
@@ -1686,6 +1739,9 @@ function openLessonModal(id, updateHash = true) {
   if (modalBody) modalBody.scrollTop = 0;
 
   if (updateHash) {
+    if (window.location.hash && !window.location.hash.startsWith('#/lesson/')) {
+      state.lastNonLessonHash = window.location.hash;
+    }
     updateHashRoute(`#/lesson/${id}`);
   }
 }
@@ -1694,11 +1750,24 @@ function closeLessonModal() {
   const modal = document.getElementById('lessonModal');
   if (modal) modal.classList.remove('active');
   state.activeLesson = null;
+  updateHashRoute(state.lastNonLessonHash || '#/learn');
+}
 
-  const mode = state.currentMode;
-  const sub = mode === 'tieuhoc' ? `lop${state.selectedGrade || '3'}` : (state.selectedLevel || 'b1').toLowerCase();
-  const skillPart = state.selectedSkill ? `/${state.selectedSkill}` : '';
-  updateHashRoute(`#/${mode}/${sub}${skillPart}`);
+function shareCurrentLesson() {
+  if (!state.activeLesson) return;
+  const currentTab = state.activeViewTab || 'summary';
+  const tabPart = currentTab !== 'summary' ? `/${currentTab}` : '';
+  const shareUrl = `${window.location.origin}${window.location.pathname}#/lesson/${state.activeLesson.id}${tabPart}`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast('🔗 Đã sao chép liên kết bài học! Bạn có thể gửi cho bạn bè để cùng học.', 'success');
+    }).catch(() => {
+      prompt('Sao chép liên kết bài học này:', shareUrl);
+    });
+  } else {
+    prompt('Sao chép liên kết bài học này:', shareUrl);
+  }
 }
 
 function handleModalOverlayClick(e) {
@@ -2358,7 +2427,7 @@ function nextOnboardingStep() {
 function initRouter() {
   window.addEventListener('hashchange', handleHashRoute);
   if (window.location.hash) {
-    setTimeout(handleHashRoute, 200);
+    setTimeout(handleHashRoute, 250);
   }
 }
 
@@ -2370,6 +2439,7 @@ function handleHashRoute() {
   const [route, sub1, sub2] = parts;
 
   if (route === 'tieuhoc') {
+    state.lastNonLessonHash = window.location.hash;
     navigateTo('learn', false);
     switchMode('tieuhoc', false);
     if (sub1) {
@@ -2382,6 +2452,7 @@ function handleHashRoute() {
       selectSkill(sub2, false);
     }
   } else if (route === 'ielts') {
+    state.lastNonLessonHash = window.location.hash;
     navigateTo('learn', false);
     switchMode('ielts', false);
     if (sub1) {
@@ -2395,11 +2466,20 @@ function handleHashRoute() {
     }
   } else if (route === 'lesson' && sub1) {
     const all = [...(state.lessons.ielts || []), ...(state.lessons.tieuhoc || [])];
-    const target = all.find(l => l.id.toLowerCase() === sub1.toLowerCase());
+    const target = all.find(l => l.id && l.id.toLowerCase() === sub1.toLowerCase());
     if (target) {
       openLessonModal(target.id, false);
+      if (sub2 && ['summary', 'vocab', 'flashcard', 'quiz'].includes(sub2)) {
+        switchViewTab(sub2);
+      }
+    } else {
+      // Save pending route for when lessons are loaded from Firestore
+      state.pendingRoute = { route, sub1, sub2 };
     }
+  } else if (route === 'chat') {
+    openAssistantChat();
   } else if (['leaderboard', 'explore', 'mylessons', 'profile'].includes(route)) {
+    state.lastNonLessonHash = window.location.hash;
     navigateTo(route, false);
   }
 }
@@ -2411,8 +2491,53 @@ function updateHashRoute(newHash) {
 }
 
 /* ==========================================================================
-   Section 12: Force Password Change Handler (Mục 2.5 & 3.2)
+   Section 12: Password Security & Force Password Change Handler (Mục 2.5 & 3.2 & 5.7)
    ========================================================================== */
+
+function calculatePasswordStrength(pass) {
+  if (!pass) return { score: 0, text: 'Chưa nhập mật khẩu', color: 'var(--text-3)', width: '0%' };
+  if (pass.length < 6) return { score: 1, text: 'Quá ngắn (tối thiểu 6 ký tự)', color: '#ef4444', width: '25%' };
+  
+  let strength = 1;
+  if (pass.length >= 8) strength++;
+  if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) strength++;
+  if (/[0-9]/.test(pass)) strength++;
+  if (/[^A-Za-z0-9]/.test(pass)) strength++;
+
+  if (strength <= 2) {
+    return { score: 2, text: 'Độ mạnh: Yếu (nên thêm số & chữ hoa)', color: '#f59e0b', width: '45%' };
+  } else if (strength <= 4) {
+    return { score: 3, text: 'Độ mạnh: Khá tốt (đạt chuẩn)', color: '#3b82f6', width: '75%' };
+  } else {
+    return { score: 4, text: 'Độ mạnh: Rất an toàn 🔥', color: '#10b981', width: '100%' };
+  }
+}
+
+function updatePasswordStrengthDisplay(inputId, barId, textId) {
+  const input = document.getElementById(inputId);
+  const bar = document.getElementById(barId);
+  const text = document.getElementById(textId);
+  if (!input || !bar || !text) return;
+  const res = calculatePasswordStrength(input.value);
+  bar.style.width = res.width;
+  bar.style.backgroundColor = res.color;
+  text.textContent = res.text;
+  text.style.color = res.color;
+}
+
+function handleProfilePassInput() {
+  const pass = document.getElementById('profilePassInput')?.value || '';
+  const confirmGroup = document.getElementById('profileConfirmPassGroup');
+  const strengthWrap = document.getElementById('profileStrengthWrap');
+  if (pass.length > 0) {
+    if (confirmGroup) confirmGroup.style.display = 'block';
+    if (strengthWrap) strengthWrap.style.display = 'block';
+    updatePasswordStrengthDisplay('profilePassInput', 'profilePassStrengthBar', 'profilePassStrengthText');
+  } else {
+    if (confirmGroup) confirmGroup.style.display = 'none';
+    if (strengthWrap) strengthWrap.style.display = 'none';
+  }
+}
 
 async function handleForcePasswordSubmit(e) {
   e.preventDefault();
