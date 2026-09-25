@@ -466,21 +466,30 @@ async function handleSuccessfulLogin(user) {
   let role = (user.email === 'khasnlh@gmail.com') ? 'admin' : 'learner';
   if (db) {
     try {
-      const userDoc = await db.collection('users').doc(user.uid).get();
+      const now = Date.now();
+      const isNew = !userDoc.exists;
       if (userDoc.exists && userDoc.data().role) {
         role = (user.email === 'khasnlh@gmail.com') ? 'admin' : userDoc.data().role;
-      } else {
-        await db.collection('users').doc(user.uid).set({
-          name: user.displayName || (user.email ? user.email.split('@')[0] : 'Học viên'),
-          email: user.email,
-          role: role,
-          xp: 100,
-          streak: 1,
-          status: 'active',
-          badges: ['first_lesson'],
-          createdAt: Date.now()
-        }, { merge: true });
       }
+      await db.collection('users').doc(user.uid).set({
+        name: user.displayName || (user.email ? user.email.split('@')[0] : 'Học viên'),
+        email: user.email,
+        role: role,
+        status: userDoc.exists && userDoc.data().status ? userDoc.data().status : 'active',
+        lastLoginAt: now,
+        loginCount: firebase.firestore.FieldValue.increment(1),
+        ...(isNew ? { xp: 100, streak: 1, badges: ['first_lesson'], createdAt: now } : {})
+      }, { merge: true });
+
+      try {
+        await db.collection('login_logs').add({
+          uid: user.uid,
+          name: user.displayName || user.email.split('@')[0],
+          email: user.email,
+          type: isNew ? 'signup_google' : 'login_google',
+          timestamp: now
+        });
+      } catch(e) {}
     } catch(err) {
       console.warn('Firestore user profile sync error:', err);
     }
@@ -683,6 +692,19 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
             streak = ud.streak || streak;
             forcePasswordChange = Boolean(ud.forcePasswordChange);
           }
+          await db.collection('users').doc(userCred.user.uid).set({
+            lastLoginAt: Date.now(),
+            loginCount: firebase.firestore.FieldValue.increment(1)
+          }, { merge: true });
+          try {
+            await db.collection('login_logs').add({
+              uid: userCred.user.uid,
+              name: name,
+              email: email,
+              type: 'login_email',
+              timestamp: Date.now()
+            });
+          } catch(e) {}
         } catch(e) {}
       }
 
@@ -756,14 +778,27 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
       const cred = await auth.createUserWithEmailAndPassword(email, pass);
       await cred.user.updateProfile({ displayName: name });
       if (db) {
+        const now = Date.now();
         await db.collection('users').doc(cred.user.uid).set({
           name: name,
           email: email,
           role: 'learner',
+          status: 'active',
           xp: 50,
           streak: 1,
-          createdAt: Date.now()
+          createdAt: now,
+          lastLoginAt: now,
+          loginCount: 1
         });
+        try {
+          await db.collection('login_logs').add({
+            uid: cred.user.uid,
+            name: name,
+            email: email,
+            type: 'signup_email',
+            timestamp: now
+          });
+        } catch(e) {}
       }
       setSecureSession({ ...cred.user, displayName: name, role: 'learner', xp: 50 });
       toast('Tạo tài khoản thành công! (+50 XP)', 'ok');

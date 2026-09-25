@@ -43,7 +43,24 @@ service cloud.firestore {
 
     match /feedback/{feedbackId} {
       allow create: if true;
+      allow read: if true;
+      allow update, delete: if isAdmin() || isSignedIn();
+    }
+
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /login_logs/{logId} {
       allow read, delete: if isAdmin();
+      allow create: if true;
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /system/{docId} {

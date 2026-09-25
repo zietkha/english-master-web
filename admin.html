@@ -332,14 +332,48 @@
       </div>
     </div>
 
-    <!-- Card 2: Feedback & Report Inbox -->
+    <!-- Card 2: Trung Tâm Phản Hồi, Hỗ Trợ 1-1 & Bình Luận Thẻ Bài Học -->
     <div class="card glass-panel" style="margin-bottom: 24px;">
-      <div class="card-header">
-        <h2 class="card-title"><i class="fa-solid fa-comments" style="color: var(--primary);"></i> Hòm thư Góp ý & Báo cáo Nội dung</h2>
-        <button class="btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="clearFeedbackInbox()">Xoá tất cả</button>
+      <div class="card-header" style="flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h2 class="card-title" style="margin: 0; color: var(--primary);">
+            <i class="fa-solid fa-comments"></i> Trung Tâm Hỗ Trợ 1-1 & Bình Luận Thẻ
+          </h2>
+          <span id="adminFeedbackBadge" class="mode-badge tieuhoc" style="font-size: 0.75rem; font-weight: 800;">Đang kết nối...</span>
+        </div>
+        
+        <!-- Tabs Switcher -->
+        <div class="row" style="gap: 8px; flex-wrap: wrap;">
+          <button id="tabBtnFeedback" class="btn-primary" style="padding: 6px 14px; font-size: 0.8rem;" onclick="switchAdminFeedbackTab('feedback')">
+            <i class="fa-solid fa-inbox"></i> Góp ý & Hỗ trợ 1-1 (<span id="countFeedback">0</span>)
+          </button>
+          <button id="tabBtnComments" class="btn-secondary" style="padding: 6px 14px; font-size: 0.8rem;" onclick="switchAdminFeedbackTab('comments')">
+            <i class="fa-solid fa-comment-dots"></i> Bình luận trong thẻ (<span id="countComments">0</span>)
+          </button>
+          <button class="btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="refreshAdminFeedbackAndComments()" title="Tải lại dữ liệu">
+            <i class="fa-solid fa-rotate"></i> Làm mới
+          </button>
+        </div>
       </div>
-      <div id="adminFeedbackList" class="comments-list" style="max-height: 280px; overflow-y: auto;">
-        <!-- Dynamic feedback inbox -->
+
+      <!-- Tab 1: Feedback & 1-1 Support -->
+      <div id="adminTabFeedbackContent" style="display: block;">
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">
+          <i class="fa-solid fa-bolt" style="color: #eab308;"></i> Tin nhắn học viên gửi từ web được đồng bộ thời gian thực (Real-time). Bạn có thể gõ tin nhắn phản hồi 1-1 trực tiếp bên dưới mỗi góp ý.
+        </p>
+        <div id="adminFeedbackList" class="comments-list" style="max-height: 460px; overflow-y: auto; padding: 4px;">
+          <!-- Dynamic feedback inbox -->
+        </div>
+      </div>
+
+      <!-- Tab 2: Lesson Card Comments -->
+      <div id="adminTabCommentsContent" style="display: none;">
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">
+          <i class="fa-solid fa-book-open"></i> Bình luận của học viên trong các thẻ bài học (IELTS & Tiểu học). Bạn có thể phản hồi trực tiếp vào thẻ bài học.
+        </p>
+        <div id="adminCommentsList" class="comments-list" style="max-height: 460px; overflow-y: auto; padding: 4px;">
+          <!-- Dynamic comments inbox -->
+        </div>
       </div>
     </div>
 
@@ -406,9 +440,9 @@
           <thead>
             <tr>
               <th>Họ tên & Email</th>
-              <th>Vai trò</th>
-              <th>Trạng thái</th>
-              <th>Hoạt động / Điểm</th>
+              <th>Vai trò & Trạng thái</th>
+              <th>Lịch sử Đăng ký & Đăng nhập</th>
+              <th>Hoạt động / Lượt vào</th>
               <th style="text-align: right;">Thao tác quản trị</th>
             </tr>
           </thead>
@@ -416,6 +450,19 @@
             <!-- Dynamic users list -->
           </tbody>
         </table>
+      </div>
+
+      <!-- Live Login History Logs -->
+      <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="margin: 0; font-size: 0.88rem; color: var(--text-1); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--blue);"></i> Lịch Sử Đăng Nhập & Đăng Ký Trực Tiếp (Live Logs)
+          </h4>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Cập nhật tự động</span>
+        </div>
+        <div id="adminLiveLogsList" style="max-height: 160px; overflow-y: auto; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px; font-size: 0.8rem; font-family: monospace;">
+          <!-- Dynamic live logs -->
+        </div>
       </div>
     </div>
 

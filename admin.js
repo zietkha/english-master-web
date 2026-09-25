@@ -1,3 +1,16 @@
+
+function formatTimeAgo(ts) {
+  if (!ts) return 'Chưa ghi nhận';
+  const time = typeof ts === 'number' ? ts : new Date(ts).getTime();
+  if (isNaN(time)) return String(ts);
+  const diffSec = Math.floor((Date.now() - time) / 1000);
+  if (diffSec < 60) return '🟢 Vừa xong';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
+  const d = new Date(time);
+  return `${d.toLocaleDateString('vi-VN')}, ${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 /**
  * English Kha Master — Admin Portal Controller (admin.js)
  * Secure role-gated administration: System Maintenance, Feedback & Report Inbox, and Metrics.
@@ -248,7 +261,7 @@ function initAdminDashboard() {
   updateMaintenanceTitleText();
 
   loadMetricsAndUsers();
-  renderAdminFeedbackInbox();
+  initAdminFeedbackRealtimeSync();
   initAdminLessonTool();
   loadFounderConfig();
 }
@@ -305,35 +318,77 @@ adminState.allUsers = [];
 adminState.userSearchQuery = '';
 adminState.userStatusFilter = 'all';
 
-async function loadMetricsAndUsers() {
-  // BUG-005 FIX: Không dùng dữ liệu giả làm fallback — bắt đầu bằng mảng rỗng
-  let usersList = [];
+let usersUnsubscribe = null;
 
+async function loadMetricsAndUsers() {
   if (db) {
     try {
-      const snap = await db.collection('users').get();
-      snap.forEach(doc => {
-        const d = doc.data();
-        usersList.push({
-          id: doc.id,
-          uid: doc.id,
-          email: d.email || 'N/A',
-          name: d.name || 'Học viên',
-          role: d.role || 'learner',
-          status: d.status || 'active',
-          xp: d.xp || 0,
-          streak: d.streak || 1,
-          forcePasswordChange: d.forcePasswordChange || false,
-          createdAt: d.createdAt ? new Date(d.createdAt).toLocaleDateString('vi-VN') : 'Mới'
+      if (usersUnsubscribe) usersUnsubscribe();
+      usersUnsubscribe = db.collection('users').onSnapshot(snap => {
+        const usersList = [];
+        snap.forEach(doc => {
+          const d = doc.data();
+          usersList.push({
+            id: doc.id,
+            uid: doc.id,
+            email: d.email || 'N/A',
+            name: d.name || 'Học viên',
+            role: d.role || 'learner',
+            status: d.status || 'active',
+            xp: d.xp || 0,
+            streak: d.streak || 1,
+            loginCount: d.loginCount || 1,
+            forcePasswordChange: d.forcePasswordChange || false,
+            createdAt: d.createdAt ? formatTimeAgo(d.createdAt) : 'Mới tạo',
+            lastLoginAt: d.lastLoginAt ? formatTimeAgo(d.lastLoginAt) : 'Chưa ghi nhận'
+          });
         });
+        adminState.allUsers = usersList;
+        renderAdminUserTable();
+      }, err => {
+        console.warn('Users realtime snapshot error:', err);
       });
     } catch(e) {
       console.warn('Firestore load users warning:', e);
     }
   }
+  initAdminLiveLoginLogs();
+}
 
-  adminState.allUsers = usersList;
-  renderAdminUserTable();
+let logsUnsubscribe = null;
+function initAdminLiveLoginLogs() {
+  const container = document.getElementById('adminLiveLogsList');
+  if (!container || !db) return;
+
+  try {
+    if (logsUnsubscribe) logsUnsubscribe();
+    logsUnsubscribe = db.collection('login_logs').orderBy('timestamp', 'desc').limit(25).onSnapshot(snap => {
+      if (snap.empty) {
+        container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:12px;">Chưa có lịch sử đăng nhập nào được ghi nhận.</div>';
+        return;
+      }
+      const logs = [];
+      snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
+      container.innerHTML = logs.map(l => {
+        const isSignup = l.type && l.type.includes('signup');
+        const badgeColor = isSignup ? '#10b981' : '#3b82f6';
+        const typeLabel = isSignup ? '🎉 ĐĂNG KÝ MỚI' : '🔑 ĐĂNG NHẬP';
+        const timeStr = l.timestamp ? new Date(l.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + new Date(l.timestamp).toLocaleDateString('vi-VN') : '';
+        return `
+          <div style="padding: 6px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <div>
+              <span style="background:${badgeColor}22; color:${badgeColor}; font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-right:6px;">${typeLabel}</span>
+              <strong style="color:var(--text-1); font-size:0.82rem;">${escapeHtml(l.name || 'Học viên')}</strong>
+              <span style="color:var(--text-muted); font-size:0.75rem;">(${escapeHtml(l.email || '')})</span>
+            </div>
+            <span style="color:var(--text-muted); font-size:0.72rem; white-space:nowrap;">${timeStr}</span>
+          </div>
+        `;
+      }).join('');
+    }, err => {
+      console.warn('Live logs listener warning:', err);
+    });
+  } catch(e) {}
 }
 
 function handleAdminUserSearch(e) {
@@ -406,26 +461,34 @@ function renderAdminUserTable() {
           <div style="font-size: 0.76rem; color: var(--text-muted); font-family: monospace;">${escapeHtml(u.email)}</div>
         </td>
         <td>
-          <span class="mode-badge ${u.role === 'admin' ? 'ielts' : 'tieuhoc'}" style="font-size: 0.72rem;">
+          <span class="mode-badge ${u.role === 'admin' ? 'ielts' : 'tieuhoc'}" style="font-size: 0.72rem; margin-bottom: 4px; display: inline-block;">
             ${u.role === 'admin' ? '🛡️ Quản trị' : '🎓 Học viên'}
           </span>
+          <div>${statusBadge}</div>
         </td>
-        <td>${statusBadge}</td>
+        <td>
+          <div style="font-size: 0.8rem; color: var(--text-1); font-weight: 600;">
+            <i class="fa-solid fa-clock" style="color: var(--blue); font-size: 0.75rem;"></i> Đăng nhập: <span style="color:var(--primary); font-weight:700;">${u.lastLoginAt}</span>
+          </div>
+          <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;">
+            <i class="fa-solid fa-calendar-check" style="font-size: 0.72rem;"></i> Đăng ký: ${u.createdAt}
+          </div>
+        </td>
         <td>
           <div style="font-size: 0.8rem; font-weight: 600; color: var(--blue);">⚡ ${u.xp || 0} XP</div>
-          <div style="font-size: 0.74rem; color: var(--text-muted);">🔥 Streak ${u.streak || 1} ngày</div>
+          <div style="font-size: 0.74rem; color: var(--text-muted);">🔥 Streak ${u.streak || 1} ngày &middot; 🚪 ${u.loginCount || 1} lần vào</div>
         </td>
         <td style="text-align: right;">
           <div class="row" style="gap: 5px; justify-content: flex-end; flex-wrap: wrap;">
             <button class="btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" title="Gửi email link đặt lại mật khẩu" onclick="handleAdminSendResetEmail('${escapeJs(u.email)}')">
-              <i class="fa-solid fa-envelope"></i> Link reset
+              <i class="fa-solid fa-envelope"></i> Reset
             </button>
             <button class="btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" title="Cấp mật khẩu tạm thời" onclick="handleAdminIssueTempPassword('${escapeJs(u.uid)}', '${escapeJs(u.email)}')">
-              <i class="fa-solid fa-key"></i> Cấp MK tạm
+              <i class="fa-solid fa-key"></i> MK tạm
             </button>
             ${!isSelf ? `
               <button class="btn-secondary" style="padding: 4px 8px; font-size: 0.75rem; color: ${u.status === 'suspended' ? 'var(--success)' : 'var(--danger)'};" title="${u.status === 'suspended' ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}" onclick="handleAdminToggleUserStatus('${escapeJs(u.uid)}', '${u.status || 'active'}')">
-                <i class="fa-solid ${u.status === 'suspended' ? 'fa-lock-open' : 'fa-lock'}"></i> ${u.status === 'suspended' ? 'Mở khóa' : 'Khóa'}
+                <i class="fa-solid ${u.status === 'suspended' ? 'fa-lock-open' : 'fa-lock'}"></i> ${u.status === 'suspended' ? 'Mở' : 'Khóa'}
               </button>
             ` : ''}
           </div>
@@ -607,37 +670,262 @@ async function handleAdminToggleUserStatus(uid, currentStatus) {
   }
 }
 
-function renderAdminFeedbackInbox() {
+let feedbackUnsubscribe = null;
+let commentsUnsubscribe = null;
+adminState.allFeedbacks = [];
+adminState.allComments = [];
+adminState.activeFeedbackTab = 'feedback';
+
+function switchAdminFeedbackTab(tab) {
+  adminState.activeFeedbackTab = tab;
+  const tabFb = document.getElementById('tabBtnFeedback');
+  const tabCm = document.getElementById('tabBtnComments');
+  const contentFb = document.getElementById('adminTabFeedbackContent');
+  const contentCm = document.getElementById('adminTabCommentsContent');
+
+  if (tab === 'feedback') {
+    if (tabFb) { tabFb.className = 'btn-primary'; }
+    if (tabCm) { tabCm.className = 'btn-secondary'; }
+    if (contentFb) contentFb.style.display = 'block';
+    if (contentCm) contentCm.style.display = 'none';
+  } else {
+    if (tabFb) { tabFb.className = 'btn-secondary'; }
+    if (tabCm) { tabCm.className = 'btn-primary'; }
+    if (contentFb) contentFb.style.display = 'none';
+    if (contentCm) contentCm.style.display = 'block';
+  }
+}
+
+function refreshAdminFeedbackAndComments() {
+  initAdminFeedbackRealtimeSync();
+  showToast('🔄 Đã tải lại hòm thư phản hồi & bình luận!');
+}
+
+function initAdminFeedbackRealtimeSync() {
+  const container = document.getElementById('adminFeedbackList');
+  const commentsContainer = document.getElementById('adminCommentsList');
+  const badgeEl = document.getElementById('adminFeedbackBadge');
+  const countFbEl = document.getElementById('countFeedback');
+  const countCmEl = document.getElementById('countComments');
+
+  // 1. Listen to Realtime Feedback Collection
+  if (db) {
+    try {
+      if (feedbackUnsubscribe) feedbackUnsubscribe();
+      feedbackUnsubscribe = db.collection('feedback').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        const feedbacks = [];
+        snap.forEach(doc => feedbacks.push({ id: doc.id, ...doc.data() }));
+        adminState.allFeedbacks = feedbacks;
+
+        if (countFbEl) countFbEl.textContent = feedbacks.length;
+        if (badgeEl) {
+          const unreplied = feedbacks.filter(f => !f.replies || f.replies.length === 0).length;
+          badgeEl.textContent = unreplied > 0 ? `${unreplied} tin chờ trả lời` : 'Đã phản hồi hết';
+          badgeEl.className = unreplied > 0 ? 'mode-badge ielts' : 'mode-badge tieuhoc';
+        }
+
+        renderFeedbackList(feedbacks);
+      }, err => {
+        console.warn('Feedback realtime listener error:', err);
+      });
+    } catch(e) {}
+
+    // 2. Listen to Realtime Lesson Comments Collection
+    try {
+      if (commentsUnsubscribe) commentsUnsubscribe();
+      commentsUnsubscribe = db.collection('comments').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        const comments = [];
+        snap.forEach(doc => comments.push({ id: doc.id, ...doc.data() }));
+        adminState.allComments = comments;
+        if (countCmEl) countCmEl.textContent = comments.length;
+        renderCommentsList(comments);
+      }, err => {
+        console.warn('Comments realtime listener error:', err);
+      });
+    } catch(e) {}
+  }
+}
+
+function renderFeedbackList(feedbacks) {
   const container = document.getElementById('adminFeedbackList');
   if (!container) return;
 
-  adminState.feedback = JSON.parse(localStorage.getItem('english_master_feedback') || '[]');
-
-  if (adminState.feedback.length === 0) {
-    container.innerHTML = `<p style="font-size:0.88rem; color:var(--text-muted); padding:16px 0;">Hòm thư trống. Chưa có phản hồi hoặc báo cáo nội dung nào.</p>`;
+  if (feedbacks.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted);">
+      <i class="fa-solid fa-inbox" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:8px;"></i>
+      Chưa có tin nhắn phản hồi nào từ học viên.
+    </div>`;
     return;
   }
 
-  container.innerHTML = adminState.feedback.map(fb => `
-    <div class="comment-item" style="margin-bottom: 10px;">
-      <div class="comment-header">
-        <span class="comment-author">
-          <i class="fa-solid fa-user"></i> Người gửi: ${escapeHtml(fb.contact || 'Ẩn danh')}
-          ${fb.type === 'report' ? '<span class="mode-badge" style="background:#fee2e2; color:#dc2626; margin-left:8px;">Báo cáo bài học</span>' : ''}
-        </span>
-        <span style="color:var(--text-muted); font-size:0.75rem;">${escapeHtml(fb.createdAt || '')}</span>
+  container.innerHTML = feedbacks.map(fb => {
+    const hasReplies = fb.replies && fb.replies.length > 0;
+    const timeDisplay = formatTimeAgo(fb.createdAt);
+    return `
+      <div class="feedback-thread-card" style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <div>
+            <strong style="color: var(--text-1); font-size: 0.92rem;"><i class="fa-solid fa-user-circle" style="color:var(--blue);"></i> ${escapeHtml(fb.userName || 'Học viên')}</strong>
+            <span style="font-size: 0.78rem; color: var(--text-muted); margin-left: 6px;">(${escapeHtml(fb.contact || fb.userEmail || 'Ẩn danh')})</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="mode-badge ${hasReplies ? 'tieuhoc' : 'ielts'}" style="font-size: 0.72rem; font-weight: 700;">
+              ${hasReplies ? '✓ Đã phản hồi' : '⚡ Chờ phản hồi'}
+            </span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">${timeDisplay}</span>
+            <button class="btn-secondary" style="padding: 2px 7px; font-size: 0.72rem; color: var(--danger);" onclick="deleteAdminFeedback('${fb.id}')" title="Xóa">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+
+        <div style="background: var(--surface); padding: 10px 14px; border-radius: 10px; border-left: 3px solid var(--primary); margin-bottom: 10px; font-size: 0.88rem; color: var(--text-1); line-height: 1.5;">
+          ${escapeHtml(fb.message)}
+        </div>
+
+        <!-- Replies History Thread -->
+        ${hasReplies ? `
+          <div style="margin-left: 12px; padding-left: 12px; border-left: 2px dashed rgba(88,166,255,0.4); margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px;">
+            ${fb.replies.map(r => `
+              <div style="background: ${r.sender === 'admin' ? 'rgba(37,99,235,0.08)' : 'var(--surface)'}; padding: 7px 12px; border-radius: 8px; font-size: 0.84rem; border: 1px solid var(--border);">
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; font-weight: 700; color: ${r.sender === 'admin' ? 'var(--blue)' : 'var(--text-1)'}; margin-bottom: 2px;">
+                  <span>${escapeHtml(r.author || (r.sender === 'admin' ? 'Nguyễn Viết Kha (Chủ Web)' : 'Học viên'))}</span>
+                  <span style="font-weight: normal; color: var(--text-muted);">${formatTimeAgo(r.createdAt || r.timestamp)}</span>
+                </div>
+                <div style="color: var(--text-1); line-height: 1.45;">${escapeHtml(r.text)}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        <!-- 1-on-1 Reply Form -->
+        <form onsubmit="handleAdminSubmitReply(event, '${fb.id}')" style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
+          <input type="text" id="adminReplyInput_${fb.id}" class="input-field" placeholder="Nhập tin nhắn trả lời 1-1 cho ${escapeHtml(fb.userName || 'học viên')}..." style="flex: 1; font-size: 0.82rem; padding: 7px 12px;" required autocomplete="off" />
+          <button type="submit" class="btn-primary" style="padding: 7px 14px; font-size: 0.82rem; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-paper-plane"></i> Gửi 1-1
+          </button>
+        </form>
       </div>
-      <p style="font-size:0.9rem; color:var(--text-primary); margin-top:6px; line-height:1.5;">${escapeHtml(fb.message)}</p>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-function clearFeedbackInbox() {
-  if (!confirm('Bạn có chắc chắn muốn xoá toàn bộ danh sách phản hồi/báo cáo?')) return;
-  adminState.feedback = [];
-  localStorage.setItem('english_master_feedback', '[]');
-  renderAdminFeedbackInbox();
-  showToast('🗑️ Đã làm sạch hòm thư phản hồi.');
+function renderCommentsList(comments) {
+  const container = document.getElementById('adminCommentsList');
+  if (!container) return;
+
+  if (comments.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted);">
+      <i class="fa-solid fa-comments" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:8px;"></i>
+      Chưa có bình luận nào trên các thẻ bài học.
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = comments.map(c => {
+    return `
+      <div class="comment-thread-card" style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+          <div>
+            <span class="mode-badge ielts" style="font-size: 0.72rem; margin-right: 6px;"><i class="fa-solid fa-book"></i> ${escapeHtml(c.lessonTitle || 'Thẻ bài học')}</span>
+            <strong style="color: var(--text-1); font-size: 0.88rem;">${escapeHtml(c.author || c.userName || 'Học viên')}</strong>
+          </div>
+          <span style="font-size: 0.74rem; color: var(--text-muted);">${formatTimeAgo(c.createdAt)}</span>
+        </div>
+        <div style="background: var(--surface); padding: 8px 12px; border-radius: 8px; font-size: 0.86rem; color: var(--text-1); margin-bottom: 8px; line-height: 1.5;">
+          ${escapeHtml(c.text)}
+        </div>
+
+        ${(c.replies && c.replies.length > 0) ? `
+          <div style="margin-left: 10px; padding-left: 10px; border-left: 2px solid var(--blue); margin-bottom: 8px;">
+            ${c.replies.map(r => `
+              <div style="font-size: 0.82rem; color: var(--text-1); margin-bottom: 4px;">
+                <strong style="color: var(--blue);">${escapeHtml(r.author || 'Nguyễn Viết Kha')}:</strong> ${escapeHtml(r.text)}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        <form onsubmit="handleAdminSubmitCommentReply(event, '${c.id}', '${c.lessonId}')" style="display: flex; gap: 6px;">
+          <input type="text" id="adminCommentReply_${c.id}" class="input-field" placeholder="Trả lời bình luận này..." style="flex: 1; font-size: 0.8rem; padding: 6px 10px;" required autocomplete="off" />
+          <button type="submit" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; white-space: nowrap;">
+            <i class="fa-solid fa-reply"></i> Trả lời
+          </button>
+        </form>
+      </div>
+    `;
+  }).join('');
+}
+
+async function handleAdminSubmitReply(e, feedbackId) {
+  if (e) e.preventDefault();
+  const input = document.getElementById(`adminReplyInput_${feedbackId}`);
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  const replyObj = {
+    sender: 'admin',
+    author: adminState.authenticatedUser?.name || 'Nguyễn Viết Kha (Chủ Web)',
+    text: text,
+    createdAt: Date.now()
+  };
+
+  input.value = '';
+  input.placeholder = 'Đang gửi phản hồi...';
+
+  if (db) {
+    try {
+      const fbRef = db.collection('feedback').doc(feedbackId);
+      await fbRef.update({
+        status: 'replied',
+        lastReplyAt: Date.now(),
+        replies: firebase.firestore.FieldValue.arrayUnion(replyObj)
+      });
+      showToast('💌 Đã gửi tin nhắn phản hồi 1-1 tới học viên thành công!');
+    } catch(err) {
+      console.error('Send reply error:', err);
+      showToast('❌ Lỗi gửi phản hồi: ' + err.message, 'danger');
+    }
+  }
+}
+
+async function handleAdminSubmitCommentReply(e, commentId, lessonId) {
+  if (e) e.preventDefault();
+  const input = document.getElementById(`adminCommentReply_${commentId}`);
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  const replyObj = {
+    author: adminState.authenticatedUser?.name || 'Nguyễn Viết Kha (Chủ Web)',
+    text: text,
+    createdAt: Date.now()
+  };
+
+  input.value = '';
+
+  if (db) {
+    try {
+      await db.collection('comments').doc(commentId).update({
+        replies: firebase.firestore.FieldValue.arrayUnion(replyObj)
+      });
+      showToast('💬 Đã trả lời bình luận trong thẻ bài học thành công!');
+    } catch(err) {
+      console.error('Comment reply error:', err);
+      showToast('❌ Lỗi: ' + err.message, 'danger');
+    }
+  }
+}
+
+async function deleteAdminFeedback(id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn góp ý này?')) return;
+  if (db) {
+    try {
+      await db.collection('feedback').doc(id).delete();
+      showToast('🗑️ Đã xóa tin nhắn.');
+    } catch(e) {
+      showToast('❌ Lỗi khi xóa: ' + e.message, 'danger');
+    }
+  }
 }
 
 /* ==========================================================================
@@ -1010,7 +1298,10 @@ async function loadFounderConfig() {
 
   if (db) {
     try {
-      const doc = await db.collection('settings').doc('founder_info').get();
+      let doc = await db.collection('system').doc('founder_info').get();
+      if (!doc.exists) {
+        doc = await db.collection('settings').doc('founder_info').get();
+      }
       if (doc.exists) {
         config = { ...config, ...doc.data() };
         localStorage.setItem('english_master_founder_config', JSON.stringify(config));
@@ -1163,7 +1454,10 @@ async function saveFounderConfig() {
 
   if (db) {
     try {
-      await db.collection('settings').doc('founder_info').set(configData, { merge: true });
+      await Promise.all([
+        db.collection('system').doc('founder_info').set(configData, { merge: true }),
+        db.collection('settings').doc('founder_info').set(configData, { merge: true })
+      ]);
     } catch(e) {
       console.warn('Firestore save founder config error:', e);
     }

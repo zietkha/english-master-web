@@ -1,3 +1,39 @@
+
+function syncLessonsFromFirestore() {
+  if (!state.db) return;
+  try {
+    state.db.collection('lessons_ielts').onSnapshot(snap => {
+      if (!snap.empty) {
+        const firestoreIelts = [];
+        snap.forEach(doc => firestoreIelts.push({ id: doc.id, ...doc.data() }));
+        const map = new Map();
+        [...firestoreIelts, ...state.lessons.ielts].forEach(l => {
+          if (!map.has(l.id)) map.set(l.id, l);
+        });
+        state.lessons.ielts = Array.from(map.values());
+        saveToLocalStorage(false);
+        if (state.currentView === 'learn') renderLessonsList();
+        if (state.currentView === 'explore') renderExploreGrid();
+      }
+    }, err => console.warn('Sync IELTS error:', err));
+
+    state.db.collection('lessons_tieuhoc').onSnapshot(snap => {
+      if (!snap.empty) {
+        const firestoreTieuhoc = [];
+        snap.forEach(doc => firestoreTieuhoc.push({ id: doc.id, ...doc.data() }));
+        const map = new Map();
+        [...firestoreTieuhoc, ...state.lessons.tieuhoc].forEach(l => {
+          if (!map.has(l.id)) map.set(l.id, l);
+        });
+        state.lessons.tieuhoc = Array.from(map.values());
+        saveToLocalStorage(false);
+        if (state.currentView === 'learn') renderLessonsList();
+        if (state.currentView === 'explore') renderExploreGrid();
+      }
+    }, err => console.warn('Sync Tiểu Học error:', err));
+  } catch(e) {}
+}
+
 /**
  * English Master Web Application Logic (Unified Mega Platform)
  * Unified SPA Architecture: Landing, Login, Learn, Explore, Leaderboard, My Lessons, Profile, Admin Dashboard, and Feedback Inbox.
@@ -87,18 +123,43 @@ function initFounderDynamicSync() {
     try { applyFounderConfig(JSON.parse(cached)); } catch(e) {}
   }
 
-  // 2. Realtime listener from Firestore
+  // 2. Realtime listener from Firestore (system/founder_info and settings/founder_info)
   if (state.db) {
     try {
-      state.db.collection('settings').doc('founder_info').onSnapshot(doc => {
+      state.db.collection('system').doc('founder_info').onSnapshot(doc => {
         if (doc && doc.exists) {
           const data = doc.data();
           localStorage.setItem('english_master_founder_config', JSON.stringify(data));
           applyFounderConfig(data);
+        } else {
+          // Fallback to settings
+          state.db.collection('settings').doc('founder_info').get().then(sdoc => {
+            if (sdoc && sdoc.exists) {
+              const sdata = sdoc.data();
+              localStorage.setItem('english_master_founder_config', JSON.stringify(sdata));
+              applyFounderConfig(sdata);
+            }
+          }).catch(() => {});
         }
-      }, err => console.warn('Founder info snapshot error:', err));
+      }, err => {
+        state.db.collection('settings').doc('founder_info').onSnapshot(sdoc => {
+          if (sdoc && sdoc.exists) applyFounderConfig(sdoc.data());
+        });
+      });
     } catch(e) {}
   }
+
+  // 3. Same-browser BroadcastChannel sync for instant updates across open tabs
+  try {
+    if ('BroadcastChannel' in window) {
+      const channel = new BroadcastChannel('english_master_realtime_sync');
+      channel.onmessage = (event) => {
+        if (event.data && event.data.type === 'FOUNDER_CONFIG_UPDATED') {
+          applyFounderConfig(event.data.data);
+        }
+      };
+    }
+  } catch(e) {}
 }
 
 function applyFounderConfig(data) {
@@ -136,6 +197,11 @@ function applyFounderConfig(data) {
   if (ghEl && data.githubUrl) ghEl.href = data.githubUrl;
   if (fbEl && data.facebookUrl) fbEl.href = data.facebookUrl;
   if (liEl && data.linkedinUrl) liEl.href = data.linkedinUrl;
+
+  // Also update footer author name
+  document.querySelectorAll('.footer-author').forEach(el => {
+    if (data.name) el.textContent = data.name;
+  });
 }
 
 function navigateTo(viewName, updateHash = true) {
@@ -464,6 +530,8 @@ function initFirebaseAndStorage() {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     state.auth = firebase.auth();
     state.db = firebase.firestore();
+    syncLessonsFromFirestore();
+    initUserSupportSync();
   } catch (err) {
     console.warn('Firebase init error:', err);
   }
@@ -483,6 +551,8 @@ function initFirebaseAndStorage() {
           try {
             const userDocRef = state.db.collection('users').doc(user.uid);
             const doc = await userDocRef.get();
+            // Record latest online/login activity
+            userDocRef.set({ lastLoginAt: Date.now(), status: 'active' }, { merge: true }).catch(() => {});
             if (doc.exists) {
               const d = doc.data();
               if (d.status === 'suspended') {
@@ -1782,6 +1852,7 @@ async function handleUpdateProfile(e) {
 function openFeedbackModal() {
   const modal = document.getElementById('feedbackModal');
   if (modal) modal.classList.add('active');
+  initUserSupportSync();
 }
 
 function closeFeedbackModal() {
@@ -1793,34 +1864,126 @@ function handleFeedbackOverlayClick(e) {
   if (e.target.id === 'feedbackModal') closeFeedbackModal();
 }
 
-function handleSendFeedback() {
+async function handleSendFeedback(e) {
+  if (e) e.preventDefault();
   const msgInput = document.getElementById('fbMessage');
   const contactInput = document.getElementById('fbContact');
-
   const msg = msgInput ? msgInput.value.trim() : '';
   const contact = contactInput ? contactInput.value.trim() : '';
 
-  if (!msg) { showToast('⚠️ Vui lòng nhập nội dung góp ý!', 'danger'); return; }
+  if (!msg) { showToast('⚠️ Vui lòng nhập nội dung tin nhắn!', 'danger'); return; }
 
-  const feedbackObj = {
-    id: 'fb_' + Date.now(),
-    message: msg,
-    contact: contact || 'Ẩn danh',
-    createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('vi-VN')
+  const activeThreadId = localStorage.getItem('english_master_user_last_feedback_id');
+  const submitBtn = document.getElementById('fbSubmitBtnText');
+  if (submitBtn) submitBtn.textContent = 'Đang gửi tin...';
+
+  const userReply = {
+    sender: 'user',
+    author: state.currentUser?.name || contact || 'Học viên',
+    text: msg,
+    createdAt: Date.now()
   };
 
   if (state.db) {
-    try { state.db.collection('feedback').add(feedbackObj); } catch(e){}
+    try {
+      if (activeThreadId) {
+        // Append to existing conversation thread
+        await state.db.collection('feedback').doc(activeThreadId).update({
+          status: 'unread',
+          lastUserMessageAt: Date.now(),
+          replies: firebase.firestore.FieldValue.arrayUnion(userReply)
+        });
+      } else {
+        // Create new feedback thread
+        const newThread = {
+          userId: state.currentUser?.id || ('guest_' + Date.now()),
+          userName: state.currentUser?.name || contact || 'Học viên',
+          userEmail: state.currentUser?.email || (contact.includes('@') ? contact : ''),
+          contact: contact || 'Ẩn danh',
+          message: msg,
+          createdAt: Date.now(),
+          status: 'unread',
+          replies: []
+        };
+        const docRef = await state.db.collection('feedback').add(newThread);
+        localStorage.setItem('english_master_user_last_feedback_id', docRef.id);
+      }
+      showToast('💌 Đã gửi tin nhắn trực tiếp tới Admin thành công!');
+    } catch(err) {
+      console.warn('Feedback send error:', err);
+      showToast('⚠️ Đã lưu tin nhắn vào hàng đợi gửi!');
+    }
   }
 
-  const existing = JSON.parse(localStorage.getItem('english_master_feedback') || '[]');
-  existing.unshift(feedbackObj);
-  localStorage.setItem('english_master_feedback', JSON.stringify(existing));
-
-  showToast('💌 Cảm ơn bạn! Phản hồi đã được gửi tới Chủ Web.');
   if (msgInput) msgInput.value = '';
-  if (contactInput) contactInput.value = '';
-  closeFeedbackModal();
+  if (submitBtn) submitBtn.textContent = 'Gửi tin nhắn 1-1 tới Admin';
+  initUserSupportSync();
+}
+
+let userSupportUnsubscribe = null;
+function initUserSupportSync() {
+  const threadId = localStorage.getItem('english_master_user_last_feedback_id');
+  if (!threadId || !state.db) return;
+
+  try {
+    if (userSupportUnsubscribe) userSupportUnsubscribe();
+    userSupportUnsubscribe = state.db.collection('feedback').doc(threadId).onSnapshot(doc => {
+      if (!doc || !doc.exists) return;
+      const data = doc.data();
+      renderUserSupportThread(data);
+
+      // Check if Admin just replied and alert user
+      if (data.replies && data.replies.length > 0) {
+        const lastReply = data.replies[data.replies.length - 1];
+        if (lastReply.sender === 'admin') {
+          const lastSeenReplyTime = parseInt(localStorage.getItem('english_master_last_seen_admin_reply') || '0', 10);
+          if (lastReply.createdAt > lastSeenReplyTime) {
+            localStorage.setItem('english_master_last_seen_admin_reply', lastReply.createdAt.toString());
+            showToast(`🔔 Admin Nguyễn Viết Kha đã trả lời: "${lastReply.text.slice(0, 45)}..."`, 'ok');
+          }
+        }
+      }
+    }, err => console.warn('User support sync error:', err));
+  } catch(e) {}
+}
+
+function renderUserSupportThread(data) {
+  const container = document.getElementById('userSupportThreadContainer');
+  const messagesBox = document.getElementById('userSupportThreadMessages');
+  const labelEl = document.getElementById('fbMessageLabel');
+  const contactWrap = document.getElementById('userContactFieldWrap');
+
+  if (!container || !messagesBox) return;
+
+  container.style.display = 'block';
+  if (labelEl) labelEl.textContent = 'Nhắn tin tiếp tục cho Admin:';
+  if (contactWrap && (data.contact || state.currentUser)) contactWrap.style.display = 'none';
+
+  const threadList = [
+    { sender: 'user', author: data.userName || 'Bạn', text: data.message, createdAt: data.createdAt },
+    ...(data.replies || [])
+  ];
+
+  messagesBox.innerHTML = threadList.map(item => {
+    const isAdmin = item.sender === 'admin';
+    const bg = isAdmin ? 'rgba(37,99,235,0.12)' : 'var(--surface)';
+    const nameColor = isAdmin ? 'var(--blue)' : 'var(--text-1)';
+    const align = isAdmin ? 'flex-start' : 'flex-end';
+    const border = isAdmin ? 'border-left: 3px solid var(--blue);' : 'border-right: 3px solid var(--text-muted);';
+    const timeStr = item.createdAt ? new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+
+    return `
+      <div style="align-self: ${align}; max-width: 90%; background: ${bg}; border-radius: 10px; padding: 8px 12px; ${border} font-size: 0.85rem;">
+        <div style="font-size: 0.72rem; font-weight: 700; color: ${nameColor}; display: flex; justify-content: space-between; gap: 8px; margin-bottom: 2px;">
+          <span>${isAdmin ? '👑 Nguyễn Viết Kha (Chủ Web)' : '👤 ' + escapeHtml(item.author || 'Bạn')}</span>
+          <span style="font-weight: normal; color: var(--text-muted);">${timeStr}</span>
+        </div>
+        <div style="color: var(--text-1); line-height: 1.45;">${escapeHtml(item.text)}</div>
+      </div>
+    `;
+  }).join('');
+
+  messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
 function openLessonModal(id, updateHash = true) {
@@ -2132,7 +2295,7 @@ function renderCommentsSection() {
   `).join('');
 }
 
-function handleAddComment() {
+async function handleAddComment() {
   if (!state.currentUser) {
     showToast('⚠️ Vui lòng đăng nhập để bình luận!', 'danger');
     navigateTo('login');
@@ -2144,19 +2307,39 @@ function handleAddComment() {
 
   if (!text) return;
 
-  state.activeLesson.comments = state.activeLesson.comments || [];
-  state.activeLesson.comments.push({
+  const newComment = {
     id: 'c_' + Date.now(),
+    lessonId: state.activeLesson.id,
+    lessonTitle: state.activeLesson.title || 'Bài học',
     author: state.currentUser.name,
+    userId: state.currentUser.id,
     text: text,
-    date: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-  });
+    createdAt: Date.now(),
+    date: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+    replies: []
+  };
+
+  state.activeLesson.comments = state.activeLesson.comments || [];
+  state.activeLesson.comments.push(newComment);
+
+  // 1. Save to Firestore
+  if (state.db) {
+    try {
+      await state.db.collection('comments').doc(newComment.id).set(newComment);
+      const colName = state.activeLesson.mode === 'tieuhoc' ? 'lessons_tieuhoc' : 'lessons_ielts';
+      await state.db.collection(colName).doc(state.activeLesson.id).set({
+        comments: state.activeLesson.comments
+      }, { merge: true });
+    } catch(err) {
+      console.warn('Comment Firestore save error:', err);
+    }
+  }
 
   saveToLocalStorage(true);
   input.value = '';
   renderCommentsSection();
   addXp(5);
-  showToast('💬 Đã gửi bình luận! (+5 XP)');
+  showToast('💬 Đã gửi bình luận! Admin sẽ nhận được thông báo.');
 }
 
 /* ==========================================================================

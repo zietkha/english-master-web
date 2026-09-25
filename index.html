@@ -147,7 +147,7 @@
         <div class="about-welcome-badge" id="landingWelcomeBadge">
           <i class="fa-solid fa-star"></i> Chào mừng bạn đến với English Kha Master
         </div>
-        <h1 class="about-hero-title">Nền Tảng Học Tiếng Anh<br><span class="about-gradient-text">Thông Minh — Bằng AI</span></h1>
+        <h1 class="about-hero-title">Nền Tảng Học Tiếng Anh <span class="about-gradient-text">— Thông Minh Bằng AI</span></h1>
         <p class="about-hero-sub">Từ sinh viên CNTT đến nền tảng giáo dục hiện đại — chúng tôi giúp bạn học <strong>IELTS &amp; Tiếng Anh Tiểu học</strong> nhanh hơn, hiệu quả hơn với sức mạnh của Gemini AI.</p>
         <div class="about-hero-actions">
           <button class="btn-primary about-cta-btn" onclick="navigateTo('learn')">
@@ -919,24 +919,56 @@
     </form>
   </div>
 
+  <!-- Interactive 1-on-1 Support & Direct Messaging With Admin -->
   <div id="feedbackModal" class="modal-overlay" onclick="handleFeedbackOverlayClick(event)">
-    <div class="modal-dialog" style="max-width: 420px;">
+    <div class="modal-dialog" style="max-width: 520px;">
       <div class="modal-header">
-        <h3 class="card-title">Gửi phản hồi cho tác giả</h3>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="logo-icon" style="width: 36px; height: 36px; font-size: 15px; border-radius: 10px; background: linear-gradient(135deg, #2563eb, #7c3aed);">
+            <i class="fa-solid fa-headset" style="color: #fff;"></i>
+          </div>
+          <div>
+            <h3 class="card-title" style="margin: 0; font-size: 1rem;">Nhắn Tin Trực Tiếp 1-1 Với Chủ Web</h3>
+            <span style="font-size: 0.76rem; color: var(--primary); font-weight: 700;">
+              <i class="fa-solid fa-circle" style="color: #10b981; font-size: 0.6rem;"></i> Nguyễn Viết Kha (CEO Founder) &middot; Trực tuyến
+            </span>
+          </div>
+        </div>
         <button class="modal-close-btn" onclick="closeFeedbackModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="modal-body">
-        <p style="font-size: 0.88rem; color: var(--text-secondary);">Gặp lỗi hoặc có góp ý? Tin nhắn sẽ được gửi trực tiếp tới Bảng Quản trị Chủ Web.</p>
-        <input type="text" id="fbContact" class="form-input" placeholder="Email / SĐT liên hệ (Tuỳ chọn)">
-        <textarea id="fbMessage" class="form-textarea" placeholder="Mô tả góp ý hoặc báo lỗi của bạn..."></textarea>
-        <button class="btn-primary" onclick="handleSendFeedback()"><i class="fa-solid fa-paper-plane"></i> Gửi góp ý</button>
+
+      <div class="modal-body" style="padding: 16px 20px;">
+        <!-- Live Chat Thread if previous conversation exists -->
+        <div id="userSupportThreadContainer" style="display: none; margin-bottom: 14px;">
+          <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase;">
+            <i class="fa-solid fa-comments"></i> Hội thoại trực tiếp với Admin:
+          </div>
+          <div id="userSupportThreadMessages" style="max-height: 240px; overflow-y: auto; background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <!-- Dynamic 1-on-1 messages list -->
+          </div>
+        </div>
+
+        <!-- Compose / Send Message Form -->
+        <form id="userSupportForm" onsubmit="handleSendFeedback(event)">
+          <div id="userContactFieldWrap" style="margin-bottom: 10px;">
+            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px;">Email hoặc SĐT liên hệ của bạn (để Admin dễ nhận diện):</label>
+            <input type="text" id="fbContact" class="form-input" placeholder="Ví dụ: yourname@gmail.com hoặc SĐT" style="font-size: 0.85rem; min-height: 38px;">
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label id="fbMessageLabel" style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px;">Nội dung tin nhắn / câu hỏi hỗ trợ:</label>
+            <textarea id="fbMessage" class="form-textarea" placeholder="Nhập tin nhắn, báo lỗi hoặc thắc mắc bài học cho Admin..." style="min-height: 80px; font-size: 0.88rem; padding: 10px;" required></textarea>
+          </div>
+          <button type="submit" id="fbSubmitBtn" class="btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px;">
+            <i class="fa-solid fa-paper-plane"></i> <span id="fbSubmitBtnText">Gửi tin nhắn 1-1 tới Admin</span>
+          </button>
+        </form>
       </div>
     </div>
   </div>
 
   <!-- Footer Credit -->
-  <footer style="text-align: center; padding: 28px 16px; font-size: 0.88rem; color: var(--text-muted); border-top: 1px solid var(--card-border); margin-top: 40px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px);">
-    Phần mềm được phát triển bởi <b>Nguyễn Viết Kha</b> — Sinh viên CNTT, Trường Đại học HUTECH, TP.HCM
+  <footer class="app-footer">
+    <p>Phần mềm được phát triển bởi <strong class="footer-author">Nguyễn Viết Kha</strong> — Sinh viên CNTT, Trường Đại học HUTECH, TP.HCM</p>
   </footer>
 
   <!-- Mobile Liquid Glass Bottom Navigation Bar -->
