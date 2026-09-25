@@ -1257,53 +1257,146 @@
   </div>
 
   <!-- Interactive Speaking & Pronunciation Practice Modal (Mục 2.7 & 3.5 Web Speech API) -->
+  <!-- Interactive Speaking & Pronunciation Practice Modal (AI Assistant Standard) -->
   <div id="speakingPracticeModal" class="modal-overlay">
-    <div class="modal-dialog glass-panel" style="max-width: 440px; text-align: center; padding: 28px 24px; margin: auto;">
-      <div style="display: flex; justify-content: flex-end; margin-bottom: 4px;">
-        <button class="modal-close-btn" onclick="closeSpeakingPracticeModal()"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-dialog glass-panel speaking-modal-dialog">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div class="speaking-header-badge">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Trợ lý AI Chấm Phát Âm Chuẩn Quốc Tế
+        </div>
+        <button class="modal-close-btn" onclick="closeSpeakingPracticeModal()" title="Đóng"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <div style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--blue); letter-spacing: 0.08em; margin-bottom: 8px;">
-        🎙️ Luyện Phát Âm Trực Tiếp (Web Speech API)
+      <!-- Target Word & Phonetic -->
+      <div class="speaking-target-area">
+        <div id="speakingTargetWord" class="speaking-target-word">Environment</div>
+        <div id="speakingPhonetic" class="speaking-phonetic">/ɪnˈvaɪ.rən.mənt/</div>
       </div>
 
-      <div id="speakingTargetWord" style="font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; color: var(--blue); margin-bottom: 4px;">
-        Environment
-      </div>
-      <div id="speakingPhonetic" style="font-size: 0.95rem; color: var(--text-muted); font-family: monospace; margin-bottom: 16px;">
-        /ɪnˈvaɪ.rən.mənt/
-      </div>
+      <!-- Live Mic Recording Area -->
+      <div id="speakingMicArea" class="speaking-mic-area">
+        <div class="speaking-mic-btn-wrapper">
+          <div id="speakingPulseRing" class="speaking-pulse-ring"></div>
+          <button id="speakingRecordBtn" type="button" class="speaking-record-btn" onclick="toggleSpeechRecording()" title="Bấm để nói">
+            <i id="speakingMicIcon" class="fa-solid fa-microphone"></i>
+          </button>
+        </div>
 
-      <div id="speakingMicArea" style="margin: 16px 0;">
-        <button id="speakingRecordBtn" type="button" class="btn-primary" style="width: 76px; height: 76px; border-radius: 50%; font-size: 1.8rem; margin: 0 auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(37,99,235,0.35); cursor: pointer;" onclick="toggleSpeechRecording()">
-          <i id="speakingMicIcon" class="fa-solid fa-microphone"></i>
-        </button>
-        <div id="speakingStatusText" style="font-size: 0.88rem; color: var(--text-2); margin-top: 12px; font-weight: 600;">
+        <div id="speakingStatusText" class="speaking-status-text">
           Nhấn micro và đọc to từ trên
         </div>
-        <div style="display: flex; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
-          <button type="button" class="btn-secondary" style="font-size: 0.82rem; padding: 6px 14px; border-radius: 999px;" onclick="speakWord(currentVoiceTargetWord)">
-            <i class="fa-solid fa-volume-high" style="color: var(--blue);"></i> Nghe máy đọc mẫu
+
+        <!-- Audio waves animation when speaking -->
+        <div id="speakingWaveBars" class="speaking-wave-bars" style="display: none;">
+          <span class="wave-bar"></span>
+          <span class="wave-bar"></span>
+          <span class="wave-bar"></span>
+          <span class="wave-bar"></span>
+          <span class="wave-bar"></span>
+        </div>
+
+        <div class="speaking-controls-row">
+          <button type="button" class="btn-speaking-control" onclick="speakWord(currentVoiceTargetWord)">
+            <i class="fa-solid fa-volume-high" style="color: var(--blue);"></i> Nghe mẫu (1.0x)
           </button>
-          <button type="button" id="braveHelpBtn" class="btn-secondary" style="font-size: 0.82rem; padding: 6px 14px; border-radius: 999px; display: none; color: #b45309; border-color: rgba(245,158,11,0.3);" onclick="toggleBraveHelp()">
+          <button type="button" class="btn-speaking-control" onclick="speakWordSlowly(currentVoiceTargetWord)">
+            <i class="fa-solid fa-gauge-simple-low" style="color: #10b981;"></i> Nghe chậm (0.75x)
+          </button>
+          <button type="button" id="braveHelpBtn" class="btn-speaking-control brave-btn" style="display: none;" onclick="toggleBraveHelp()">
             <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i> Bật Mic trên Brave
           </button>
         </div>
-        <div id="braveHelpBox" style="display: none; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: var(--r-md); padding: 10px 12px; font-size: 0.78rem; color: #92400e; margin-top: 10px; text-align: left; line-height: 1.5;">
+
+        <div id="braveHelpBox" class="brave-help-box" style="display: none;">
           💡 <b>Cách bật Mic trên Brave:</b><br>
-          1. Nhập vào thanh địa chỉ: <code>brave://settings/system</code><br>
-          2. Bật công tắc: <b>"Use Google services for speech recognition"</b>.<br>
-          3. Hoặc mở web trên <b>Google Chrome / Edge</b> để nhận diện giọng nói mượt mà nhất.
+          1. Vào <code>brave://settings/system</code><br>
+          2. Bật công tắc <b>"Use Google services for speech recognition"</b>.<br>
+          3. Hoặc mở web trên <b>Google Chrome / Edge</b> để nhận diện mượt mà nhất.
         </div>
       </div>
 
-      <!-- Feedback Result Box -->
-      <div id="speakingResultBox" style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px; margin-top: 16px; display: none;">
-        <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px;">Máy nghe thấy bạn đọc:</div>
-        <div id="speakingRecognizedText" style="font-weight: 700; font-size: 1.1rem; color: var(--text-1); margin-bottom: 8px;">"..."</div>
-        <div id="speakingScoreBadge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px; border-radius: 999px; font-weight: 700; font-size: 0.88rem;">
-          Độ chính xác: 95%
+      <!-- AI Pronunciation Assessment Box (Bảng tròn % & Trợ lý đánh giá) -->
+      <div id="speakingResultBox" class="speaking-result-box" style="display: none;">
+        
+        <!-- Bảng Tròn Đánh Giá Tỷ Lệ % Theo Yêu Cầu -->
+        <div class="speaking-gauge-section">
+          <div class="speaking-gauge-wrap">
+            <svg class="speaking-gauge-svg" viewBox="0 0 120 120" width="136" height="136">
+              <!-- Vòng tròn nền track mờ -->
+              <circle class="speaking-gauge-bg" cx="60" cy="60" r="50" stroke-width="9" fill="none" />
+              <!-- Vòng tròn tiến trình màu sắc động (Xanh: Ổn, Vàng: Gần đúng, Đỏ: Chưa đạt) -->
+              <circle id="speakingGaugeCircle" class="speaking-gauge-progress" cx="60" cy="60" r="50" stroke-width="9" fill="none"
+                stroke-linecap="round"
+                stroke-dasharray="314.16"
+                stroke-dashoffset="314.16"
+                transform="rotate(-90 60 60)" />
+            </svg>
+            <div class="speaking-gauge-inner">
+              <div class="speaking-gauge-number-wrap">
+                <span id="speakingGaugeNumber">0</span><span class="speaking-gauge-percent-sign">%</span>
+              </div>
+              <div id="speakingGaugeTier" class="speaking-gauge-tier">Chuẩn xác</div>
+            </div>
+          </div>
+
+          <!-- Huy hiệu trạng thái -->
+          <div id="speakingVerdictBadge" class="speaking-verdict-badge tier-good">
+            <i id="speakingVerdictIcon" class="fa-solid fa-circle-check"></i>
+            <span id="speakingVerdictText">Xuất sắc</span>
+          </div>
         </div>
+
+        <!-- Trợ Lý AI Kha Speaking Coach -->
+        <div class="speaking-coach-card">
+          <div class="speaking-coach-header">
+            <div class="coach-avatar">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div class="coach-meta">
+              <div class="coach-title">Trợ Lý AI Kha Speaking Coach</div>
+              <div class="coach-subtitle">Phân tích âm học theo tiêu chuẩn ELSA / Duolingo</div>
+            </div>
+          </div>
+
+          <!-- Phân tích chi tiết từng âm tiết / từ -->
+          <div class="speaking-breakdown-section">
+            <div class="breakdown-label">Phân tích từng âm / chữ:</div>
+            <div id="speakingBreakdownTokens" class="speaking-breakdown-tokens">
+              <!-- Render token động: xanh (chuẩn), vàng (gần đúng), đỏ (sai/nuốt âm) -->
+            </div>
+          </div>
+
+          <!-- So sánh những gì máy nghe thấy vs từ chuẩn -->
+          <div class="speaking-transcript-compare">
+            <div class="compare-row">
+              <span class="compare-label">Máy nghe thấy:</span>
+              <span id="speakingRecognizedText" class="compare-text spoken">"..."</span>
+            </div>
+            <div class="compare-row">
+              <span class="compare-label">Từ mục tiêu:</span>
+              <span id="speakingExpectedText" class="compare-text target">"..."</span>
+            </div>
+          </div>
+
+          <!-- Lời khuyên sư phạm của Trợ lý AI -->
+          <div class="speaking-coach-tip-box">
+            <i class="fa-solid fa-lightbulb tip-icon"></i>
+            <div id="speakingCoachTip" class="tip-text">
+              Đang phân tích cách phát âm của bạn...
+            </div>
+          </div>
+
+          <!-- Nút hành động -->
+          <div class="speaking-result-actions">
+            <button type="button" class="btn-try-again" onclick="retrySpeakingRecording()">
+              <i class="fa-solid fa-rotate-right"></i> Luyện nói lại
+            </button>
+            <button type="button" class="btn-listen-slow" onclick="speakWordSlowly(currentVoiceTargetWord)">
+              <i class="fa-solid fa-headphones"></i> Nghe lại âm mẫu
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

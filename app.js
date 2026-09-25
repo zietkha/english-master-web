@@ -2904,16 +2904,18 @@ async function handleForcePasswordSubmit(e) {
 }
 
 /* ==========================================================================
-   Section 13: Interactive Speaking Practice Engine (Web Speech API)
+   Section 13: Interactive Speaking Practice Engine (AI Assistant Standard)
    ========================================================================== */
 
 let currentVoiceTargetWord = '';
+let currentVoiceTargetPhonetic = '';
 let speechRecognitionInstance = null;
 let isSpeechRecording = false;
 
 function startVoicePractice(word, phonetic) {
   if (!word) return;
   currentVoiceTargetWord = word.trim();
+  currentVoiceTargetPhonetic = phonetic ? phonetic.trim() : '';
 
   const modal = document.getElementById('speakingPracticeModal');
   const targetWordEl = document.getElementById('speakingTargetWord');
@@ -2922,6 +2924,8 @@ function startVoicePractice(word, phonetic) {
   const resultBox = document.getElementById('speakingResultBox');
   const micIcon = document.getElementById('speakingMicIcon');
   const recordBtn = document.getElementById('speakingRecordBtn');
+  const pulseRing = document.getElementById('speakingPulseRing');
+  const waveBars = document.getElementById('speakingWaveBars');
   const braveHelpBtn = document.getElementById('braveHelpBtn');
   const braveHelpBox = document.getElementById('braveHelpBox');
 
@@ -2930,7 +2934,9 @@ function startVoicePractice(word, phonetic) {
   if (statusEl) statusEl.textContent = 'Nhấn micro và đọc to từ trên';
   if (resultBox) resultBox.style.display = 'none';
   if (micIcon) micIcon.className = 'fa-solid fa-microphone';
-  if (recordBtn) recordBtn.style.background = '';
+  if (recordBtn) recordBtn.classList.remove('recording');
+  if (pulseRing) pulseRing.classList.remove('recording');
+  if (waveBars) waveBars.style.display = 'none';
   if (braveHelpBox) braveHelpBox.style.display = 'none';
 
   // Check if Brave browser is used
@@ -2942,6 +2948,24 @@ function startVoicePractice(word, phonetic) {
   if (modal) {
     modal.classList.add('active');
   }
+}
+
+function speakWordSlowly(word) {
+  if (!word) word = currentVoiceTargetWord;
+  if (!word) return;
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.65; // Chậm rõ từng âm tiết để học viên bắt chước
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
+function retrySpeakingRecording() {
+  const resultBox = document.getElementById('speakingResultBox');
+  if (resultBox) resultBox.style.display = 'none';
+  toggleSpeechRecording();
 }
 
 function toggleBraveHelp() {
@@ -2958,6 +2982,15 @@ function closeSpeakingPracticeModal() {
     try { speechRecognitionInstance.stop(); } catch(e) {}
   }
   isSpeechRecording = false;
+
+  const pulseRing = document.getElementById('speakingPulseRing');
+  const recordBtn = document.getElementById('speakingRecordBtn');
+  const waveBars = document.getElementById('speakingWaveBars');
+  const micIcon = document.getElementById('speakingMicIcon');
+  if (pulseRing) pulseRing.classList.remove('recording');
+  if (recordBtn) recordBtn.classList.remove('recording');
+  if (waveBars) waveBars.style.display = 'none';
+  if (micIcon) micIcon.className = 'fa-solid fa-microphone';
 }
 
 async function toggleSpeechRecording() {
@@ -2970,9 +3003,9 @@ async function toggleSpeechRecording() {
   const statusEl = document.getElementById('speakingStatusText');
   const micIcon = document.getElementById('speakingMicIcon');
   const recordBtn = document.getElementById('speakingRecordBtn');
+  const pulseRing = document.getElementById('speakingPulseRing');
+  const waveBars = document.getElementById('speakingWaveBars');
   const resultBox = document.getElementById('speakingResultBox');
-  const recognizedTextEl = document.getElementById('speakingRecognizedText');
-  const scoreBadgeEl = document.getElementById('speakingScoreBadge');
   const braveHelpBtn = document.getElementById('braveHelpBtn');
 
   if (isSpeechRecording) {
@@ -2981,8 +3014,10 @@ async function toggleSpeechRecording() {
     }
     isSpeechRecording = false;
     if (micIcon) micIcon.className = 'fa-solid fa-microphone';
-    if (recordBtn) recordBtn.style.background = '';
-    if (statusEl) statusEl.textContent = 'Đã dừng nghe.';
+    if (recordBtn) recordBtn.classList.remove('recording');
+    if (pulseRing) pulseRing.classList.remove('recording');
+    if (waveBars) waveBars.style.display = 'none';
+    if (statusEl) statusEl.textContent = 'Đã dừng nghe. Bấm micro để nói lại.';
     return;
   }
 
@@ -2990,7 +3025,6 @@ async function toggleSpeechRecording() {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Stop temporary track right away once allowed
       stream.getTracks().forEach(t => t.stop());
     } catch(err) {
       console.warn('Microphone permission check:', err);
@@ -3012,50 +3046,45 @@ async function toggleSpeechRecording() {
 
   speechRecognitionInstance.lang = 'en-US';
   speechRecognitionInstance.interimResults = false;
-  speechRecognitionInstance.maxAlternatives = 3;
+  speechRecognitionInstance.maxAlternatives = 5;
 
   speechRecognitionInstance.onstart = () => {
     isSpeechRecording = true;
     if (micIcon) micIcon.className = 'fa-solid fa-microphone fa-beat-fade';
-    if (recordBtn) recordBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-    if (statusEl) statusEl.textContent = `🎙️ Đang lắng nghe... Hãy phát âm: "${currentVoiceTargetWord}"`;
+    if (recordBtn) recordBtn.classList.add('recording');
+    if (pulseRing) pulseRing.classList.add('recording');
+    if (waveBars) waveBars.style.display = 'flex';
+    if (statusEl) statusEl.textContent = `🎙️ Đang lắng nghe... Hãy nói to: "${currentVoiceTargetWord}"`;
     if (resultBox) resultBox.style.display = 'none';
   };
 
   speechRecognitionInstance.onresult = (event) => {
     isSpeechRecording = false;
     if (micIcon) micIcon.className = 'fa-solid fa-microphone';
-    if (recordBtn) recordBtn.style.background = '';
+    if (recordBtn) recordBtn.classList.remove('recording');
+    if (pulseRing) pulseRing.classList.remove('recording');
+    if (waveBars) waveBars.style.display = 'none';
 
-    const spokenTranscript = event.results[0][0].transcript.trim().toLowerCase();
-    const target = currentVoiceTargetWord.toLowerCase();
-
-    // Calculate pronunciation similarity score
-    const similarity = calculateWordSimilarity(spokenTranscript, target);
-    const percentage = Math.round(similarity * 100);
-
-    if (resultBox) resultBox.style.display = 'block';
-    if (recognizedTextEl) recognizedTextEl.textContent = `"${event.results[0][0].transcript}"`;
-
-    if (percentage >= 80) {
-      scoreBadgeEl.style.background = '#dcfce7';
-      scoreBadgeEl.style.color = '#15803d';
-      scoreBadgeEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Xuất sắc: ${percentage}% (+15 XP)`;
-      if (statusEl) statusEl.textContent = '🎉 Bạn phát âm rất chuẩn!';
-      triggerConfetti();
-      addXp(15);
-    } else {
-      scoreBadgeEl.style.background = '#fef3c7';
-      scoreBadgeEl.style.color = '#b45309';
-      scoreBadgeEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Độ khớp: ${percentage}%`;
-      if (statusEl) statusEl.textContent = 'Hãy thử bấm micro và phát âm lại rõ hơn nhé!';
+    // Extract all candidate alternatives
+    const candidates = [];
+    if (event.results && event.results[0]) {
+      for (let i = 0; i < event.results[0].length; i++) {
+        if (event.results[0][i] && event.results[0][i].transcript) {
+          candidates.push(event.results[0][i].transcript.trim());
+        }
+      }
     }
+
+    const evaluation = evaluatePronunciationAI(candidates, currentVoiceTargetWord, currentVoiceTargetPhonetic);
+    renderSpeakingEvaluation(evaluation);
   };
 
   speechRecognitionInstance.onerror = (event) => {
     isSpeechRecording = false;
     if (micIcon) micIcon.className = 'fa-solid fa-microphone';
-    if (recordBtn) recordBtn.style.background = '';
+    if (recordBtn) recordBtn.classList.remove('recording');
+    if (pulseRing) pulseRing.classList.remove('recording');
+    if (waveBars) waveBars.style.display = 'none';
 
     const err = event.error;
     console.warn('Speech recognition error:', err);
@@ -3070,7 +3099,7 @@ async function toggleSpeechRecording() {
     } else if (err === 'network' || err === 'service-not-allowed') {
       if (isBrave) {
         if (statusEl) {
-          statusEl.innerHTML = `<span style="color: #d97706; font-weight: 700;"><i class="fa-solid fa-triangle-exclamation"></i> Brave đang chặn dịch vụ Google Speech</span><br><span style="font-size: 0.8rem; color: var(--text-2);">Brave chặn Google Speech mặc định. Hãy vào <b>brave://settings/system</b> bật <i>'Use Google services for speech recognition'</i> hoặc mở web trên <b>Chrome / Edge / Cốc Cốc</b> nhé!</span>`;
+          statusEl.innerHTML = `<span style="color: #d97706; font-weight: 700;"><i class="fa-solid fa-triangle-exclamation"></i> Brave đang chặn dịch vụ Google Speech</span><br><span style="font-size: 0.8rem; color: var(--text-2);">Brave chặn Google Speech mặc định. Hãy vào <b>brave://settings/system</b> bật <i>'Use Google services for speech recognition'</i> hoặc mở web trên <b>Chrome / Edge</b> nhé!</span>`;
         }
         const helpBox = document.getElementById('braveHelpBox');
         if (helpBox) helpBox.style.display = 'block';
@@ -3089,13 +3118,316 @@ async function toggleSpeechRecording() {
   speechRecognitionInstance.onend = () => {
     isSpeechRecording = false;
     if (micIcon) micIcon.className = 'fa-solid fa-microphone';
-    if (recordBtn) recordBtn.style.background = '';
+    if (recordBtn) recordBtn.classList.remove('recording');
+    if (pulseRing) pulseRing.classList.remove('recording');
+    if (waveBars) waveBars.style.display = 'none';
   };
 
   try {
     speechRecognitionInstance.start();
   } catch(e) {
     console.warn('Speech recognition start error:', e);
+  }
+}
+
+/* ==========================================================================
+   AI Pronunciation Evaluation & Circular Gauge Engine (Standard AI Coach)
+   ========================================================================== */
+
+function evaluatePronunciationAI(candidates, targetWord, phonetic) {
+  if (!candidates || candidates.length === 0) {
+    candidates = [''];
+  }
+  const cleanTarget = targetWord.trim().toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, '');
+
+  let bestCandidate = candidates[0];
+  let bestSimilarity = 0;
+
+  for (const cand of candidates) {
+    const cleanCand = cand.trim().toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, '');
+    const sim = calculateWordSimilarity(cleanCand, cleanTarget);
+    if (sim > bestSimilarity) {
+      bestSimilarity = sim;
+      bestCandidate = cand;
+    }
+  }
+
+  let finalPercentage = Math.round(bestSimilarity * 100);
+  if (finalPercentage > 100) finalPercentage = 100;
+
+  // Syllable / Substring breakdown & Ending Sound Analysis
+  const tokens = generatePhoneticBreakdown(cleanTarget, bestCandidate.toLowerCase());
+
+  // Determine Tier and Color standard:
+  // Xanh là ổn (>= 80%), Vàng là gần đúng (50% - 79%), Đỏ là chưa đạt (< 50%)
+  let tier = 'good';
+  let color = '#10b981';
+  let tierLabel = 'Phát âm chuẩn (Ổn)';
+  let verdictText = 'Xuất sắc: ' + finalPercentage + '%';
+  let verdictIcon = 'fa-circle-check';
+
+  if (finalPercentage >= 80) {
+    tier = 'good';
+    color = '#10b981';
+    tierLabel = 'Phát âm chuẩn (Ổn)';
+    verdictText = 'Xuất sắc (Ổn) • ' + finalPercentage + '%';
+    verdictIcon = 'fa-circle-check';
+  } else if (finalPercentage >= 50) {
+    tier = 'warning';
+    color = '#f59e0b';
+    tierLabel = 'Gần đúng';
+    verdictText = 'Gần đúng • ' + finalPercentage + '%';
+    verdictIcon = 'fa-triangle-exclamation';
+  } else {
+    tier = 'danger';
+    color = '#ef4444';
+    tierLabel = 'Cần luyện thêm';
+    verdictText = 'Chưa đạt • ' + finalPercentage + '%';
+    verdictIcon = 'fa-circle-xmark';
+  }
+
+  // Generate pedagogical AI Coach advice
+  const coachTip = generateCoachPedagogicalTip(cleanTarget, bestCandidate.toLowerCase(), finalPercentage, tokens, phonetic);
+
+  return {
+    score: finalPercentage,
+    tier: tier,
+    color: color,
+    tierLabel: tierLabel,
+    verdictText: verdictText,
+    verdictIcon: verdictIcon,
+    tokens: tokens,
+    spokenText: bestCandidate,
+    targetText: targetWord,
+    phonetic: phonetic,
+    coachTip: coachTip
+  };
+}
+
+// Generate syllable/character tokens with status (good: xanh, warn: vàng, miss: đỏ)
+function generatePhoneticBreakdown(target, spoken) {
+  // If target contains multiple words, split by word
+  if (target.includes(' ')) {
+    const targetWords = target.split(/\s+/);
+    const spokenWords = spoken.split(/\s+/);
+    return targetWords.map((w, idx) => {
+      const sp = spokenWords[idx] || '';
+      const sim = calculateWordSimilarity(sp, w);
+      let status = 'token-good';
+      if (sim < 0.5) status = 'token-miss';
+      else if (sim < 0.8) status = 'token-warn';
+      return { text: w, status: status };
+    });
+  }
+
+  // Single word: Divide into phonetic chunks/syllables
+  // Basic syllabification heuristic using vowel anchors
+  const syllables = [];
+  const regex = /[^aeiouy]*[aeiouy]+(?:[^aeiouy]*$|[^aeiouy](?=[^aeiouy]))?/gi;
+  let match;
+  let lastIndex = 0;
+
+  while ((match = regex.exec(target)) !== null) {
+    syllables.push(match[0]);
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < target.length) {
+    if (syllables.length > 0) {
+      syllables[syllables.length - 1] += target.slice(lastIndex);
+    } else {
+      syllables.push(target);
+    }
+  }
+
+  if (syllables.length === 0) syllables.push(target);
+
+  // Compare spoken with each syllable chunk
+  const tokens = [];
+  let spokenRemaining = spoken.replace(/\s+/g, '');
+
+  for (let i = 0; i < syllables.length; i++) {
+    const syl = syllables[i].toLowerCase();
+    let status = 'token-good';
+
+    if (!spokenRemaining || spokenRemaining.length === 0) {
+      status = 'token-miss';
+    } else if (spokenRemaining.includes(syl)) {
+      status = 'token-good';
+      spokenRemaining = spokenRemaining.replace(syl, '');
+    } else {
+      // Check partial match
+      let matchedCount = 0;
+      for (const char of syl) {
+        if (spokenRemaining.includes(char)) {
+          matchedCount++;
+        }
+      }
+      const ratio = matchedCount / syl.length;
+      if (ratio >= 0.7) {
+        status = 'token-good';
+      } else if (ratio >= 0.35) {
+        status = 'token-warn';
+      } else {
+        status = 'token-miss';
+      }
+    }
+
+    tokens.push({ text: syllables[i], status: status });
+  }
+
+  return tokens;
+}
+
+// Generate pedagogical advice like ELSA / Duolingo
+function generateCoachPedagogicalTip(target, spoken, score, tokens, phonetic) {
+  // Check common ending sounds: -s, -es, -ed, -t, -d, -k, -th, -p, -f
+  const endingConsonants = ['s', 'es', 'ed', 't', 'd', 'k', 'p', 'th', 'f', 'ch', 'sh'];
+  let missedEndingSound = null;
+
+  for (const end of endingConsonants) {
+    if (target.endsWith(end) && !spoken.endsWith(end)) {
+      missedEndingSound = end;
+      break;
+    }
+  }
+
+  if (score >= 90) {
+    return `🎉 <b>Rất xuất sắc!</b> Bạn phát âm tròn vành rõ chữ, ngữ điệu tự nhiên đạt chuẩn người bản xứ. Tiếp tục phát huy nhé! (+15 XP)`;
+  }
+
+  if (score >= 80) {
+    if (missedEndingSound) {
+      return `👍 <b>Phát âm ổn (Đạt chuẩn)!</b> Bạn đã nói tốt phần lớn từ. Hãy chú ý bật dứt khoát âm cuối <b>/-${missedEndingSound}/</b> để đạt 100% chuẩn xác nhé!`;
+    }
+    return `👍 <b>Phát âm rất tốt!</b> Người bản xứ nghe hiểu hoàn toàn từ này. Nhấn nút "Luyện nói lại" nếu muốn thử đạt 100% nhé! (+15 XP)`;
+  }
+
+  if (score >= 50) {
+    if (missedEndingSound) {
+      return `⚡ <b>Gần đúng rồi!</b> Lỗi phổ biến nhất là <b>nuốt âm đuôi /-${missedEndingSound}/</b>. Hãy giữ khẩu hình và bật rõ âm gió ở cuối từ nhé!`;
+    }
+    const missedTokens = tokens.filter(t => t.status === 'token-miss' || t.status === 'token-warn');
+    if (missedTokens.length > 0) {
+      const missedNames = missedTokens.map(t => `"${t.text}"`).join(', ');
+      return `⚡ <b>Đạt mức gần đúng!</b> Bạn phát âm chưa rõ ở phần âm ${missedNames}. Hãy bấm <b>"Nghe chậm (0.75x)"</b> để quan sát nhịp điệu rồi nói lại nhé!`;
+    }
+    return `⚡ <b>Gần đúng!</b> Khẩu hình miệng cần mở rộng hơn một chút để nguyên âm rõ ràng. Hãy thử lại nào!`;
+  }
+
+  // Below 50%
+  return `💪 <b>Chưa đạt chuẩn!</b> Máy nghe thấy <i>"${spoken || 'chưa rõ'}"</i> thay vì <b>"${target}"</b>. Bạn hãy nhấn nút <b>"Nghe chậm (0.75x)"</b> bên dưới để luyện nghe kỹ từng âm rồi bấm micro thử lại nhé!`;
+}
+
+// Render UI with Circular SVG Gauge and Animated Counter
+function renderSpeakingEvaluation(evalResult) {
+  const resultBox = document.getElementById('speakingResultBox');
+  const statusEl = document.getElementById('speakingStatusText');
+  const circleEl = document.getElementById('speakingGaugeCircle');
+  const numberEl = document.getElementById('speakingGaugeNumber');
+  const tierEl = document.getElementById('speakingGaugeTier');
+  const verdictBadge = document.getElementById('speakingVerdictBadge');
+  const verdictIcon = document.getElementById('speakingVerdictIcon');
+  const verdictText = document.getElementById('speakingVerdictText');
+  const breakdownTokensEl = document.getElementById('speakingBreakdownTokens');
+  const recognizedTextEl = document.getElementById('speakingRecognizedText');
+  const expectedTextEl = document.getElementById('speakingExpectedText');
+  const coachTipEl = document.getElementById('speakingCoachTip');
+
+  if (resultBox) resultBox.style.display = 'block';
+
+  // 1. Update text info
+  if (statusEl) {
+    if (evalResult.score >= 80) {
+      statusEl.innerHTML = `<span style="color: #10b981; font-weight: 700;">🎉 Phát âm rất tốt (${evalResult.score}%)!</span>`;
+    } else if (evalResult.score >= 50) {
+      statusEl.innerHTML = `<span style="color: #d97706; font-weight: 700;">⚡ Gần đúng (${evalResult.score}%), thử lại để đạt 100%!</span>`;
+    } else {
+      statusEl.innerHTML = `<span style="color: #ef4444; font-weight: 700;">💪 Hãy nghe máy đọc chậm và thử lại nhé!</span>`;
+    }
+  }
+
+  if (recognizedTextEl) recognizedTextEl.textContent = `"${evalResult.spokenText || '...'}"`;
+  if (expectedTextEl) expectedTextEl.textContent = `"${evalResult.targetText}" ${evalResult.phonetic ? '(' + evalResult.phonetic + ')' : ''}`;
+  if (coachTipEl) coachTipEl.innerHTML = evalResult.coachTip;
+
+  // 2. Verdict pill badge
+  if (verdictBadge) {
+    verdictBadge.className = 'speaking-verdict-badge tier-' + evalResult.tier;
+  }
+  if (verdictIcon) {
+    verdictIcon.className = 'fa-solid ' + evalResult.verdictIcon;
+  }
+  if (verdictText) {
+    verdictText.textContent = evalResult.verdictText;
+  }
+  if (tierEl) {
+    tierEl.textContent = evalResult.tierLabel;
+    tierEl.style.color = evalResult.color;
+  }
+
+  // 3. Render Syllable / Word breakdown tokens
+  if (breakdownTokensEl) {
+    breakdownTokensEl.innerHTML = evalResult.tokens.map(token => {
+      let icon = '';
+      if (token.status === 'token-good') icon = '<i class="fa-solid fa-check" style="font-size: 0.72rem; margin-right: 4px;"></i>';
+      else if (token.status === 'token-warn') icon = '<i class="fa-solid fa-minus" style="font-size: 0.72rem; margin-right: 4px;"></i>';
+      else icon = '<i class="fa-solid fa-xmark" style="font-size: 0.72rem; margin-right: 4px;"></i>';
+      return `<span class="breakdown-token ${token.status}">${icon}${escapeHtml(token.text)}</span>`;
+    }).join('');
+  }
+
+  // 4. Animate Circular Progress Gauge & Counter Number
+  animateSpeakingGauge(evalResult.score, evalResult.color);
+
+  // 5. XP & Confetti on good score (>= 80%)
+  if (evalResult.score >= 80) {
+    triggerConfetti();
+    addXp(15);
+  }
+}
+
+// Smooth animated SVG gauge circle and numeric counter
+function animateSpeakingGauge(targetScore, colorHex) {
+  const circle = document.getElementById('speakingGaugeCircle');
+  const numberEl = document.getElementById('speakingGaugeNumber');
+  const radius = 50;
+  const circumference = 2 * Math.PI * radius; // 314.16
+
+  if (circle) {
+    circle.style.stroke = colorHex;
+    circle.style.filter = `drop-shadow(0 0 10px ${colorHex}88)`;
+    // Start at full offset (0%)
+    circle.style.strokeDashoffset = circumference;
+
+    // Force layout reflow for animation
+    void circle.offsetWidth;
+
+    // Animate to target offset
+    const targetOffset = circumference * (1 - (targetScore / 100));
+    circle.style.strokeDashoffset = targetOffset;
+  }
+
+  if (numberEl) {
+    numberEl.style.color = colorHex;
+    let currentVal = 0;
+    const duration = 850; // ms
+    const startTime = performance.now();
+
+    function updateCounter(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Cubic ease out
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const displayVal = Math.round(easeProgress * targetScore);
+      numberEl.textContent = displayVal;
+
+      if (progress < 1) {
+        requestAnimationFrame(updateCounter);
+      } else {
+        numberEl.textContent = targetScore;
+      }
+    }
+    requestAnimationFrame(updateCounter);
   }
 }
 
@@ -3127,6 +3459,15 @@ function calculateWordSimilarity(a, b) {
   const maxLen = Math.max(a.length, b.length);
   return Math.max(0, 1 - distance / maxLen);
 }
+
+// Global window exposure
+window.startVoicePractice = startVoicePractice;
+window.closeSpeakingPracticeModal = closeSpeakingPracticeModal;
+window.toggleSpeechRecording = toggleSpeechRecording;
+window.retrySpeakingRecording = retrySpeakingRecording;
+window.speakWordSlowly = speakWordSlowly;
+window.toggleBraveHelp = toggleBraveHelp;
+
 
 
 
