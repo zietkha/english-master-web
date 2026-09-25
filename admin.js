@@ -264,6 +264,99 @@ function initAdminDashboard() {
   initAdminFeedbackRealtimeSync();
   initAdminLessonTool();
   loadFounderConfig();
+  loadSystemGeminiKey();
+}
+
+async function loadSystemGeminiKey() {
+  const input = document.getElementById('adminSystemGeminiKeyInput');
+  const badge = document.getElementById('adminAiKeyStatusBadge');
+  if (!input) return;
+
+  let key = localStorage.getItem('english_master_system_gemini_key') || '';
+  if (db) {
+    try {
+      const doc = await db.collection('system').doc('config').get();
+      if (doc.exists && doc.data().geminiApiKey) {
+        key = doc.data().geminiApiKey;
+        localStorage.setItem('english_master_system_gemini_key', key);
+      }
+    } catch(e) {
+      console.warn('Load system gemini key error:', e);
+    }
+  }
+
+  if (key) {
+    input.value = key;
+    if (badge) {
+      badge.className = 'mode-badge ielts';
+      badge.style.background = '#dcfce7';
+      badge.style.color = '#15803d';
+      badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Đã kích hoạt Key dùng chung';
+    }
+  } else {
+    if (badge) {
+      badge.className = 'mode-badge tieuhoc';
+      badge.style.background = '#fef3c7';
+      badge.style.color = '#b45309';
+      badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Chưa cấu hình Key';
+    }
+  }
+}
+
+async function saveSystemGeminiKey() {
+  const input = document.getElementById('adminSystemGeminiKeyInput');
+  const badge = document.getElementById('adminAiKeyStatusBadge');
+  const key = input ? input.value.trim() : '';
+
+  if (!key) {
+    showToast('⚠️ Vui lòng nhập mã Gemini API Key (bắt đầu bằng AIzaSy...)', 'warning');
+    return;
+  }
+
+  localStorage.setItem('english_master_system_gemini_key', key);
+
+  let cloudSaved = false;
+  if (db) {
+    try {
+      await Promise.all([
+        db.collection('system').doc('config').set({ geminiApiKey: key }, { merge: true }),
+        db.collection('settings').doc('ai_config').set({ geminiApiKey: key, updatedAt: Date.now() }, { merge: true })
+      ]);
+      cloudSaved = true;
+    } catch(e) {
+      console.error('Error saving system Gemini key:', e);
+      showToast('⚠️ Lỗi lưu Firestore: ' + (e.message || e), 'danger');
+    }
+  }
+
+  try {
+    if ('BroadcastChannel' in window) {
+      const channel = new BroadcastChannel('english_master_realtime_sync');
+      channel.postMessage({ type: 'SYSTEM_GEMINI_KEY_UPDATED', key: key });
+    }
+  } catch(e) {}
+
+  if (badge) {
+    badge.className = 'mode-badge ielts';
+    badge.style.background = '#dcfce7';
+    badge.style.color = '#15803d';
+    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Đã kích hoạt toàn hệ thống';
+  }
+
+  showToast('🎉 Đã cấu hình Gemini API Key cho toàn bộ học viên thành công!');
+}
+
+function toggleAdminAiKeyVisibility() {
+  const input = document.getElementById('adminSystemGeminiKeyInput');
+  const icon = document.getElementById('adminAiKeyEyeIcon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.className = 'fa-solid fa-eye-slash';
+  } else {
+    input.type = 'password';
+    if (icon) icon.className = 'fa-solid fa-eye';
+  }
 }
 
 async function toggleMaintenanceMode() {

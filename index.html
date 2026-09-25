@@ -888,24 +888,11 @@
         <span>Trợ Lý Học Tiếng Anh AI</span>
       </div>
       <div style="display: flex; align-items: center; gap: 6px;">
-        <button type="button" class="audio-btn" onclick="toggleChatKeyBar()" title="Cài đặt Google Gemini API Key trực tiếp" style="font-size: 0.92rem; width: 32px; height: 32px; color: var(--blue);">
-          <i class="fa-solid fa-key"></i>
-        </button>
+        <span class="mode-badge ielts" style="font-size: 0.7rem; font-weight: 700; padding: 2px 8px;">
+          <i class="fa-solid fa-sparkles"></i> AI Online
+        </span>
         <button class="modal-close-btn" onclick="closeAssistantChat()"><i class="fa-solid fa-xmark"></i></button>
       </div>
-    </div>
-    
-    <!-- Custom Gemini API Key Collapsible Bar -->
-    <div id="chatApiKeyBar" style="display: none; padding: 10px 14px; background: rgba(37,99,235,0.06); border-bottom: 1px solid var(--border); font-size: 0.82rem;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <span style="font-weight: 700; color: var(--blue);"><i class="fa-solid fa-key"></i> Google Gemini API Key:</span>
-        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color: var(--blue); text-decoration: underline; font-size: 0.78rem;">Lấy key miễn phí ↗</a>
-      </div>
-      <div style="display: flex; gap: 6px;">
-        <input type="password" id="customGeminiKeyInput" class="form-input" style="padding: 6px 10px; font-size: 0.82rem; height: 32px;" placeholder="Dán mã AIzaSy... (hoặc để trống dùng mặc định)">
-        <button type="button" class="btn-primary" style="padding: 4px 12px; font-size: 0.8rem; height: 32px; white-space: nowrap;" onclick="handleSaveGeminiKey()">Lưu</button>
-      </div>
-      <div id="chatKeyStatus" style="font-size: 0.74rem; color: var(--text-muted); margin-top: 4px;">Key lưu trên trình duyệt của bạn để gọi trực tiếp tới Google AI.</div>
     </div>
 
     <div id="assistantChatMessages" class="chat-messages">

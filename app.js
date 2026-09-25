@@ -67,6 +67,7 @@ const state = {
   fcFlipped: false,
   
   aiUsageCount: parseInt(localStorage.getItem('english_master_ai_calls') || '0', 10),
+  systemGeminiApiKey: localStorage.getItem('english_master_system_gemini_key') || '',
   syncChannel: null,
   activeExploreTag: 'All',
   myLessonsTab: 'created',
@@ -685,6 +686,10 @@ function initFirebaseAndStorage() {
           if (typeof data.maintenanceMode === 'boolean') {
             applyMaintenanceModeFromFirestore(data.maintenanceMode);
           }
+          if (data.geminiApiKey) {
+            state.systemGeminiApiKey = data.geminiApiKey;
+            localStorage.setItem('english_master_system_gemini_key', data.geminiApiKey);
+          }
         }
       }, err => console.warn('Firestore system/config snapshot error:', err));
     } catch (e) {}
@@ -704,6 +709,9 @@ function initFirebaseAndStorage() {
         } else if (event.data?.type === 'MAINTENANCE_CHANGE') {
           // BUG-003: Đồng bộ nhanh giữa các tab cùng máy (Firestore onSnapshot cũng sẽ bắt sau)
           applyMaintenanceModeFromFirestore(event.data.mode);
+        } else if (event.data?.type === 'SYSTEM_GEMINI_KEY_UPDATED') {
+          state.systemGeminiApiKey = event.data.key;
+          localStorage.setItem('english_master_system_gemini_key', event.data.key);
         }
       };
     }
@@ -859,7 +867,7 @@ function setLoadingState(isLoading) {
 }
 
 async function generateWithLocalAI(text, mode, customTitle) {
-  const customKey = localStorage.getItem('gemini_api_key') || (typeof BUILTIN_GEMINI_KEY !== 'undefined' ? BUILTIN_GEMINI_KEY : '');
+  const customKey = state.systemGeminiApiKey || localStorage.getItem('english_master_system_gemini_key') || localStorage.getItem('gemini_api_key') || (typeof BUILTIN_GEMINI_KEY !== 'undefined' ? BUILTIN_GEMINI_KEY : '');
   if (customKey) {
     try {
       const prompt = `Bạn là chuyên gia giáo dục tiếng Anh hàng đầu. Hãy phân tích đoạn văn sau và tạo bài học chuẩn xác.
@@ -1614,11 +1622,7 @@ async function handleSendAssistantMsg(e) {
     : 'Bạn là trợ lý luyện thi IELTS & tiếng Anh thông minh mang tên English Kha Master AI. Hãy giải thích súc tích, chỉ ra lỗi ngữ pháp/từ vựng (nếu có), gợi ý collocation, idiom hoặc cách diễn đạt band cao (6.5 - 8.0). Khi người dùng hỏi về kỹ năng (nghe, nói, đọc, phát âm) hoặc thắc mắc tại sao không nói được, hãy ân cần giải thích và đưa ra lời khuyên cụ thể, hữu ích.';
 
   // Auto-migrate any old typo key in localStorage to BUILTIN_GEMINI_KEY
-  const storedKey = localStorage.getItem('gemini_api_key');
-  if (!storedKey || storedKey.includes('jdkWelen') || storedKey.includes('Tilu')) {
-    localStorage.setItem('gemini_api_key', BUILTIN_GEMINI_KEY);
-  }
-  const customKey = localStorage.getItem('gemini_api_key') || BUILTIN_GEMINI_KEY;
+  const customKey = state.systemGeminiApiKey || localStorage.getItem('english_master_system_gemini_key') || localStorage.getItem('gemini_api_key') || (typeof BUILTIN_GEMINI_KEY !== 'undefined' ? BUILTIN_GEMINI_KEY : '');
   let reply = '';
 
   if (customKey) {

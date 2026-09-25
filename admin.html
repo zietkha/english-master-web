@@ -332,6 +332,52 @@
       </div>
     </div>
 
+    <!-- Card 1.5: Cấu Hình Trợ Lý Gemini AI Hệ Thống (Dùng Chung Cho Toàn Bộ Học Viên) -->
+    <div class="card glass-panel" style="margin-bottom: 24px; border-color: rgba(37,99,235,0.35);">
+      <div class="card-header" style="flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="logo-icon" style="width: 36px; height: 36px; font-size: 16px; border-radius: 10px; background: linear-gradient(135deg, #2563eb, #7c3aed);">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color: #fff;"></i>
+          </div>
+          <div>
+            <h2 class="card-title" style="margin: 0; color: var(--blue);">
+              Cấu Hình Gemini AI Hệ Thống (Dùng Chung Cho Toàn Bộ Học Viên)
+            </h2>
+            <div style="font-size: 0.78rem; color: var(--text-secondary);">
+              Admin cấu hình Key 1 lần duy nhất &rarr; Toàn bộ học viên trên mọi thiết bị được dùng AI tự động!
+            </div>
+          </div>
+        </div>
+        <span id="adminAiKeyStatusBadge" class="mode-badge ielts" style="font-size: 0.76rem; font-weight: 700;">
+          <i class="fa-solid fa-shield-halved"></i> Đang tải...
+        </span>
+      </div>
+
+      <div style="padding-top: 14px; border-top: 1px solid var(--border);">
+        <p style="font-size: 0.85rem; color: var(--text-2); margin-bottom: 12px; line-height: 1.5;">
+          💡 <b>Nguyên lý hoạt động:</b> Bạn nhập Google Gemini API Key tại đây và bấm <b>"Lưu Key Cho Cả Server"</b>, hệ thống sẽ lưu lên đám mây Cloud Firestore. Khi học viên truy cập vào web trên máy tính hoặc điện thoại, khung Chat AI và Trợ lý học tập sẽ <b>tự động sử dụng Key này</b> để trả lời học viên ngay lập tức mà <b>học viên không cần phải nhập bất kỳ key nào</b>!
+        </p>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 260px; position: relative;">
+            <input type="password" id="adminSystemGeminiKeyInput" class="input-field" placeholder="Dán mã AIzaSy... của bạn vào đây" style="width: 100%; font-family: monospace; font-size: 0.88rem; padding-right: 40px;">
+            <button type="button" onclick="toggleAdminAiKeyVisibility()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer;" title="Ẩn/Hiện key">
+              <i id="adminAiKeyEyeIcon" class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+          <button type="button" class="btn-primary" onclick="saveSystemGeminiKey()" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px;">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Lưu Key Cho Cả Server
+          </button>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; padding: 10px 16px; font-size: 0.84rem;">
+            <i class="fa-solid fa-key"></i> Lấy Key Miễn Phí (Google AI Studio) ↗
+          </a>
+        </div>
+        <div id="adminAiKeyHint" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">
+          Key được lưu trữ bảo mật trên đám mây Firestore. Sau khi lưu, toàn bộ học viên khi truy cập link web đều được AI hỗ trợ 100%.
+        </div>
+      </div>
+    </div>
+
     <!-- Card 2: Trung Tâm Phản Hồi, Hỗ Trợ 1-1 & Bình Luận Thẻ Bài Học -->
     <div class="card glass-panel" style="margin-bottom: 24px;">
       <div class="card-header" style="flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
