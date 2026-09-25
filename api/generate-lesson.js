@@ -1,9 +1,66 @@
 // Vercel serverless function — runs on server, keeps API key secure.
 // Supports mode, grade (1-5), level (A1-C2), skill (reading, listening, writing, speaking)
+// FIX BUG-004: Rate limiting — max 30 lần/ngày/user, xác thực bằng Firebase ID token
+
+const AI_DAILY_LIMIT = 30;
+
+async function verifyTokenAndCheckRateLimit(req) {
+  const authHeader = req.headers.authorization || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return { error: 'Không có token xác thực.', status: 401 };
+
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    return { uid: 'anonymous', skipRateLimit: true };
+  }
+
+  let admin, decodedToken;
+  try {
+    admin = await import('firebase-admin');
+    if (!admin.default.apps.length) {
+      admin.default.initializeApp({
+        credential: admin.default.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+      });
+    }
+    decodedToken = await admin.default.auth().verifyIdToken(idToken);
+  } catch (e) {
+    return { error: 'Token không hợp lệ: ' + e.message, status: 401 };
+  }
+
+  const uid = decodedToken.uid;
+  const today = new Date().toISOString().slice(0, 10);
+
+  try {
+    const userRef = admin.default.firestore().collection('users').doc(uid);
+    const doc = await userRef.get();
+    const data = doc.exists ? doc.data() : {};
+
+    const lastCallDate = data.aiLastCallDate || '';
+    const callsToday = lastCallDate === today ? (data.aiCallsToday || 0) : 0;
+
+    if (callsToday >= AI_DAILY_LIMIT) {
+      return { error: `Bạn đã dùng hết ${AI_DAILY_LIMIT} lượt AI hôm nay. Vui lòng thử lại vào ngày mai.`, status: 429 };
+    }
+
+    await userRef.set({
+      aiCallsToday: callsToday + 1,
+      aiLastCallDate: today
+    }, { merge: true });
+  } catch (e) {
+    console.warn('Rate limit check error:', e.message);
+  }
+
+  return { uid };
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // BUG-004 FIX
+  const rateLimitResult = await verifyTokenAndCheckRateLimit(req);
+  if (rateLimitResult.error && !rateLimitResult.skipRateLimit) {
+    return res.status(rateLimitResult.status || 400).json({ error: rateLimitResult.error });
   }
 
   const { material, mode = 'ielts', grade, level, skill = 'reading' } = req.body || {};

@@ -6,7 +6,7 @@
 
 const adminState = {
   authenticatedUser: null,
-  maintenanceMode: localStorage.getItem('english_master_maintenance_mode') === 'true',
+  maintenanceMode: localStorage.getItem('english_master_maintenance_mode') === 'true', // cache tạm — Firestore là nguồn thật (BUG-003)
   aiUsageCount: parseInt(localStorage.getItem('english_master_ai_calls') || '0', 10),
   users: [],
   feedback: []
@@ -185,8 +185,8 @@ window.handleAdminEmailPasswordLogin = async function(e) {
 
 window.handleAdminDirectGoogleLogin = async function() {
   if (window.location.protocol === 'file:') {
-    alert('Google OAuth không thể chạy trên giao thức file:// cục bộ.\nVui lòng mở trang qua: http://localhost:3000/admin.html');
-    window.location.href = 'http://localhost:3000/admin.html';
+    // BUG-007 FIX: Không hardcode cổng 3000
+    alert('Google OAuth không thể chạy trên giao thức file:// cục bộ.\nVui lòng chạy qua địa chỉ http:// hoặc https:// (ví dụ: dùng live-server, vite, hoặc serve).');
     return;
   }
 
@@ -253,11 +253,25 @@ function initAdminDashboard() {
   loadFounderConfig();
 }
 
-function toggleMaintenanceMode() {
+async function toggleMaintenanceMode() {
   const toggle = document.getElementById('maintenanceToggle');
   adminState.maintenanceMode = toggle.checked;
+  // Lưu localStorage làm cache tạm (BUG-003)
   localStorage.setItem('english_master_maintenance_mode', adminState.maintenanceMode ? 'true' : 'false');
 
+  // BUG-003 FIX: Ghi trạng thái lên Firestore để đồng bộ thật cho mọi người dùng
+  if (db) {
+    try {
+      await db.collection('system').doc('config').set(
+        { maintenanceMode: adminState.maintenanceMode },
+        { merge: true }
+      );
+    } catch (fsErr) {
+      console.warn('Firestore maintenance write warning:', fsErr);
+    }
+  }
+
+  // BroadcastChannel để đồng bộ nhanh giữa các tab cùng máy
   try {
     if ('BroadcastChannel' in window) {
       const channel = new BroadcastChannel('english_master_realtime_sync');
@@ -292,34 +306,27 @@ adminState.userSearchQuery = '';
 adminState.userStatusFilter = 'all';
 
 async function loadMetricsAndUsers() {
-  let usersList = [
-    { id: 'u_admin', uid: 'u_admin', email: 'khasnlh@gmail.com', name: 'Nguyễn Viết Kha (Chủ Web)', role: 'admin', status: 'active', xp: 1200, streak: 12 },
-    { id: 'u_1', uid: 'u_1', email: 'kiet@gmail.com', name: 'Tuấn Kiệt', role: 'learner', status: 'active', xp: 680, streak: 7 },
-    { id: 'u_2', uid: 'u_2', email: 'minhanh@gmail.com', name: 'Minh Anh', role: 'learner', status: 'active', xp: 420, streak: 5 },
-    { id: 'u_3', uid: 'u_3', email: 'chau@gmail.com', name: 'Bảo Châu', role: 'learner', status: 'active', xp: 310, streak: 3 }
-  ];
+  // BUG-005 FIX: Không dùng dữ liệu giả làm fallback — bắt đầu bằng mảng rỗng
+  let usersList = [];
 
   if (db) {
     try {
       const snap = await db.collection('users').get();
-      if (!snap.empty) {
-        usersList = [];
-        snap.forEach(doc => {
-          const d = doc.data();
-          usersList.push({
-            id: doc.id,
-            uid: doc.id,
-            email: d.email || 'N/A',
-            name: d.name || 'Học viên',
-            role: d.role || 'learner',
-            status: d.status || 'active',
-            xp: d.xp || 0,
-            streak: d.streak || 1,
-            forcePasswordChange: d.forcePasswordChange || false,
-            createdAt: d.createdAt ? new Date(d.createdAt).toLocaleDateString('vi-VN') : 'Mới'
-          });
+      snap.forEach(doc => {
+        const d = doc.data();
+        usersList.push({
+          id: doc.id,
+          uid: doc.id,
+          email: d.email || 'N/A',
+          name: d.name || 'Học viên',
+          role: d.role || 'learner',
+          status: d.status || 'active',
+          xp: d.xp || 0,
+          streak: d.streak || 1,
+          forcePasswordChange: d.forcePasswordChange || false,
+          createdAt: d.createdAt ? new Date(d.createdAt).toLocaleDateString('vi-VN') : 'Mới'
         });
-      }
+      });
     } catch(e) {
       console.warn('Firestore load users warning:', e);
     }
@@ -369,8 +376,16 @@ function renderAdminUserTable() {
     return true;
   });
 
+  // BUG-005 FIX: Phân biệt "chưa có dữ liệu" với "lọc không ra kết quả"
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Không tìm thấy học viên nào khớp với bộ lọc.</td></tr>`;
+    if (adminState.allUsers.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">
+        <i class="fa-solid fa-users-slash" style="font-size:2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>
+        Chưa có dữ liệu người dùng nào trong hệ thống.
+      </td></tr>`;
+    } else {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Không tìm thấy học viên nào khớp với bộ lọc.</td></tr>`;
+    }
     return;
   }
 
@@ -457,21 +472,35 @@ async function handleAdminIssueTempPassword(uid, email) {
   currentGeneratedTempPass = tempPass;
 
   try {
-    // Call serverless manage-user endpoint if online
+    // BUG-001 FIX: Gửi Firebase ID token thật, không gửi adminEmail trong body
+    let idToken = null;
     try {
-      await fetch('/api/admin/manage-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'issue-temp-password',
-          targetUid: uid,
-          email: email,
-          temporaryPassword: tempPass,
-          adminEmail: adminState.authenticatedUser?.email || 'khasnlh@gmail.com'
-        })
-      });
-    } catch(apiErr) {
-      console.warn('API manage-user note, applying direct Firestore update:', apiErr);
+      if (auth && auth.currentUser) {
+        idToken = await auth.currentUser.getIdToken(true);
+      }
+    } catch (tokenErr) {
+      console.warn('Could not get ID token:', tokenErr);
+    }
+
+    // Call serverless manage-user endpoint if online
+    if (idToken) {
+      try {
+        await fetch('/api/admin/manage-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            action: 'issue-temp-password',
+            targetUid: uid,
+            email: email,
+            temporaryPassword: tempPass
+          })
+        });
+      } catch(apiErr) {
+        console.warn('API manage-user note, applying direct Firestore update:', apiErr);
+      }
     }
 
     // Direct Firestore update for instant persistence
@@ -529,20 +558,34 @@ async function handleAdminToggleUserStatus(uid, currentStatus) {
   if (!confirm(`Bạn có chắc muốn ${actionName} tài khoản học viên này?`)) return;
 
   try {
-    // Call serverless manage-user endpoint
+    // BUG-001 FIX: Gửi Firebase ID token thật, không gửi adminEmail trong body
+    let idToken2 = null;
     try {
-      await fetch('/api/admin/manage-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'toggle-status',
-          targetUid: uid,
-          newStatus: newStatus,
-          adminEmail: adminState.authenticatedUser?.email || 'khasnlh@gmail.com'
-        })
-      });
-    } catch(apiErr) {
-      console.warn('API toggle status note, applying direct Firestore update:', apiErr);
+      if (auth && auth.currentUser) {
+        idToken2 = await auth.currentUser.getIdToken(true);
+      }
+    } catch (tokenErr) {
+      console.warn('Could not get ID token:', tokenErr);
+    }
+
+    // Call serverless manage-user endpoint
+    if (idToken2) {
+      try {
+        await fetch('/api/admin/manage-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken2}`
+          },
+          body: JSON.stringify({
+            action: 'toggle-status',
+            targetUid: uid,
+            newStatus: newStatus
+          })
+        });
+      } catch(apiErr) {
+        console.warn('API toggle status note, applying direct Firestore update:', apiErr);
+      }
     }
 
     // Direct Firestore update

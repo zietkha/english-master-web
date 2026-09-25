@@ -495,8 +495,8 @@ async function handleSuccessfulLogin(user) {
 // Global Google Auth Handler
 window.handleGoogleAuthClick = async function() {
   if (window.location.protocol === 'file:') {
-    alert('Google OAuth không thể chạy trên giao thức file:// cục bộ.\nVui lòng mở trang qua địa chỉ: http://localhost:3000/login.html');
-    window.location.href = 'http://localhost:3000/login.html';
+    // BUG-007 FIX: Không hardcode cổng cụ thể
+    alert('Google OAuth không thể chạy trên giao thức file:// cục bộ.\nVui lòng chạy qua địa chỉ http:// hoặc https:// (ví dụ: dùng live-server, vite, hoặc serve). Không mở trực tiếp file HTML.');
     return;
   }
 

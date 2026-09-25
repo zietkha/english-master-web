@@ -1,6 +1,7 @@
 /**
  * Serverless Admin User Management Endpoint (/api/admin/manage-user.js)
- * Executes secure administration actions: reset password link, temporary password issuance, and account suspension.
+ * FIX BUG-001: Xác thực bằng Firebase ID token thật, không tin req.body
+ * FIX BUG-002: Trả lỗi thật sự khi Admin SDK thất bại, không trả success giả
  * Per Section 8.4 of PROJECT-AUDIT-AND-ROADMAP.md.
  */
 
@@ -22,12 +23,47 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { action, targetUid, email, temporaryPassword, adminEmail } = req.body || {};
+  // --- BUG-001 FIX: Xác thực ID token từ Authorization header ---
+  const authHeader = req.headers.authorization || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-  // Verify caller identification
-  if (adminEmail !== 'khasnlh@gmail.com') {
-    // In production, also verify Firebase ID token if service account is provided
+  if (!idToken) {
+    return res.status(401).json({ error: 'Không có token xác thực. Vui lòng đăng nhập lại.' });
   }
+
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    return res.status(500).json({ error: 'Server chưa cấu hình FIREBASE_SERVICE_ACCOUNT.' });
+  }
+
+  let decodedToken;
+  let adminSdkInstance;
+  try {
+    const admin = await import('firebase-admin');
+    if (!admin.default.apps.length) {
+      admin.default.initializeApp({
+        credential: admin.default.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+      });
+    }
+    adminSdkInstance = admin.default;
+    decodedToken = await admin.default.auth().verifyIdToken(idToken);
+  } catch (verifyErr) {
+    return res.status(401).json({ error: 'Token không hợp lệ hoặc đã hết hạn: ' + verifyErr.message });
+  }
+
+  // Kiểm tra quyền admin trong Firestore
+  try {
+    const userDoc = await adminSdkInstance.firestore().collection('users').doc(decodedToken.uid).get();
+    const role = userDoc.exists ? userDoc.data().role : null;
+    const isAdmin = role === 'admin' || decodedToken.email === 'khasnlh@gmail.com';
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Không có quyền thực hiện thao tác này (chỉ admin).' });
+    }
+  } catch (roleErr) {
+    return res.status(500).json({ error: 'Không thể xác minh quyền admin: ' + roleErr.message });
+  }
+  // --- Hết BUG-001 FIX ---
+
+  const { action, targetUid, email, temporaryPassword } = req.body || {};
 
   try {
     if (action === 'issue-temp-password') {
@@ -35,24 +71,17 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing targetUid or temporaryPassword' });
       }
 
-      // If FIREBASE_SERVICE_ACCOUNT is available, execute admin SDK updateUser
-      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        try {
-          const admin = await import('firebase-admin');
-          if (!admin.default.apps.length) {
-            admin.default.initializeApp({
-              credential: admin.default.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
-            });
-          }
-          await admin.default.auth().updateUser(targetUid, { password: temporaryPassword });
-          await admin.default.firestore().collection('users').doc(targetUid).update({
-            forcePasswordChange: true,
-            tempPasswordIssuedAt: Date.now()
-          });
-        } catch (adminSdkErr) {
-          console.warn('Firebase Admin SDK execution note:', adminSdkErr.message);
-        }
+      // --- BUG-002 FIX: Trả lỗi thật khi Admin SDK thất bại ---
+      try {
+        await adminSdkInstance.auth().updateUser(targetUid, { password: temporaryPassword });
+        await adminSdkInstance.firestore().collection('users').doc(targetUid).update({
+          forcePasswordChange: true,
+          tempPasswordIssuedAt: Date.now()
+        });
+      } catch (adminSdkErr) {
+        return res.status(500).json({ error: 'Không thể đặt mật khẩu tạm: ' + adminSdkErr.message });
       }
+      // --- Hết BUG-002 FIX ---
 
       return res.status(200).json({
         success: true,
@@ -68,22 +97,16 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing targetUid or newStatus' });
       }
 
-      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        try {
-          const admin = await import('firebase-admin');
-          if (!admin.default.apps.length) {
-            admin.default.initializeApp({
-              credential: admin.default.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
-            });
-          }
-          await admin.default.auth().updateUser(targetUid, { disabled: newStatus === 'suspended' });
-          await admin.default.firestore().collection('users').doc(targetUid).update({
-            status: newStatus
-          });
-        } catch (adminSdkErr) {
-          console.warn('Firebase Admin SDK toggle status note:', adminSdkErr.message);
-        }
+      // --- BUG-002 FIX: Trả lỗi thật khi Admin SDK thất bại ---
+      try {
+        await adminSdkInstance.auth().updateUser(targetUid, { disabled: newStatus === 'suspended' });
+        await adminSdkInstance.firestore().collection('users').doc(targetUid).update({
+          status: newStatus
+        });
+      } catch (adminSdkErr) {
+        return res.status(500).json({ error: 'Không thể thay đổi trạng thái tài khoản: ' + adminSdkErr.message });
       }
+      // --- Hết BUG-002 FIX ---
 
       return res.status(200).json({
         success: true,

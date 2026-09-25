@@ -1,9 +1,70 @@
 // Vercel serverless function — Dedicated AI Chat Tutor endpoint
 // Separate from /api/generate-lesson to avoid prompt/rate-limit mixing (Roadmap 10.10A)
+// FIX BUG-004: Rate limiting — max 30 lần/ngày/user, xác thực bằng Firebase ID token
+
+const AI_DAILY_LIMIT = 30;
+
+async function verifyTokenAndCheckRateLimit(req) {
+  const authHeader = req.headers.authorization || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return { error: 'Không có token xác thực.', status: 401 };
+
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Nếu chưa có service account, bỏ qua rate limit (development mode)
+    return { uid: 'anonymous', skipRateLimit: true };
+  }
+
+  let admin, decodedToken;
+  try {
+    admin = await import('firebase-admin');
+    if (!admin.default.apps.length) {
+      admin.default.initializeApp({
+        credential: admin.default.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+      });
+    }
+    decodedToken = await admin.default.auth().verifyIdToken(idToken);
+  } catch (e) {
+    return { error: 'Token không hợp lệ: ' + e.message, status: 401 };
+  }
+
+  const uid = decodedToken.uid;
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  try {
+    const userRef = admin.default.firestore().collection('users').doc(uid);
+    const doc = await userRef.get();
+    const data = doc.exists ? doc.data() : {};
+
+    const lastCallDate = data.aiLastCallDate || '';
+    const callsToday = lastCallDate === today ? (data.aiCallsToday || 0) : 0;
+
+    if (callsToday >= AI_DAILY_LIMIT) {
+      return { error: `Bạn đã dùng hết ${AI_DAILY_LIMIT} lượt AI hôm nay. Vui lòng thử lại vào ngày mai.`, status: 429 };
+    }
+
+    // Tăng biến đếm
+    await userRef.set({
+      aiCallsToday: callsToday + 1,
+      aiLastCallDate: today
+    }, { merge: true });
+
+  } catch (e) {
+    console.warn('Rate limit check error:', e.message);
+    // Nếu lỗi Firestore, cho phép tiếp tục (không block user)
+  }
+
+  return { uid };
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // BUG-004 FIX: Xác thực và kiểm tra rate limit
+  const rateLimitResult = await verifyTokenAndCheckRateLimit(req);
+  if (rateLimitResult.error && !rateLimitResult.skipRateLimit) {
+    return res.status(rateLimitResult.status || 400).json({ error: rateLimitResult.error });
   }
 
   const { message, history = [], context = {} } = req.body || {};
@@ -53,7 +114,7 @@ export default async function handler(req, res) {
   });
 
   try {
-    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+    const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
     let geminiData = null;
     let lastError = '';
 

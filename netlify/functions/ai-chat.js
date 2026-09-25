@@ -1,11 +1,62 @@
 // Netlify serverless function — Dedicated AI Chat Tutor endpoint
 // Separate from generate-lesson to avoid mixing limits/prompts (Roadmap 10.10A)
+// FIX BUG-004: Rate limiting — max 30 lần/ngày/user, xác thực bằng Firebase ID token
+
+const AI_DAILY_LIMIT = 30;
+
+async function verifyTokenAndCheckRateLimit(headers) {
+  const authHeader = (headers.authorization || headers.Authorization) || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return { error: 'Không có token xác thực.', status: 401 };
+
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    return { uid: 'anonymous', skipRateLimit: true };
+  }
+
+  let admin, decodedToken;
+  try {
+    admin = require('firebase-admin');
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+      });
+    }
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch (e) {
+    return { error: 'Token không hợp lệ: ' + e.message, status: 401 };
+  }
+
+  const uid = decodedToken.uid;
+  const today = new Date().toISOString().slice(0, 10);
+
+  try {
+    const userRef = admin.firestore().collection('users').doc(uid);
+    const doc = await userRef.get();
+    const data = doc.exists ? doc.data() : {};
+
+    const lastCallDate = data.aiLastCallDate || '';
+    const callsToday = lastCallDate === today ? (data.aiCallsToday || 0) : 0;
+
+    if (callsToday >= AI_DAILY_LIMIT) {
+      return { error: `Bạn đã dùng hết ${AI_DAILY_LIMIT} lượt AI hôm nay. Vui lòng thử lại vào ngày mai.`, status: 429 };
+    }
+
+    await userRef.set({
+      aiCallsToday: callsToday + 1,
+      aiLastCallDate: today
+    }, { merge: true });
+  } catch (e) {
+    console.warn('Rate limit check error:', e.message);
+  }
+
+  return { uid };
+}
 
 exports.handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
@@ -18,6 +69,16 @@ exports.handler = async (event) => {
       statusCode: 405,
       headers,
       body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+
+  // BUG-004 FIX: Rate limiting
+  const rateLimitResult = await verifyTokenAndCheckRateLimit(event.headers || {});
+  if (rateLimitResult.error && !rateLimitResult.skipRateLimit) {
+    return {
+      statusCode: rateLimitResult.status || 400,
+      headers,
+      body: JSON.stringify({ error: rateLimitResult.error })
     };
   }
 
@@ -77,7 +138,7 @@ exports.handler = async (event) => {
   contents.push({ role: 'user', parts: [{ text: message }] });
 
   try {
-    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+    const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
     let geminiData = null;
     let lastError = '';
 

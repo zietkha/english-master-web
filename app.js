@@ -174,9 +174,17 @@ function navigateTo(viewName, updateHash = true) {
 function checkMaintenanceMode() {
   const overlay = document.getElementById('maintenanceOverlay');
   if (overlay) {
+    // BUG-003: localStorage chỉ là cache tạm — Firestore sẽ ghi đè sau khi lấy được
     state.maintenanceMode = localStorage.getItem('english_master_maintenance_mode') === 'true';
     overlay.classList.toggle('active', state.maintenanceMode);
   }
+}
+
+function applyMaintenanceModeFromFirestore(isOn) {
+  state.maintenanceMode = isOn;
+  localStorage.setItem('english_master_maintenance_mode', isOn ? 'true' : 'false');
+  const overlay = document.getElementById('maintenanceOverlay');
+  if (overlay) overlay.classList.toggle('active', isOn);
 }
 
 /* ==========================================================================
@@ -575,6 +583,20 @@ function initFirebaseAndStorage() {
     });
   }
 
+  // BUG-003 FIX: Lắng nghe Firestore system/config để đồng bộ maintenance mode thật cho mọi người
+  if (state.db) {
+    try {
+      state.db.collection('system').doc('config').onSnapshot(doc => {
+        if (doc && doc.exists) {
+          const data = doc.data();
+          if (typeof data.maintenanceMode === 'boolean') {
+            applyMaintenanceModeFromFirestore(data.maintenanceMode);
+          }
+        }
+      }, err => console.warn('Firestore system/config snapshot error:', err));
+    } catch (e) {}
+  }
+
   // Cross-tab real-time sync channel
   try {
     if ('BroadcastChannel' in window) {
@@ -586,6 +608,9 @@ function initFirebaseAndStorage() {
           if (state.currentView === 'learn') renderLessonsList();
         } else if (event.data?.type === 'FOUNDER_CONFIG_UPDATED') {
           applyFounderConfig(event.data.data);
+        } else if (event.data?.type === 'MAINTENANCE_CHANGE') {
+          // BUG-003: Đồng bộ nhanh giữa các tab cùng máy (Firestore onSnapshot cũng sẽ bắt sau)
+          applyMaintenanceModeFromFirestore(event.data.mode);
         }
       };
     }
@@ -668,13 +693,28 @@ async function handleCreateLesson(event) {
   try {
     let generatedLesson = null;
     try {
+      // BUG-004 FIX: Gửi ID token để xác thực phía server
+      let idToken = null;
+      try {
+        if (state.auth && state.auth.currentUser) {
+          idToken = await state.auth.currentUser.getIdToken(false);
+        }
+      } catch (te) {}
       const res = await fetch('/api/generate-lesson', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+        },
         body: JSON.stringify({ material: content, mode: state.currentMode })
       });
       if (res.ok) generatedLesson = await res.json();
+      else if (res.status === 429) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Bạn đã dùng hết lượt tạo bài học AI hôm nay.');
+      }
     } catch (e) {
+      if (e.message && (e.message.includes('hết lượt') || e.message.includes('429'))) throw e;
       console.warn('Backend API unavailable, using offline engine fallback:', e);
     }
 
@@ -1541,9 +1581,19 @@ async function handleSendAssistantMsg(e) {
   } else {
     // 2. Try Serverless Endpoint /api/ai-chat
     try {
+      // BUG-004 FIX: Gửi ID token để xác thực phía server
+      let idToken = null;
+      try {
+        if (state.auth && state.auth.currentUser) {
+          idToken = await state.auth.currentUser.getIdToken(false);
+        }
+      } catch (te) {}
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
+        },
         body: JSON.stringify({
           message: text,
           history: state.chatHistory,
@@ -1554,6 +1604,9 @@ async function handleSendAssistantMsg(e) {
       if (res.ok) {
         const data = await res.json();
         reply = data.reply || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này ngay lúc này.';
+      } else if (res.status === 429) {
+        const errData = await res.json().catch(() => ({}));
+        reply = `⚠️ <b>Hết giới hạn AI</b>: ${errData.error || 'Bạn đã dùng hết lượt AI hôm nay. Vui lòng thử lại vào ngày mai.'}`;
       } else {
         reply = `⚠️ <b>Trợ lý AI chưa có Gemini API Key để xử lý trực tiếp</b>.<br><br>` +
           `👉 Bạn hãy bấm vào nút biểu tượng <b>🔑 (Chìa khóa)</b> ở góc trên khung chat và dán <b>Google Gemini API Key</b> của bạn (hoàn toàn miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue);text-decoration:underline;">aistudio.google.com</a>) để trò chuyện với AI thông minh ngay lập tức nhé!`;
