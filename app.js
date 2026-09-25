@@ -117,13 +117,13 @@ function updateLandingWelcome() {
 }
 
 function initFounderDynamicSync() {
-  // 1. Load cached config from localStorage
+  // 1. Load cached config from localStorage for instant zero-latency paint
   const cached = localStorage.getItem('english_master_founder_config');
   if (cached) {
     try { applyFounderConfig(JSON.parse(cached)); } catch(e) {}
   }
 
-  // 2. Realtime listener from Firestore (system/founder_info and settings/founder_info)
+  // 2. Realtime listener from Firestore (system/founder_info with settings/founder_info fallback)
   if (state.db) {
     try {
       state.db.collection('system').doc('founder_info').onSnapshot(doc => {
@@ -142,11 +142,29 @@ function initFounderDynamicSync() {
           }).catch(() => {});
         }
       }, err => {
-        state.db.collection('settings').doc('founder_info').onSnapshot(sdoc => {
-          if (sdoc && sdoc.exists) applyFounderConfig(sdoc.data());
-        });
+        console.warn('Firestore founder_info snapshot error, falling back to settings:', err);
+        try {
+          state.db.collection('settings').doc('founder_info').onSnapshot(sdoc => {
+            if (sdoc && sdoc.exists) {
+              const sdata = sdoc.data();
+              localStorage.setItem('english_master_founder_config', JSON.stringify(sdata));
+              applyFounderConfig(sdata);
+            }
+          });
+        } catch(e) {}
       });
-    } catch(e) {}
+    } catch(e) {
+      console.warn('initFounderDynamicSync error:', e);
+    }
+  } else {
+    // If state.db is still connecting, retry periodically until active
+    const retryTimer = setInterval(() => {
+      if (state.db) {
+        clearInterval(retryTimer);
+        initFounderDynamicSync();
+      }
+    }, 400);
+    setTimeout(() => clearInterval(retryTimer), 12000);
   }
 
   // 3. Same-browser BroadcastChannel sync for instant updates across open tabs
@@ -198,7 +216,11 @@ function applyFounderConfig(data) {
   if (fbEl && data.facebookUrl) fbEl.href = data.facebookUrl;
   if (liEl && data.linkedinUrl) liEl.href = data.linkedinUrl;
 
-  // Also update footer author name
+  // Update support modal header with current founder name
+  const supportNameEl = document.getElementById('supportAdminName');
+  if (supportNameEl && data.name) supportNameEl.textContent = data.name;
+
+  // Update footer author name everywhere
   document.querySelectorAll('.footer-author').forEach(el => {
     if (data.name) el.textContent = data.name;
   });
@@ -532,6 +554,7 @@ function initFirebaseAndStorage() {
     state.db = firebase.firestore();
     syncLessonsFromFirestore();
     initUserSupportSync();
+    initFounderDynamicSync();
   } catch (err) {
     console.warn('Firebase init error:', err);
   }

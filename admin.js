@@ -1288,6 +1288,7 @@ const DEFAULT_FOUNDER_CONFIG = {
 };
 
 let currentFounderPhotoBase64 = null;
+let currentFounderPhoto = 'founder.jpg';
 
 async function loadFounderConfig() {
   let config = { ...DEFAULT_FOUNDER_CONFIG };
@@ -1311,6 +1312,7 @@ async function loadFounderConfig() {
     }
   }
 
+  currentFounderPhoto = config.photoUrl || 'founder.jpg';
   populateFounderForm(config);
 }
 
@@ -1349,8 +1351,11 @@ function populateFounderForm(config) {
   if (fbInput) fbInput.value = config.facebookUrl || '';
   if (liInput) liInput.value = config.linkedinUrl || '';
 
-  if (config.photoUrl && config.photoUrl.startsWith('data:')) {
-    currentFounderPhotoBase64 = config.photoUrl;
+  if (config.photoUrl) {
+    currentFounderPhoto = config.photoUrl;
+    if (config.photoUrl.startsWith('data:')) {
+      currentFounderPhotoBase64 = config.photoUrl;
+    }
   }
 }
 
@@ -1385,6 +1390,7 @@ function handleAdminFounderFileSelect(event) {
       
       const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
       currentFounderPhotoBase64 = compressedDataUrl;
+      currentFounderPhoto = compressedDataUrl;
       
       const photoPreview = document.getElementById('adminFounderPhotoPreview');
       if (photoPreview) photoPreview.src = compressedDataUrl;
@@ -1404,16 +1410,17 @@ function handleAdminFounderUrlInput(event) {
   const photoPreview = document.getElementById('adminFounderPhotoPreview');
   if (url) {
     currentFounderPhotoBase64 = null;
+    currentFounderPhoto = url;
     if (photoPreview) photoPreview.src = url;
   } else {
-    if (photoPreview) photoPreview.src = currentFounderPhotoBase64 || 'founder.jpg';
+    if (photoPreview) photoPreview.src = currentFounderPhoto || 'founder.jpg';
   }
 }
 
 async function saveFounderConfig() {
   const photoUrlInput = document.getElementById('adminFounderPhotoUrlInput');
   const customUrl = photoUrlInput ? photoUrlInput.value.trim() : '';
-  const finalPhoto = customUrl || currentFounderPhotoBase64 || 'founder.jpg';
+  const finalPhoto = customUrl || currentFounderPhotoBase64 || currentFounderPhoto || 'founder.jpg';
 
   const name = (document.getElementById('adminFounderName')?.value || 'Nguyễn Viết Kha').trim();
   const roleBadge = (document.getElementById('adminFounderRoleBadge')?.value || 'Nhà Sáng Lập & Chủ Tịch CEO').trim();
@@ -1452,14 +1459,17 @@ async function saveFounderConfig() {
 
   localStorage.setItem('english_master_founder_config', JSON.stringify(configData));
 
+  let savedToFirestore = false;
   if (db) {
     try {
       await Promise.all([
         db.collection('system').doc('founder_info').set(configData, { merge: true }),
         db.collection('settings').doc('founder_info').set(configData, { merge: true })
       ]);
+      savedToFirestore = true;
     } catch(e) {
-      console.warn('Firestore save founder config error:', e);
+      console.error('Firestore save founder config error:', e);
+      showToast('⚠️ Lỗi khi lưu lên máy chủ: ' + (e.message || e), 'danger');
     }
   }
 
@@ -1470,7 +1480,11 @@ async function saveFounderConfig() {
     }
   } catch(e) {}
 
-  showToast('🎉 Đã lưu thông tin & ảnh Nhà Sáng Lập thành công lên toàn hệ thống!');
+  if (savedToFirestore) {
+    showToast('🎉 Đã đồng bộ thông tin & ảnh Nhà Sáng Lập lên toàn bộ hệ thống máy chủ!');
+  } else {
+    showToast('💾 Đã lưu cấu hình vào bộ nhớ máy!');
+  }
 }
 
 async function resetFounderConfig() {

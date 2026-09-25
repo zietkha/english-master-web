@@ -60,12 +60,12 @@ service cloud.firestore {
 
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
     match /system/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
   }
 }
