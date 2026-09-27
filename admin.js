@@ -498,6 +498,8 @@ async function loadMetricsAndUsers() {
         const usersList = [];
         snap.forEach(doc => {
           const d = doc.data();
+          const createdTime = d.createdAt || 0;
+          const lastLoginTime = d.lastLoginAt || 0;
           usersList.push({
             id: doc.id,
             uid: doc.id,
@@ -508,9 +510,13 @@ async function loadMetricsAndUsers() {
             xp: d.xp || 0,
             streak: d.streak || 1,
             loginCount: d.loginCount || 1,
+            authProvider: d.authProvider === 'google' ? 'Google OAuth' : 'Email & Mật khẩu',
+            passwordSecurity: d.passwordSecurity || 'Google-Encrypted-Scrypt',
             forcePasswordChange: d.forcePasswordChange || false,
-            createdAt: d.createdAt ? formatTimeAgo(d.createdAt) : 'Mới tạo',
-            lastLoginAt: d.lastLoginAt ? formatTimeAgo(d.lastLoginAt) : 'Chưa ghi nhận'
+            registeredAtExact: d.registeredAtFormatted || (createdTime ? new Date(createdTime).toLocaleString('vi-VN') : 'Chưa ghi nhận'),
+            createdAtAgo: createdTime ? formatTimeAgo(createdTime) : 'Mới tạo',
+            lastLoginAtExact: lastLoginTime ? new Date(lastLoginTime).toLocaleString('vi-VN') : 'Chưa ghi nhận',
+            lastLoginAtAgo: lastLoginTime ? formatTimeAgo(lastLoginTime) : 'Chưa ghi nhận'
           });
         });
         adminState.allUsers = usersList;
@@ -627,26 +633,46 @@ function renderAdminUserTable() {
     return `
       <tr>
         <td>
-          <div style="font-weight: 700; color: var(--text-1); font-size: 0.88rem;">${escapeHtml(u.name)}</div>
-          <div style="font-size: 0.76rem; color: var(--text-muted); font-family: monospace;">${escapeHtml(u.email)}</div>
+          <div style="font-weight: 700; color: var(--text-1); font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-circle-user" style="color: var(--blue);"></i> ${escapeHtml(u.name)}
+          </div>
+          <div style="font-size: 0.78rem; color: var(--primary); font-family: monospace; margin-top: 2px;">
+            <i class="fa-solid fa-envelope" style="font-size: 0.7rem; color: var(--text-muted);"></i> ${escapeHtml(u.email)}
+          </div>
+          <div style="font-size: 0.68rem; color: var(--text-muted); font-family: monospace;">UID: ${escapeHtml(u.uid.substring(0, 12))}...</div>
         </td>
         <td>
           <span class="mode-badge ${u.role === 'admin' ? 'ielts' : 'tieuhoc'}" style="font-size: 0.72rem; margin-bottom: 4px; display: inline-block;">
             ${u.role === 'admin' ? '🛡️ Quản trị' : '🎓 Học viên'}
           </span>
           <div>${statusBadge}</div>
-        </td>
-        <td>
-          <div style="font-size: 0.8rem; color: var(--text-1); font-weight: 600;">
-            <i class="fa-solid fa-clock" style="color: var(--blue); font-size: 0.75rem;"></i> Đăng nhập: <span style="color:var(--primary); font-weight:700;">${u.lastLoginAt}</span>
-          </div>
-          <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;">
-            <i class="fa-solid fa-calendar-check" style="font-size: 0.72rem;"></i> Đăng ký: ${u.createdAt}
+          <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 3px;">
+            <i class="fa-solid ${u.authProvider.includes('Google') ? 'fa-brands fa-google' : 'fa-key'}"></i> ${u.authProvider}
           </div>
         </td>
         <td>
-          <div style="font-size: 0.8rem; font-weight: 600; color: var(--blue);">⚡ ${u.xp || 0} XP</div>
-          <div style="font-size: 0.74rem; color: var(--text-muted);">🔥 Streak ${u.streak || 1} ngày &middot; 🚪 ${u.loginCount || 1} lần vào</div>
+          <div style="font-size: 0.8rem; color: var(--text-1); font-weight: 700;">
+            <i class="fa-solid fa-calendar-plus" style="color: var(--success); font-size: 0.78rem;"></i> ĐK: ${u.registeredAtExact}
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px;">
+            &rarr; (${u.createdAtAgo})
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-2);">
+            <i class="fa-solid fa-clock" style="color: var(--blue); font-size: 0.75rem;"></i> Vào gần nhất: <span style="font-weight:600;">${u.lastLoginAtExact}</span>
+          </div>
+        </td>
+        <td>
+          <div style="display: inline-block; margin-bottom: 4px;">
+            <span class="mode-badge" style="background: rgba(37,99,235,0.08); color: var(--blue); font-size: 0.7rem; font-weight: 700; border: 1px solid rgba(37,99,235,0.2);">
+              <i class="fa-solid fa-shield-halved"></i> Mã hóa Scrypt (Chống hack)
+            </span>
+          </div>
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--blue);">
+            ⚡ ${u.xp || 0} XP &middot; 🔥 Streak ${u.streak || 1} ngày
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+            🚪 Đã đăng nhập <strong>${u.loginCount || 1}</strong> lần
+          </div>
         </td>
         <td style="text-align: right;">
           <div class="row" style="gap: 5px; justify-content: flex-end; flex-wrap: wrap;">

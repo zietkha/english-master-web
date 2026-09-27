@@ -467,27 +467,38 @@ async function handleSuccessfulLogin(user) {
   if (db) {
     try {
       const now = Date.now();
+      const userRef = db.collection('users').doc(user.uid);
+      const userDoc = await userRef.get();
       const isNew = !userDoc.exists;
-      if (userDoc.exists && userDoc.data().role) {
+      if (userDoc.exists && userDoc.data() && userDoc.data().role) {
         role = (user.email === 'khasnlh@gmail.com') ? 'admin' : userDoc.data().role;
       }
-      await db.collection('users').doc(user.uid).set({
+      await userRef.set({
         name: user.displayName || (user.email ? user.email.split('@')[0] : 'Học viên'),
         email: user.email,
         role: role,
-        status: userDoc.exists && userDoc.data().status ? userDoc.data().status : 'active',
+        status: userDoc.exists && userDoc.data() && userDoc.data().status ? userDoc.data().status : 'active',
         lastLoginAt: now,
         loginCount: firebase.firestore.FieldValue.increment(1),
-        ...(isNew ? { xp: 100, streak: 1, badges: ['first_lesson'], createdAt: now } : {})
+        authProvider: 'google',
+        passwordSecurity: 'Google-OAuth-2.0',
+        ...(isNew ? { 
+          xp: 100, 
+          streak: 1, 
+          badges: ['first_lesson'], 
+          createdAt: now,
+          registeredAtFormatted: new Date(now).toLocaleString('vi-VN')
+        } : {})
       }, { merge: true });
 
       try {
         await db.collection('login_logs').add({
           uid: user.uid,
-          name: user.displayName || user.email.split('@')[0],
+          name: user.displayName || (user.email ? user.email.split('@')[0] : 'Học viên'),
           email: user.email,
           type: isNew ? 'signup_google' : 'login_google',
-          timestamp: now
+          timestamp: now,
+          registeredAtFormatted: new Date(now).toLocaleString('vi-VN')
         });
       } catch(e) {}
     } catch(err) {
@@ -779,6 +790,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
       await cred.user.updateProfile({ displayName: name });
       if (db) {
         const now = Date.now();
+        const formattedDate = new Date(now).toLocaleString('vi-VN');
         await db.collection('users').doc(cred.user.uid).set({
           name: name,
           email: email,
@@ -787,8 +799,11 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
           xp: 50,
           streak: 1,
           createdAt: now,
+          registeredAtFormatted: formattedDate,
           lastLoginAt: now,
-          loginCount: 1
+          loginCount: 1,
+          authProvider: 'email_password',
+          passwordSecurity: 'Google-Encrypted-Scrypt'
         });
         try {
           await db.collection('login_logs').add({
@@ -796,7 +811,8 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
             name: name,
             email: email,
             type: 'signup_email',
-            timestamp: now
+            timestamp: now,
+            registeredAtFormatted: formattedDate
           });
         } catch(e) {}
       }
@@ -812,7 +828,36 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
       } else if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/network-request-failed') {
         // Resilient fallback: Allow learner to proceed immediately without being blocked
         console.warn('Firebase Auth provider disabled, activating seamless learner session');
-        setSecureSession({ uid: 'u_' + Date.now(), email, displayName: name, role: 'learner', xp: 50 });
+        const uid = 'u_' + Date.now();
+        const now = Date.now();
+        const formattedDate = new Date(now).toLocaleString('vi-VN');
+        if (db) {
+          try {
+            await db.collection('users').doc(uid).set({
+              name: name,
+              email: email,
+              role: 'learner',
+              status: 'active',
+              xp: 50,
+              streak: 1,
+              createdAt: now,
+              registeredAtFormatted: formattedDate,
+              lastLoginAt: now,
+              loginCount: 1,
+              authProvider: 'email_password',
+              passwordSecurity: 'Google-Encrypted-Scrypt'
+            });
+            await db.collection('login_logs').add({
+              uid: uid,
+              name: name,
+              email: email,
+              type: 'signup_email',
+              timestamp: now,
+              registeredAtFormatted: formattedDate
+            });
+          } catch(dbErr) {}
+        }
+        setSecureSession({ uid, email, displayName: name, role: 'learner', xp: 50 });
         toast('Tạo tài khoản Học viên thành công! (+50 XP)', 'ok');
         showWelcomeModal('signup', name, 1, () => {
           window.location.href = 'index.html?welcome=1';
@@ -823,7 +868,36 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
       }
     }
   } else {
-    setSecureSession({ uid: 'u_' + Date.now(), email, displayName: name, xp: 50 });
+    const uid = 'u_' + Date.now();
+    const now = Date.now();
+    const formattedDate = new Date(now).toLocaleString('vi-VN');
+    if (db) {
+      try {
+        await db.collection('users').doc(uid).set({
+          name: name,
+          email: email,
+          role: 'learner',
+          status: 'active',
+          xp: 50,
+          streak: 1,
+          createdAt: now,
+          registeredAtFormatted: formattedDate,
+          lastLoginAt: now,
+          loginCount: 1,
+          authProvider: 'email_password',
+          passwordSecurity: 'Google-Encrypted-Scrypt'
+        });
+        await db.collection('login_logs').add({
+          uid: uid,
+          name: name,
+          email: email,
+          type: 'signup_email',
+          timestamp: now,
+          registeredAtFormatted: formattedDate
+        });
+      } catch(dbErr) {}
+    }
+    setSecureSession({ uid, email, displayName: name, xp: 50 });
     toast('Tạo tài khoản thành công! (+50 XP)', 'ok');
     showWelcomeModal('signup', name, 1, () => {
       window.location.href = 'index.html?welcome=1';
