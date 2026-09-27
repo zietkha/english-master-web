@@ -46,13 +46,8 @@ const state = {
   db: null,
   maintenanceMode: localStorage.getItem('english_master_maintenance_mode') === 'true',
   
-  // Public Leaderboard State (Managed securely via Firebase Auth and Firestore, no plaintext passwords)
-  users: [
-    { id: 'u_admin', name: 'Nguyễn Viết Kha (Chủ Web)', email: 'admin@gmail.com', role: 'admin', xp: 1200, streak: 12, badges: ['first_lesson', 'streak_7', 'vocab_master'], bookmarks: [] },
-    { id: 'u_1', name: 'Tuấn Kiệt', email: 'kiet@gmail.com', role: 'learner', xp: 680, streak: 7, badges: ['first_lesson', 'streak_7'], bookmarks: [] },
-    { id: 'u_2', name: 'Minh Anh', email: 'minhanh@gmail.com', role: 'learner', xp: 420, streak: 5, badges: ['first_lesson'], bookmarks: [] },
-    { id: 'u_3', name: 'Bảo Châu', email: 'chau@gmail.com', role: 'learner', xp: 310, streak: 3, badges: ['first_lesson'], bookmarks: [] }
-  ],
+  // Public Leaderboard State (Synchronized in real-time with Firestore users collection)
+  users: [],
   currentUser: JSON.parse(localStorage.getItem('english_master_current_user') || 'null'),
   feedback: JSON.parse(localStorage.getItem('english_master_feedback') || '[]'),
   
@@ -556,6 +551,7 @@ function initFirebaseAndStorage() {
     syncLessonsFromFirestore();
     initUserSupportSync();
     initFounderDynamicSync();
+    syncLeaderboardFromFirestore();
   } catch (err) {
     console.warn('Firebase init error:', err);
   }
@@ -1117,22 +1113,71 @@ function filterExploreTag(tag) {
   renderExploreGrid();
 }
 
+function syncLeaderboardFromFirestore() {
+  if (!state.db) return;
+  try {
+    state.db.collection('users').onSnapshot(snap => {
+      const realUsers = [];
+      snap.forEach(doc => {
+        const d = doc.data();
+        realUsers.push({
+          id: doc.id,
+          uid: doc.id,
+          name: d.name || 'Học viên',
+          email: d.email || '',
+          role: d.role || 'learner',
+          xp: d.xp || 0,
+          streak: d.streak || 1,
+          badges: d.badges || ['first_lesson'],
+          stats: d.stats || {
+            totalOnlineSeconds: d.totalOnlineSeconds || 0,
+            attendanceDates: d.attendanceDates || [],
+            lessonsCompleted: d.lessonsCompleted || 0
+          }
+        });
+      });
+      state.users = realUsers;
+      if (state.currentView === 'leaderboard') {
+        renderLeaderboard();
+      }
+    }, err => {
+      console.warn('Leaderboard realtime sync error:', err);
+    });
+  } catch(e) {
+    console.warn('Leaderboard sync error:', e);
+  }
+}
+
 function renderLeaderboard() {
   const tbody = document.getElementById('leaderboardTbody');
   if (!tbody) return;
 
-  const currentUid = state.currentUser ? state.currentUser.id : null;
+  const currentUid = state.currentUser ? (state.currentUser.id || state.currentUser.uid) : null;
 
-  // Sync current user's live study time into state.users if present
+  // Clone users from real database state
+  let displayUsers = [...state.users];
+
+  // If current logged-in user is not yet in the Firestore list (e.g. offline or newly registered), include them
   if (state.currentUser) {
-    const me = state.users.find(u => u.id === state.currentUser.id || (state.currentUser.email && u.email === state.currentUser.email));
-    if (me) {
-      me.xp = state.currentUser.xp || me.xp;
-      me.stats = state.currentUser.stats || me.stats;
+    const existingIndex = displayUsers.findIndex(u => u.id === currentUid || (state.currentUser.email && u.email === state.currentUser.email));
+    if (existingIndex >= 0) {
+      displayUsers[existingIndex].xp = Math.max(displayUsers[existingIndex].xp || 0, state.currentUser.xp || 0);
+      displayUsers[existingIndex].streak = Math.max(displayUsers[existingIndex].streak || 1, state.currentUser.streak || 1);
+    } else {
+      displayUsers.push({
+        id: currentUid || 'me',
+        name: state.currentUser.name || state.currentUser.displayName || 'Bạn',
+        email: state.currentUser.email || '',
+        role: state.currentUser.role || 'learner',
+        xp: state.currentUser.xp || 50,
+        streak: state.currentUser.streak || 1,
+        badges: state.currentUser.badges || ['first_lesson'],
+        stats: state.currentUser.stats || { totalOnlineSeconds: 60, attendanceDates: [new Date().toISOString().slice(0, 10)], lessonsCompleted: 1 }
+      });
     }
   }
 
-  const sortedUsers = [...state.users].sort((a, b) => {
+  const sortedUsers = displayUsers.sort((a, b) => {
     const aDays = a.stats?.attendanceDates?.length || (a.streak || 1);
     const bDays = b.stats?.attendanceDates?.length || (b.streak || 1);
     const aXp = a.xp || 0;
@@ -1141,21 +1186,48 @@ function renderLeaderboard() {
     return bDays - aDays;
   });
 
+  const podium1Name = document.getElementById('podium1Name');
+  const podium1Xp = document.getElementById('podium1Xp');
+  const podium2Name = document.getElementById('podium2Name');
+  const podium2Xp = document.getElementById('podium2Xp');
+  const podium3Name = document.getElementById('podium3Name');
+  const podium3Xp = document.getElementById('podium3Xp');
+
   if (sortedUsers[0]) {
-    document.getElementById('podium1Name').textContent = sortedUsers[0].name;
-    document.getElementById('podium1Xp').textContent = `${sortedUsers[0].xp || 0} XP`;
+    if (podium1Name) podium1Name.textContent = sortedUsers[0].name;
+    if (podium1Xp) podium1Xp.textContent = `${sortedUsers[0].xp || 0} XP`;
+  } else {
+    if (podium1Name) podium1Name.textContent = 'Chờ Quán quân';
+    if (podium1Xp) podium1Xp.textContent = '0 XP';
   }
+
   if (sortedUsers[1]) {
-    document.getElementById('podium2Name').textContent = sortedUsers[1].name;
-    document.getElementById('podium2Xp').textContent = `${sortedUsers[1].xp || 0} XP`;
+    if (podium2Name) podium2Name.textContent = sortedUsers[1].name;
+    if (podium2Xp) podium2Xp.textContent = `${sortedUsers[1].xp || 0} XP`;
+  } else {
+    if (podium2Name) podium2Name.textContent = 'Chờ cập nhật';
+    if (podium2Xp) podium2Xp.textContent = '0 XP';
   }
+
   if (sortedUsers[2]) {
-    document.getElementById('podium3Name').textContent = sortedUsers[2].name;
-    document.getElementById('podium3Xp').textContent = `${sortedUsers[2].xp || 0} XP`;
+    if (podium3Name) podium3Name.textContent = sortedUsers[2].name;
+    if (podium3Xp) podium3Xp.textContent = `${sortedUsers[2].xp || 0} XP`;
+  } else {
+    if (podium3Name) podium3Name.textContent = 'Chờ cập nhật';
+    if (podium3Xp) podium3Xp.textContent = '0 XP';
+  }
+
+  if (sortedUsers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 36px;">
+      <i class="fa-solid fa-trophy" style="font-size: 2.4rem; color: #f59e0b; margin-bottom: 12px; display: block; opacity: 0.85;"></i>
+      <div style="font-weight: 700; font-size: 1.05rem; color: var(--text-1); margin-bottom: 6px;">Chưa có học viên nào trên Bảng Xếp Hạng!</div>
+      <p style="font-size: 0.88rem; color: var(--text-secondary);">Hãy tạo tài khoản và hoàn thành bài học đầu tiên để chiếm ngôi Quán Quân #1!</p>
+    </td></tr>`;
+    return;
   }
 
   tbody.innerHTML = sortedUsers.map((u, idx) => {
-    const onlineSecs = u.stats?.totalOnlineSeconds || (idx === 0 ? 14200 : idx === 1 ? 8400 : 3600);
+    const onlineSecs = u.stats?.totalOnlineSeconds || 60;
     const attendanceCount = u.stats?.attendanceDates?.length || u.streak || 1;
     const completedCount = u.stats?.lessonsCompleted || Math.max(1, Math.floor((u.xp || 50) / 45));
     const isMe = currentUid && (u.id === currentUid || (state.currentUser?.email && u.email === state.currentUser.email));
@@ -1170,9 +1242,9 @@ function renderLeaderboard() {
         <td style="text-align: center;">${rankBadge}</td>
         <td style="text-align: left;">
           <div class="leaderboard-user-cell">
-            <div class="leaderboard-avatar">${escapeHtml(u.name.charAt(0).toUpperCase())}</div>
+            <div class="leaderboard-avatar">${escapeHtml((u.name || 'H').charAt(0).toUpperCase())}</div>
             <div class="leaderboard-user-meta">
-              <span class="leaderboard-user-name">${escapeHtml(u.name)}</span>
+              <span class="leaderboard-user-name">${escapeHtml(u.name || 'Học viên')}</span>
               ${isMe ? '<span class="badge-you">Bạn</span>' : ''}
             </div>
           </div>
