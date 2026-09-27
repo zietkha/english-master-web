@@ -12,11 +12,59 @@ function formatTimeAgo(ts) {
 }
 
 /**
- * English Kha Master — Admin Portal Controller (admin.js)
- * Secure role-gated administration: System Maintenance, Feedback & Report Inbox, and Metrics.
- * No hardcoded PINs. No exposed API keys.
+ * ==============================================================================
+ * 🌟 ENGLISH KHA MASTER — BỘ ĐIỀU HÀNH BẢNG QUẢN TRỊ ADMIN (ADMIN.JS)
+ * ==============================================================================
+ * Tác giả: Nguyễn Viết Kha (English Kha Master)
+ * File này quản lý toàn bộ hệ thống Admin:
+ *   [1] CẤU HÌNH ADMIN DỄ DÀNG (Thêm/bớt Email quản trị viên tại đây)
+ *   [2] PHÂN QUYỀN TRUY CẬP (Bảo mật, chặn người lạ vào trang quản trị)
+ *   [3] CẤU HÌNH GEMINI AI HỆ THỐNG (Lưu API Key 1 lần cho mọi học viên)
+ *   [4] CHẾ ĐỘ BẢO TRÌ WEBSITE (Bật/tắt bảo trì theo thời gian thực)
+ *   [5] THÔNG TIN & ẢNH ĐẠI DIỆN FOUNDER (Đổi ảnh và chữ ở trang chủ)
+ *   [6] QUẢN LÝ HỌC VIÊN (Xem lịch sử đăng ký, đăng nhập, cấp lại mật khẩu)
+ *   [7] HÒM THƯ PHẢN HỒI & NHẮN TIN 1-1 (Nhắn tin trực tiếp với học viên)
+ *   [8] CÔNG CỤ TẠO BÀI HỌC MỚI (Thêm bài học vào hệ thống)
+ * ==============================================================================
  */
 
+/* ==============================================================================
+   👉 KHU VỰC 1: CẤU HÌNH DỄ DÀNG CHO CHỦ WEB (BẠN CHỈNH TẠI ĐÂY)
+   ============================================================================== */
+const ADMIN_CONFIG = {
+  // 1. Danh sách Email có toàn quyền vào Bảng Quản Trị (Admin):
+  //    👉 Bạn muốn thêm người quản trị khác, chỉ cần thêm dấu phẩy và ghi email vào danh sách dưới:
+  ADMIN_EMAILS: [
+    'khasnlh@gmail.com'
+    // 'admin_phu@gmail.com', // <- Thêm email admin mới vào đây nếu muốn
+  ],
+
+  // 2. Tên hiển thị mặc định của Quản Trị Viên:
+  DEFAULT_ADMIN_NAME: 'Nguyễn Viết Kha (Chủ Web)',
+
+  // 3. Tên bảng dữ liệu trên Cloud Firebase Firestore:
+  COLLECTIONS: {
+    SYSTEM: 'system',           // Bảng chứa cấu hình chung (doc: 'config')
+    USERS: 'users',             // Bảng danh sách học viên
+    FEEDBACK: 'feedback',       // Bảng thư phản hồi & nhắn tin 1-1
+    LOGIN_LOGS: 'login_logs',   // Bảng ghi nhật ký đăng nhập thời gian thực
+    LESSONS: 'lessons'          // Bảng kho bài học
+  }
+};
+
+/**
+ * Hàm kiểm tra xem 1 email có thuộc danh sách Admin hay không
+ * @param {string} email - Email cần kiểm tra
+ * @returns {boolean} - true nếu là Admin, false nếu là người dùng thường
+ */
+function isAdminEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  return ADMIN_CONFIG.ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email.trim().toLowerCase());
+}
+
+/* ==============================================================================
+   👉 KHU VỰC 2: KHỞI TẠO BIẾN TRẠNG THÁI & KẾT NỐI DATABASE (FIREBASE)
+   ============================================================================== */
 const adminState = {
   authenticatedUser: null,
   maintenanceMode: localStorage.getItem('english_master_maintenance_mode') === 'true', // cache tạm — Firestore là nguồn thật (BUG-003)
@@ -25,7 +73,7 @@ const adminState = {
   feedback: []
 };
 
-// Standard Firebase config
+// Cấu hình kết nối Firebase Cloud
 const firebaseConfig = {
   apiKey: "AIzaSyBOJe78VT2g6K4gGwduK8Jh8ON7eWuyWzI",
   authDomain: "english-kha-master.firebaseapp.com",
@@ -48,19 +96,23 @@ try {
   console.warn('Firebase init error in admin portal:', e);
 }
 
+// Khi trang Admin tải xong -> Kiểm tra quyền Admin ngay lập tức
 document.addEventListener('DOMContentLoaded', () => {
   initAdminTheme();
   verifyAdminAccess();
 });
 
-// Role-based Access Gate: Requires Firebase Auth + Firestore role === 'admin'
+/* ==============================================================================
+   👉 KHU VỰC 3: PHÂN QUYỀN TRUY CẬP (ROLE-BASED ACCESS CONTROL)
+   Chỉ cho phép tài khoản Admin trong ADMIN_CONFIG hoặc role === 'admin' vào xem
+   ============================================================================== */
 function verifyAdminAccess() {
-  // Check cached session first for instant seamless access
+  // Kiểm tra phiên đăng nhập đã lưu trong máy để vào trang ngay lập tức
   const cached = localStorage.getItem('english_master_current_user');
   if (cached) {
     try {
       const u = JSON.parse(cached);
-      if (u && (u.email === 'khasnlh@gmail.com' || u.role === 'admin')) {
+      if (u && (isAdminEmail(u.email) || u.role === 'admin')) {
         adminState.authenticatedUser = u;
         grantAccess();
       }
@@ -80,7 +132,7 @@ function verifyAdminAccess() {
       return;
     }
 
-    let isAdmin = (user.email === 'khasnlh@gmail.com');
+    let isAdmin = isAdminEmail(user.email);
     if (!isAdmin && db) {
       try {
         const doc = await db.collection('users').doc(user.uid).get();
@@ -96,7 +148,7 @@ function verifyAdminAccess() {
       adminState.authenticatedUser = {
         uid: user.uid,
         email: user.email,
-        name: user.displayName || 'Nguyễn Viết Kha (Chủ Web)',
+        name: user.displayName || ADMIN_CONFIG.DEFAULT_ADMIN_NAME,
         role: 'admin'
       };
       localStorage.setItem('english_master_current_user', JSON.stringify(adminState.authenticatedUser));
@@ -107,18 +159,24 @@ function verifyAdminAccess() {
   });
 }
 
+// Mở khóa giao diện Admin
 function grantAccess() {
-  document.getElementById('adminAccessDenied').style.display = 'none';
-  document.getElementById('adminMainContent').style.display = 'block';
+  const deniedEl = document.getElementById('adminAccessDenied');
+  const mainEl = document.getElementById('adminMainContent');
+  if (deniedEl) deniedEl.style.display = 'none';
+  if (mainEl) mainEl.style.display = 'block';
   initAdminDashboard();
 }
 
+// Chặn truy cập nếu không phải Admin
 function denyAccess() {
-  document.getElementById('adminAccessDenied').style.display = 'block';
-  document.getElementById('adminMainContent').style.display = 'none';
+  const deniedEl = document.getElementById('adminAccessDenied');
+  const mainEl = document.getElementById('adminMainContent');
+  if (deniedEl) deniedEl.style.display = 'block';
+  if (mainEl) mainEl.style.display = 'none';
 }
 
-// Email & Password Login Handler for Admin
+// Xử lý Form đăng nhập Email & Mật khẩu dành cho Admin
 window.handleAdminEmailPasswordLogin = async function(e) {
   if (e) e.preventDefault();
   const emailInput = document.getElementById('adminLoginEmail');
@@ -150,12 +208,12 @@ window.handleAdminEmailPasswordLogin = async function(e) {
     } catch(err) {
       console.warn('Admin email sign-in check:', err.code);
 
-      // If author credentials match admin
-      if (email === 'khasnlh@gmail.com') {
+      // Nếu email thuộc danh sách Admin trong ADMIN_CONFIG
+      if (isAdminEmail(email)) {
         const adminUser = {
           uid: 'u_admin_' + Date.now(),
-          email: 'khasnlh@gmail.com',
-          name: 'Nguyễn Viết Kha (Chủ Web)',
+          email: email,
+          name: ADMIN_CONFIG.DEFAULT_ADMIN_NAME,
           role: 'admin',
           xp: 1200
         };
@@ -180,11 +238,11 @@ window.handleAdminEmailPasswordLogin = async function(e) {
       }
     }
   } else {
-    if (email === 'khasnlh@gmail.com') {
+    if (isAdminEmail(email)) {
       const adminUser = {
         uid: 'u_admin',
-        email: 'khasnlh@gmail.com',
-        name: 'Nguyễn Viết Kha (Chủ Web)',
+        email: email,
+        name: ADMIN_CONFIG.DEFAULT_ADMIN_NAME,
         role: 'admin'
       };
       localStorage.setItem('english_master_current_user', JSON.stringify(adminUser));
@@ -255,18 +313,27 @@ window.handleAdminDirectGoogleLogin = async function() {
   }
 };
 
+/* ==============================================================================
+   👉 KHU VỰC 4: KHỞI TẠO BẢNG ĐIỀU KHIỂN & TẢI DỮ LIỆU HỆ THỐNG
+   ============================================================================== */
 function initAdminDashboard() {
   const toggle = document.getElementById('maintenanceToggle');
   if (toggle) toggle.checked = adminState.maintenanceMode;
   updateMaintenanceTitleText();
 
-  loadMetricsAndUsers();
-  initAdminFeedbackRealtimeSync();
-  initAdminLessonTool();
-  loadFounderConfig();
-  loadSystemGeminiKey();
+  // Tải đồng bộ tất cả các module
+  loadMetricsAndUsers();          // Tải danh sách học viên & lịch sử
+  initAdminFeedbackRealtimeSync(); // Tải hòm thư phản hồi & chat 1-1
+  initAdminLessonTool();           // Tải công cụ tạo bài học
+  loadFounderConfig();             // Tải thông tin & ảnh người sáng lập
+  loadSystemGeminiKey();           // Tải cấu hình Gemini AI hệ thống
 }
 
+/* ==============================================================================
+   👉 KHU VỰC 5: CẤU HÌNH GEMINI AI TOÀN HỆ THỐNG (DÙNG CHUNG CHO MỌI HỌC VIÊN)
+   Admin chỉ cần dán API Key vào đây 1 lần, toàn bộ học viên sẽ dùng được trợ lý AI
+   ============================================================================== */
+// Tải Key Gemini AI từ Cloud Firestore hoặc bộ nhớ máy
 async function loadSystemGeminiKey() {
   const input = document.getElementById('adminSystemGeminiKeyInput');
   const badge = document.getElementById('adminAiKeyStatusBadge');
@@ -275,7 +342,7 @@ async function loadSystemGeminiKey() {
   let key = localStorage.getItem('english_master_system_gemini_key') || '';
   if (db) {
     try {
-      const doc = await db.collection('system').doc('config').get();
+      const doc = await db.collection(ADMIN_CONFIG.COLLECTIONS.SYSTEM).doc('config').get();
       if (doc.exists && doc.data().geminiApiKey) {
         key = doc.data().geminiApiKey;
         localStorage.setItem('english_master_system_gemini_key', key);
@@ -303,6 +370,7 @@ async function loadSystemGeminiKey() {
   }
 }
 
+// Lưu Key Gemini AI lên Cloud Firestore và đồng bộ cho tất cả tab / học viên
 async function saveSystemGeminiKey() {
   const input = document.getElementById('adminSystemGeminiKeyInput');
   const badge = document.getElementById('adminAiKeyStatusBadge');
@@ -319,7 +387,7 @@ async function saveSystemGeminiKey() {
   if (db) {
     try {
       await Promise.all([
-        db.collection('system').doc('config').set({ geminiApiKey: key }, { merge: true }),
+        db.collection(ADMIN_CONFIG.COLLECTIONS.SYSTEM).doc('config').set({ geminiApiKey: key }, { merge: true }),
         db.collection('settings').doc('ai_config').set({ geminiApiKey: key, updatedAt: Date.now() }, { merge: true })
       ]);
       cloudSaved = true;
@@ -346,6 +414,7 @@ async function saveSystemGeminiKey() {
   showToast('🎉 Đã cấu hình Gemini API Key cho toàn bộ học viên thành công!');
 }
 
+// Ẩn / hiện mã API Key dạng mật khẩu
 function toggleAdminAiKeyVisibility() {
   const input = document.getElementById('adminSystemGeminiKeyInput');
   const icon = document.getElementById('adminAiKeyEyeIcon');
@@ -359,16 +428,20 @@ function toggleAdminAiKeyVisibility() {
   }
 }
 
+/* ==============================================================================
+   👉 KHU VỰC 6: CHẾ ĐỘ BẢO TRÌ WEBSITE (THEO THỜI GIAN THỰC)
+   Bật công tắc -> Toàn bộ học viên truy cập web sẽ thấy bảng thông báo nâng cấp
+   ============================================================================== */
 async function toggleMaintenanceMode() {
   const toggle = document.getElementById('maintenanceToggle');
   adminState.maintenanceMode = toggle.checked;
-  // Lưu localStorage làm cache tạm (BUG-003)
+  // Lưu localStorage làm cache tạm
   localStorage.setItem('english_master_maintenance_mode', adminState.maintenanceMode ? 'true' : 'false');
 
-  // BUG-003 FIX: Ghi trạng thái lên Firestore để đồng bộ thật cho mọi người dùng
+  // Ghi trạng thái lên Firestore để đồng bộ thật sự cho mọi người dùng
   if (db) {
     try {
-      await db.collection('system').doc('config').set(
+      await db.collection(ADMIN_CONFIG.COLLECTIONS.SYSTEM).doc('config').set(
         { maintenanceMode: adminState.maintenanceMode },
         { merge: true }
       );
@@ -407,6 +480,10 @@ function updateMaintenanceTitleText() {
   }
 }
 
+/* ==============================================================================
+   👉 KHU VỰC 7: QUẢN LÝ HỌC VIÊN, LỊCH SỬ ĐĂNG NHẬP & CẤP MẬT KHẨU
+   Hiển thị danh sách học viên, tìm kiếm, lọc trạng thái, cấp mật khẩu tạm
+   ============================================================================== */
 adminState.allUsers = [];
 adminState.userSearchQuery = '';
 adminState.userStatusFilter = 'all';
@@ -417,7 +494,7 @@ async function loadMetricsAndUsers() {
   if (db) {
     try {
       if (usersUnsubscribe) usersUnsubscribe();
-      usersUnsubscribe = db.collection('users').onSnapshot(snap => {
+      usersUnsubscribe = db.collection(ADMIN_CONFIG.COLLECTIONS.USERS).onSnapshot(snap => {
         const usersList = [];
         snap.forEach(doc => {
           const d = doc.data();
@@ -789,6 +866,10 @@ function switchAdminFeedbackTab(tab) {
   }
 }
 
+/* ==============================================================================
+   👉 KHU VỰC 8: HÒM THƯ PHẢN HỒI, BÁO CÁO LỖI & NHẮN TIN 1-1 VỚI HỌC VIÊN
+   Admin có thể xem các tin nhắn trợ giúp, bình luận bài học và trả lời trực tiếp
+   ============================================================================== */
 function refreshAdminFeedbackAndComments() {
   initAdminFeedbackRealtimeSync();
   showToast('🔄 Đã tải lại hòm thư phản hồi & bình luận!');
@@ -1021,10 +1102,10 @@ async function deleteAdminFeedback(id) {
   }
 }
 
-/* ==========================================================================
-   Section 10.7: Admin Content Tool With AI Assist & Firestore Seeder
-   ========================================================================== */
-
+/* ==============================================================================
+   👉 KHU VỰC 9: CÔNG CỤ TẠO BÀI HỌC MỚI VÀ ĐỒNG BỘ NỘI DUNG (LESSON BUILDER)
+   Thêm bài học IELTS hoặc Tiểu học, hỗ trợ soạn thảo bài học tự động
+   ============================================================================== */
 adminState.lessons = { ielts: [], tieuhoc: [] };
 
 function initAdminLessonTool() {
@@ -1357,10 +1438,10 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-/* ==========================================================================
-   Founder / CEO Information & Avatar Customizer Controller
-   ========================================================================== */
-
+/* ==============================================================================
+   👉 KHU VỰC 10: THÔNG TIN & ẢNH ĐẠI DIỆN FOUNDER (NGƯỜI SÁNG LẬP)
+   Đổi ảnh đại diện, danh xưng, tiểu sử và đồng bộ tức thì lên trang chủ học viên
+   ============================================================================== */
 const DEFAULT_FOUNDER_CONFIG = {
   photoUrl: 'founder.jpg',
   name: 'Nguyễn Viết Kha',
