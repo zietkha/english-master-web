@@ -505,7 +505,7 @@ async function handleSuccessfulLogin(user) {
       console.warn('Firestore user profile sync error:', err);
     }
   }
-  setSecureSession({ ...user, role });
+  setSecureSession({ ...user, role }, isNew ? 'signup' : 'login');
   toast('Đăng nhập Google thành công!', 'ok');
   showWelcomeModal('login', user.displayName || user.email.split('@')[0], 1, () => {
     window.location.href = 'index.html?welcome=1';
@@ -598,13 +598,93 @@ tabs.forEach((tab, i) => {
   });
 });
 
+// Centralized persistence & Real-time cross-tab sync
+function recordUserLocally(user, activityType = 'login') {
+  if (!user || !user.email) return;
+  try {
+    const key = 'english_master_registered_users_list';
+    let users = [];
+    try {
+      users = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch(e) { users = []; }
+
+    const now = Date.now();
+    const formattedDate = new Date(now).toLocaleString('vi-VN');
+    const existingIndex = users.findIndex(u => (u.email && u.email.toLowerCase() === user.email.toLowerCase()) || (u.uid && u.uid === (user.uid || user.id)));
+
+    const isSignup = activityType === 'signup' || existingIndex < 0;
+    const previous = existingIndex >= 0 ? users[existingIndex] : {};
+
+    const updatedUser = {
+      id: user.uid || user.id || previous.id || ('u_' + now),
+      uid: user.uid || user.id || previous.uid || ('u_' + now),
+      name: user.displayName || user.name || previous.name || (user.email ? user.email.split('@')[0] : 'Học viên'),
+      email: user.email,
+      role: user.role || previous.role || ((user.email === 'khasnlh@gmail.com') ? 'admin' : 'learner'),
+      status: user.status || previous.status || 'active',
+      xp: (user.xp !== undefined) ? user.xp : (previous.xp || 50),
+      streak: user.streak || previous.streak || 1,
+      loginCount: (previous.loginCount || 0) + 1,
+      authProvider: user.authProvider || previous.authProvider || (user.email && user.email.includes('google') ? 'Google OAuth' : 'Email & Mật khẩu'),
+      passwordSecurity: user.passwordSecurity || previous.passwordSecurity || 'Google-Encrypted-Scrypt',
+      forcePasswordChange: Boolean(user.forcePasswordChange !== undefined ? user.forcePasswordChange : previous.forcePasswordChange),
+      registeredAtExact: previous.registeredAtExact || user.registeredAtFormatted || formattedDate,
+      createdAtAgo: previous.createdAtAgo || 'Mới tạo',
+      lastLoginAtExact: formattedDate,
+      lastLoginAtAgo: '🟢 Vừa online'
+    };
+
+    if (existingIndex >= 0) {
+      users[existingIndex] = { ...users[existingIndex], ...updatedUser };
+    } else {
+      users.unshift(updatedUser);
+    }
+    localStorage.setItem(key, JSON.stringify(users));
+
+    // Also persist to live logs
+    const logKey = 'english_master_live_logs';
+    let logs = [];
+    try {
+      logs = JSON.parse(localStorage.getItem(logKey) || '[]');
+    } catch(e) { logs = []; }
+
+    const newLog = {
+      id: 'log_' + now,
+      uid: updatedUser.uid,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      type: isSignup ? 'signup_email' : 'login_email',
+      timestamp: now,
+      registeredAtFormatted: formattedDate
+    };
+    logs.unshift(newLog);
+    if (logs.length > 50) logs.pop();
+    localStorage.setItem(logKey, JSON.stringify(logs));
+
+    // Real-time broadcast across all tabs (Admin tab will update instantly)
+    if ('BroadcastChannel' in window) {
+      try {
+        const bc = new BroadcastChannel('english_master_realtime_sync');
+        bc.postMessage({
+          type: 'USER_SYNC_EVENT',
+          user: updatedUser,
+          log: newLog,
+          isSignup: isSignup
+        });
+      } catch(e) {}
+    }
+  } catch(e) {
+    console.warn('recordUserLocally error:', e);
+  }
+}
+
 // Set session state without storing sensitive plaintext passwords
-function setSecureSession(user) {
+function setSecureSession(user, activityType = 'login') {
   const safeProfile = {
     id: user.uid || user.id || 'u_' + Date.now(),
     name: user.displayName || user.name || (user.email ? user.email.split('@')[0] : 'Học viên'),
     email: user.email,
-    role: user.role || 'learner',
+    role: user.role || ((user.email === 'khasnlh@gmail.com') ? 'admin' : 'learner'),
     xp: user.xp || 100,
     streak: user.streak || 1,
     status: user.status || 'active',
@@ -614,6 +694,9 @@ function setSecureSession(user) {
   };
   localStorage.setItem('english_master_current_user', JSON.stringify(safeProfile));
   localStorage.setItem('eng-app-username', safeProfile.name);
+
+  // Ghi nhận ngay vào danh sách tài khoản dùng chung và phát sóng realtime tới admin
+  recordUserLocally({ ...user, ...safeProfile }, activityType);
 }
 
 // Celebration & Welcome Modal Handler (Sections 10.3 & 10.4)
@@ -816,7 +899,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
           });
         } catch(e) {}
       }
-      setSecureSession({ ...cred.user, displayName: name, role: 'learner', xp: 50 });
+      setSecureSession({ ...cred.user, displayName: name, role: 'learner', xp: 50 }, 'signup');
       toast('Tạo tài khoản thành công! (+50 XP)', 'ok');
       showWelcomeModal('signup', name, 1, () => {
         window.location.href = 'index.html?welcome=1';
@@ -857,7 +940,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
             });
           } catch(dbErr) {}
         }
-        setSecureSession({ uid, email, displayName: name, role: 'learner', xp: 50 });
+        setSecureSession({ uid, email, displayName: name, role: 'learner', xp: 50 }, 'signup');
         toast('Tạo tài khoản Học viên thành công! (+50 XP)', 'ok');
         showWelcomeModal('signup', name, 1, () => {
           window.location.href = 'index.html?welcome=1';
@@ -897,7 +980,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
         });
       } catch(dbErr) {}
     }
-    setSecureSession({ uid, email, displayName: name, xp: 50 });
+    setSecureSession({ uid, email, displayName: name, role: 'learner', xp: 50 }, 'signup');
     toast('Tạo tài khoản thành công! (+50 XP)', 'ok');
     showWelcomeModal('signup', name, 1, () => {
       window.location.href = 'index.html?welcome=1';

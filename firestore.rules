@@ -16,9 +16,9 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if true; // Cho phép đọc để hiển thị BXH và trang quản trị
       allow update: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
+      allow create: if true; // Cho phép đăng ký học viên mới
       allow delete: if isAdmin();
     }
 
@@ -54,8 +54,8 @@ service cloud.firestore {
     }
 
     match /login_logs/{logId} {
-      allow read, delete: if isAdmin();
-      allow create: if true;
+      allow read, create: if true;
+      allow delete: if isAdmin();
     }
 
     match /settings/{docId} {

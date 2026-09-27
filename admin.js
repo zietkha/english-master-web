@@ -489,18 +489,98 @@ adminState.userSearchQuery = '';
 adminState.userStatusFilter = 'all';
 
 let usersUnsubscribe = null;
+let realtimeSyncChannel = null;
+
+// Tải và lưu danh sách người dùng lưu trữ cục bộ
+function getLocalRegisteredUsers() {
+  try {
+    const raw = localStorage.getItem('english_master_registered_users_list');
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) {
+    return [];
+  }
+}
+
+function saveLocalRegisteredUsers(users) {
+  try {
+    localStorage.setItem('english_master_registered_users_list', JSON.stringify(users));
+  } catch(e) {}
+}
+
+// Khởi tạo kênh Real-time Broadcast giữa các tab (Login <-> Admin)
+function setupRealtimeUserSyncListener() {
+  if (realtimeSyncChannel) return;
+  if ('BroadcastChannel' in window) {
+    try {
+      realtimeSyncChannel = new BroadcastChannel('english_master_realtime_sync');
+      realtimeSyncChannel.onmessage = (event) => {
+        const data = event.data;
+        if (!data) return;
+        if (data.type === 'USER_SYNC_EVENT' && data.user) {
+          const u = data.user;
+          const idx = adminState.allUsers.findIndex(item => (item.email && item.email.toLowerCase() === u.email.toLowerCase()) || item.uid === u.uid);
+          if (idx >= 0) {
+            adminState.allUsers[idx] = { ...adminState.allUsers[idx], ...u };
+          } else {
+            adminState.allUsers.unshift(u);
+          }
+          renderAdminUserTable();
+
+          if (data.log) {
+            prependLiveLogEntry(data.log);
+          }
+
+          showToast(`⚡ Học viên "${u.name || u.email}" vừa ${data.isSignup ? 'đăng ký tài khoản' : 'đăng nhập'}!`, 'info');
+        }
+      };
+    } catch(e) {
+      console.warn('BroadcastChannel init error:', e);
+    }
+  }
+}
 
 async function loadMetricsAndUsers() {
+  setupRealtimeUserSyncListener();
+
+  // 1. Tải ngay lập tức từ Local Storage để Admin thấy dữ liệu ngay không bị trễ
+  const localUsers = getLocalRegisteredUsers();
+  const rootAdmin = {
+    id: (adminState.authenticatedUser && adminState.authenticatedUser.uid) || 'u_admin',
+    uid: (adminState.authenticatedUser && adminState.authenticatedUser.uid) || 'u_admin',
+    name: (adminState.authenticatedUser && adminState.authenticatedUser.name) || ADMIN_CONFIG.DEFAULT_ADMIN_NAME,
+    email: (adminState.authenticatedUser && adminState.authenticatedUser.email) || 'khasnlh@gmail.com',
+    role: 'admin',
+    status: 'active',
+    xp: 1200,
+    streak: 12,
+    loginCount: 1,
+    authProvider: 'Email & Mật khẩu (Admin)',
+    passwordSecurity: 'Google-Encrypted-Scrypt',
+    forcePasswordChange: false,
+    registeredAtExact: '2024 · TP. Hồ Chí Minh',
+    createdAtAgo: 'Chủ hệ thống',
+    lastLoginAtExact: new Date().toLocaleString('vi-VN'),
+    lastLoginAtAgo: '🟢 Đang online'
+  };
+
+  const initialList = [...localUsers];
+  if (!initialList.some(u => u.email === rootAdmin.email)) {
+    initialList.unshift(rootAdmin);
+  }
+  adminState.allUsers = initialList;
+  renderAdminUserTable();
+
+  // 2. Đồng bộ Firestore nếu có kết nối
   if (db) {
     try {
       if (usersUnsubscribe) usersUnsubscribe();
       usersUnsubscribe = db.collection(ADMIN_CONFIG.COLLECTIONS.USERS).onSnapshot(snap => {
-        const usersList = [];
+        const firestoreMap = new Map();
         snap.forEach(doc => {
           const d = doc.data();
           const createdTime = d.createdAt || 0;
           const lastLoginTime = d.lastLoginAt || 0;
-          usersList.push({
+          firestoreMap.set(doc.id, {
             id: doc.id,
             uid: doc.id,
             email: d.email || 'N/A',
@@ -519,117 +599,123 @@ async function loadMetricsAndUsers() {
             lastLoginAtAgo: lastLoginTime ? formatTimeAgo(lastLoginTime) : 'Chưa ghi nhận'
           });
         });
-        // Ensure Root Admin is included in the list
-        if (adminState.authenticatedUser && !usersList.some(u => u.email === adminState.authenticatedUser.email)) {
-          usersList.unshift({
-            id: adminState.authenticatedUser.uid || 'u_admin',
-            uid: adminState.authenticatedUser.uid || 'u_admin',
-            name: adminState.authenticatedUser.name || ADMIN_CONFIG.DEFAULT_ADMIN_NAME,
-            email: adminState.authenticatedUser.email || 'khasnlh@gmail.com',
-            role: 'admin',
-            status: 'active',
-            xp: 1200,
-            streak: 12,
-            loginCount: 1,
-            authProvider: 'Email & Mật khẩu (Admin)',
-            passwordSecurity: 'Google-Encrypted-Scrypt',
-            forcePasswordChange: false,
-            registeredAtExact: '2024 · TP. Hồ Chí Minh',
-            createdAtAgo: 'Chủ hệ thống',
-            lastLoginAtExact: new Date().toLocaleString('vi-VN'),
-            lastLoginAtAgo: '🟢 Đang online'
-          });
+
+        // Hợp nhất Firestore và Local Storage
+        const currentLocals = getLocalRegisteredUsers();
+        const mergedList = [];
+        const seenEmails = new Set();
+
+        for (const [uid, u] of firestoreMap.entries()) {
+          mergedList.push(u);
+          if (u.email && u.email !== 'N/A') seenEmails.add(u.email.toLowerCase());
         }
-        adminState.allUsers = usersList;
+
+        for (const loc of currentLocals) {
+          if (loc.email && !seenEmails.has(loc.email.toLowerCase())) {
+            mergedList.push(loc);
+            seenEmails.add(loc.email.toLowerCase());
+          }
+        }
+
+        if (!mergedList.some(u => u.email === rootAdmin.email)) {
+          mergedList.unshift(rootAdmin);
+        }
+
+        adminState.allUsers = mergedList;
+        saveLocalRegisteredUsers(mergedList.filter(u => u.email !== rootAdmin.email));
         renderAdminUserTable();
       }, err => {
-        console.warn('Users realtime snapshot error:', err);
-        // Fallback: If Firestore rules block unauthenticated reads, ensure Admin user is displayed
-        if (adminState.allUsers.length === 0 && adminState.authenticatedUser) {
-          adminState.allUsers = [{
-            id: adminState.authenticatedUser.uid || 'u_admin',
-            uid: adminState.authenticatedUser.uid || 'u_admin',
-            name: adminState.authenticatedUser.name || ADMIN_CONFIG.DEFAULT_ADMIN_NAME,
-            email: adminState.authenticatedUser.email || 'khasnlh@gmail.com',
-            role: 'admin',
-            status: 'active',
-            xp: 1200,
-            streak: 12,
-            loginCount: 1,
-            authProvider: 'Email & Mật khẩu (Admin)',
-            passwordSecurity: 'Google-Encrypted-Scrypt',
-            forcePasswordChange: false,
-            registeredAtExact: '2024 · TP. Hồ Chí Minh',
-            createdAtAgo: 'Chủ hệ thống',
-            lastLoginAtExact: new Date().toLocaleString('vi-VN'),
-            lastLoginAtAgo: '🟢 Đang online'
-          }];
-          renderAdminUserTable();
-        }
+        console.warn('Users realtime snapshot error, continuing with local persistence:', err);
       });
     } catch(e) {
       console.warn('Firestore load users warning:', e);
     }
-  } else {
-    if (adminState.authenticatedUser) {
-      adminState.allUsers = [{
-        id: adminState.authenticatedUser.uid || 'u_admin',
-        uid: adminState.authenticatedUser.uid || 'u_admin',
-        name: adminState.authenticatedUser.name || ADMIN_CONFIG.DEFAULT_ADMIN_NAME,
-        email: adminState.authenticatedUser.email || 'khasnlh@gmail.com',
-        role: 'admin',
-        status: 'active',
-        xp: 1200,
-        streak: 12,
-        loginCount: 1,
-        authProvider: 'Email & Mật khẩu (Admin)',
-        passwordSecurity: 'Google-Encrypted-Scrypt',
-        forcePasswordChange: false,
-        registeredAtExact: '2024 · TP. Hồ Chí Minh',
-        createdAtAgo: 'Chủ hệ thống',
-        lastLoginAtExact: new Date().toLocaleString('vi-VN'),
-        lastLoginAtAgo: '🟢 Đang online'
-      }];
-      renderAdminUserTable();
-    }
   }
+
   initAdminLiveLoginLogs();
 }
 
 let logsUnsubscribe = null;
+
+function renderLiveLogsList(logs) {
+  const container = document.getElementById('adminLiveLogsList');
+  if (!container) return;
+  if (!logs || logs.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:12px;">Chưa có lịch sử đăng nhập nào được ghi nhận.</div>';
+    return;
+  }
+  container.innerHTML = logs.map(l => {
+    const isSignup = l.type && l.type.includes('signup');
+    const badgeColor = isSignup ? '#10b981' : '#3b82f6';
+    const typeLabel = isSignup ? '🎉 ĐĂNG KÝ MỚI' : '🔑 ĐĂNG NHẬP';
+    const timeStr = l.timestamp ? new Date(l.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + new Date(l.timestamp).toLocaleDateString('vi-VN') : '';
+    return `
+      <div style="padding: 6px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+        <div>
+          <span style="background:${badgeColor}22; color:${badgeColor}; font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-right:6px;">${typeLabel}</span>
+          <strong style="color:var(--text-1); font-size:0.82rem;">${escapeHtml(l.name || 'Học viên')}</strong>
+          <span style="color:var(--text-muted); font-size:0.75rem;">(${escapeHtml(l.email || '')})</span>
+        </div>
+        <span style="color:var(--text-muted); font-size:0.72rem; white-space:nowrap;">${timeStr}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function prependLiveLogEntry(newLog) {
+  const container = document.getElementById('adminLiveLogsList');
+  if (!container || !newLog) return;
+  const isSignup = newLog.type && newLog.type.includes('signup');
+  const badgeColor = isSignup ? '#10b981' : '#3b82f6';
+  const typeLabel = isSignup ? '🎉 ĐĂNG KÝ MỚI' : '🔑 ĐĂNG NHẬP';
+  const timeStr = newLog.timestamp ? new Date(newLog.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + new Date(newLog.timestamp).toLocaleDateString('vi-VN') : '';
+
+  const div = document.createElement('div');
+  div.style.cssText = 'padding: 6px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px;';
+  div.innerHTML = `
+    <div>
+      <span style="background:${badgeColor}22; color:${badgeColor}; font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-right:6px;">${typeLabel}</span>
+      <strong style="color:var(--text-1); font-size:0.82rem;">${escapeHtml(newLog.name || 'Học viên')}</strong>
+      <span style="color:var(--text-muted); font-size:0.75rem;">(${escapeHtml(newLog.email || '')})</span>
+    </div>
+    <span style="color:var(--text-muted); font-size:0.72rem; white-space:nowrap;">${timeStr}</span>
+  `;
+  if (container.firstElementChild && container.firstElementChild.textContent.includes('Chưa có lịch sử')) {
+    container.innerHTML = '';
+  }
+  container.insertBefore(div, container.firstChild);
+}
+
 function initAdminLiveLoginLogs() {
   const container = document.getElementById('adminLiveLogsList');
-  if (!container || !db) return;
+  if (!container) return;
 
+  let localLogs = [];
   try {
-    if (logsUnsubscribe) logsUnsubscribe();
-    logsUnsubscribe = db.collection('login_logs').orderBy('timestamp', 'desc').limit(25).onSnapshot(snap => {
-      if (snap.empty) {
-        container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:12px;">Chưa có lịch sử đăng nhập nào được ghi nhận.</div>';
-        return;
-      }
-      const logs = [];
-      snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
-      container.innerHTML = logs.map(l => {
-        const isSignup = l.type && l.type.includes('signup');
-        const badgeColor = isSignup ? '#10b981' : '#3b82f6';
-        const typeLabel = isSignup ? '🎉 ĐĂNG KÝ MỚI' : '🔑 ĐĂNG NHẬP';
-        const timeStr = l.timestamp ? new Date(l.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + new Date(l.timestamp).toLocaleDateString('vi-VN') : '';
-        return `
-          <div style="padding: 6px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <div>
-              <span style="background:${badgeColor}22; color:${badgeColor}; font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-right:6px;">${typeLabel}</span>
-              <strong style="color:var(--text-1); font-size:0.82rem;">${escapeHtml(l.name || 'Học viên')}</strong>
-              <span style="color:var(--text-muted); font-size:0.75rem;">(${escapeHtml(l.email || '')})</span>
-            </div>
-            <span style="color:var(--text-muted); font-size:0.72rem; white-space:nowrap;">${timeStr}</span>
-          </div>
-        `;
-      }).join('');
-    }, err => {
-      console.warn('Live logs listener warning:', err);
-    });
+    localLogs = JSON.parse(localStorage.getItem('english_master_live_logs') || '[]');
   } catch(e) {}
+  renderLiveLogsList(localLogs);
+
+  if (db) {
+    try {
+      if (logsUnsubscribe) logsUnsubscribe();
+      logsUnsubscribe = db.collection('login_logs').orderBy('timestamp', 'desc').limit(25).onSnapshot(snap => {
+        if (!snap.empty) {
+          const fsLogs = [];
+          snap.forEach(doc => fsLogs.push({ id: doc.id, ...doc.data() }));
+          const combined = [...fsLogs];
+          const seenTimestamps = new Set(fsLogs.map(l => l.timestamp));
+          for (const ll of localLogs) {
+            if (!seenTimestamps.has(ll.timestamp)) combined.push(ll);
+          }
+          combined.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+          renderLiveLogsList(combined.slice(0, 30));
+        }
+      }, err => {
+        console.warn('Live logs listener warning, using local logs:', err);
+      });
+    } catch(e) {}
+  }
 }
 
 function handleAdminUserSearch(e) {
@@ -835,9 +921,17 @@ async function handleAdminIssueTempPassword(uid, email) {
       }, { merge: true });
     }
 
-    // Update in-memory state
+    // Update in-memory and local storage state
     const user = adminState.allUsers.find(u => u.uid === uid);
-    if (user) user.forcePasswordChange = true;
+    if (user) {
+      user.forcePasswordChange = true;
+      const localUsers = getLocalRegisteredUsers();
+      const lIdx = localUsers.findIndex(item => item.uid === uid || item.email === user.email);
+      if (lIdx >= 0) {
+        localUsers[lIdx].forcePasswordChange = true;
+        saveLocalRegisteredUsers(localUsers);
+      }
+    }
     renderAdminUserTable();
 
     // Show result modal with copy button
@@ -919,9 +1013,17 @@ async function handleAdminToggleUserStatus(uid, currentStatus) {
       }, { merge: true });
     }
 
-    // Update in-memory state
+    // Update in-memory and local storage state
     const user = adminState.allUsers.find(u => u.uid === uid);
-    if (user) user.status = newStatus;
+    if (user) {
+      user.status = newStatus;
+      const localUsers = getLocalRegisteredUsers();
+      const lIdx = localUsers.findIndex(item => item.uid === uid || item.email === user.email);
+      if (lIdx >= 0) {
+        localUsers[lIdx].status = newStatus;
+        saveLocalRegisteredUsers(localUsers);
+      }
+    }
     renderAdminUserTable();
 
     showToast(`✅ Đã ${actionName.toLowerCase()} tài khoản học viên thành công.`);
